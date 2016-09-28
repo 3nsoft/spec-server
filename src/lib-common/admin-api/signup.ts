@@ -1,0 +1,91 @@
+/*
+ Copyright (C) 2015 - 2016 3NSoft Inc.
+ 
+ This program is free software: you can redistribute it and/or modify it under
+ the terms of the GNU General Public License as published by the Free Software
+ Foundation, either version 3 of the License, or (at your option) any later
+ version.
+ 
+ This program is distributed in the hope that it will be useful, but
+ WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ See the GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License along with
+ this program. If not, see <http://www.gnu.org/licenses/>. */
+
+/**
+ * This defines interfaces for signup to 3NWeb.com's services.
+ */
+
+import { JsonKey } from '../jwkeys';
+
+// XXX REPLACE this signup api with users' api which is a proper part of a home
+//		server. 
+
+export let ERR_SC = {
+	duplicate: 475,
+	malformed: 400
+};
+Object.freeze(ERR_SC);
+
+export module isAvailable {
+	
+	export let URL_END = 'is-available';
+	
+	export interface Request {
+		userId: string;
+	}
+	
+	export let SC = {
+		ok: 200,
+		userAlreadyExists: 473
+	};
+	Object.freeze(SC);
+	
+}
+Object.freeze(isAvailable);
+
+export module availableAddressesForName {
+	
+	export let URL_END = 'available-addresses-for-name';
+	
+	export interface Request {
+		name: string;
+	}
+	
+	export let SC = {
+		ok: 200
+	};
+	Object.freeze(SC);
+	
+}
+Object.freeze(availableAddressesForName);
+
+export module addUser {
+	
+	export let URL_END = 'add';
+	
+	export interface Request {
+		userId: string;
+		mailerId: {
+			pkey: JsonKey;
+			params: any;
+		};
+		storage: {
+			params: any;
+		};
+	}
+	
+	export let SC = isAvailable.SC;
+	
+}
+Object.freeze(addUser);
+
+
+export interface ErrorReply {
+	error: string;
+}
+
+
+Object.freeze(exports);

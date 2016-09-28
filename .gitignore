@@ -1,0 +1,8 @@
+/node_modules/
+/dist/
+/build/
+/.idea/
+/.vscode/
+/test-data/
+/mock-data/
+/npm-debug.log

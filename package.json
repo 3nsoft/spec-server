@@ -1,0 +1,37 @@
+{
+  "name": "3nweb-spec-server",
+  "private": true,
+  "version": "0.1.4",
+  "description": "3NWeb spec server.",
+  "main": "build/for-now-missing-server.js",
+  "scripts": {
+    "test": "tsc && node build/tests/jasmine.js",
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": " "
+  },
+  "keywords": [
+    "3NWeb",
+    "server",
+    "ASMail",
+    "MailerId",
+    "3NStorage"
+  ],
+  "author": {
+    "name": "3NSoft Inc.",
+    "url": "https://3nsoft.com",
+    "email": "hq@3nsoft.com"
+  },
+  "license": "GPL-3.0",
+  "dependencies": {
+    "ecma-nacl": "^2.4.0",
+    "express": "^4.12.3"
+  },
+  "devDependencies": {
+    "jasmine": "^2.4.1",
+    "xhr2": "^0.1.3"
+  },
+  "readmeFilename": "README.md"
+}
