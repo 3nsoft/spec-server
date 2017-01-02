@@ -106,6 +106,8 @@ export async function doMailerIdLogin(loginUrl: string, user: User):
 		sessionId
 	};
 	let serviceDomain = parseUrl(loginUrl).hostname;
+	if (!serviceDomain) { throw new Error(
+		`Cannot parse hostname from login url ${loginUrl}`); }
 	let req: authSession.Request = {
 		assertion: midSigner.generateAssertionFor(
 			serviceDomain, sessionId),

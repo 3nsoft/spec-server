@@ -25,7 +25,7 @@ import { Request } from '../../../lib-server/routes/sessions/start';
  * @return an error message string, if an error has been found in given
  * transaction parameters.
  */
-function lookForError(trans: api.Request): string {
+function lookForError(trans: api.Request): string|undefined {
 	let sizes = trans.sizes;
 	if (!sizes || (typeof sizes !== 'object') ||
 			(typeof sizes.header !== 'number') || (sizes.header < 1) ||
@@ -62,6 +62,7 @@ function lookForError(trans: api.Request): string {
 			return 'Bad diff parameter';
 		}
 	}
+	return;
 }
 
 export function startTransaction(root: boolean,

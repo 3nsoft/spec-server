@@ -24,7 +24,7 @@ import { mkdirSync, writeFileSync } from 'fs';
 import { base64urlSafe, utf8 } from '../../lib-common/buffer-utils';
 import * as jwk from '../../lib-common/jwkeys';
 import * as nacl from 'ecma-nacl';
-import * as adminApi from '../../lib-common/admin-api/users';
+import { UserMidParams } from '../../lib-common/admin-api/signup';
 import { bind } from '../../lib-common/binding';
 import { checkAndTransformAddress, toCanonicalAddress }
 	from '../../lib-common/canonical-address';
@@ -35,26 +35,42 @@ export const SC = {
 };
 Object.freeze(SC);
 
-export interface UserMidParams extends adminApi.updateUserMailerId.Request { }
-
 export interface UserStorageParams {
 	params: any;
 }
 
 const MID_KEY_USE = 'login-pub-key';
 
-export function validateUserMidParams(params: UserMidParams): boolean {
-	let ok = ('object' === typeof params) && !!params &&
-			jwk.isLikeJsonKey(params.pkey) &&
-			(typeof params.params === 'object') && !!params.params;
+function checkDefaultMidKeyParams(params: UserMidParams): boolean {
+	let ok = ('object' === typeof params.defaultPKey) && !!params.defaultPKey &&
+		jwk.isLikeJsonKey(params.defaultPKey.pkey) &&
+		(typeof params.defaultPKey.params === 'object') &&
+		!!params.defaultPKey.params;
 	if (!ok) { return false; }
 	try {
-		jwk.keyFromJson(params.pkey, MID_KEY_USE,
+		jwk.keyFromJson(params.defaultPKey.pkey, MID_KEY_USE,
 			nacl.box.JWK_ALG_NAME, nacl.box.KEY_LENGTH);
 		return true;
 	} catch (err) {
 		return false;
 	}
+}
+
+export function validateUserMidParams(params: UserMidParams): boolean {
+	let ok = ('object' === typeof params) && !!params &&
+		checkDefaultMidKeyParams(params) && Array.isArray(params.otherPKeys) &&
+		(params.otherPKeys.length > 0);
+	if (!ok) { return false; }
+	for (let pkey of params.otherPKeys) {
+		try {
+			jwk.keyFromJson(pkey, MID_KEY_USE,
+				nacl.box.JWK_ALG_NAME, nacl.box.KEY_LENGTH);
+		} catch (err) {
+			return false;
+		}
+		if (!pkey.kid) { return false; }
+	}
+	return true;
 }
 
 export function validateUserStorageParams(params: UserStorageParams): boolean {

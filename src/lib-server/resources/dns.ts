@@ -43,7 +43,8 @@ interface DnsError extends Error {
  * value from TXT record.
  * @return string value for a given service among given dns TXT records.  
  */
-function extractPair(txtRecords: string[][], serviceLabel: string): string {
+function extractPair(txtRecords: string[][], serviceLabel: string):
+		string|undefined {
 	for (let txtRecord of txtRecords) {
 		let txt = txtRecord.join(' ');
 		let eqPos = txt.indexOf('=');

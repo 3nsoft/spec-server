@@ -104,13 +104,13 @@ async function genMsgIdAndMakeFolder(delivPath: string, msgsFolder: string):
 export class Inbox extends UserFiles {
 	
 	constructor(userId: string, path: string,
-			writeBufferSize: string|number, readBufferSize: string|number) {
+			writeBufferSize?: string|number, readBufferSize?: string|number) {
 		super(userId, path, writeBufferSize, readBufferSize);
 		Object.freeze(this);
 	}
 	
 	static async make(rootFolder: string, userId: string,
-			writeBufferSize: string|number, readBufferSize: string|number):
+			writeBufferSize?: string|number, readBufferSize?: string|number):
 			Promise<Inbox> {
 		let path = rootFolder+'/'+addressToFName(userId)+'/mail';
 		let inbox = new Inbox(userId, path, writeBufferSize, readBufferSize);
@@ -207,7 +207,7 @@ export class Inbox extends UserFiles {
 	 * Rejected promise may pass a string error code from SC.
 	 */
 	async saveObjChunk(msgId: string, objId: string, fileHeader: boolean,
-			allocateFile: boolean, totalSize: number, offset: number,
+			allocateFile: boolean, totalSize: number|undefined, offset: number,
 			chunkLen: number, chunk: Readable): Promise<void> {
 		let filePath = this.path+'/delivery/'+msgId+'/'+objId+
 			(fileHeader ? XSP_HEADER_FILE_NAME_END : XSP_SEGS_FILE_NAME_END);
@@ -362,7 +362,7 @@ export class Inbox extends UserFiles {
 	 * @return a promise, resolvable to bytes reader.
 	 */
 	async getObj(msgId: string, objId: string, fileHeader: boolean,
-			offset: number, maxLen?: number): Promise<ObjReader> {
+			offset: number, maxLen?: number): Promise<ObjReader|undefined> {
 		let filePath = this.path+'/messages/'+msgId+'/'+objId+
 			(fileHeader ? XSP_HEADER_FILE_NAME_END : XSP_SEGS_FILE_NAME_END);
 		try {
@@ -378,7 +378,6 @@ export class Inbox extends UserFiles {
 				len: maxLen,
 				stream: createReadStream(filePath, {
 					flags: 'r',
-					encoding: null,
 					start: offset,
 					end: offset+maxLen-1
 				})
@@ -405,10 +404,10 @@ export class Inbox extends UserFiles {
 			initKeyCerts: deliveryApi.initPubKey.Reply,
 			setDefault: boolean): Promise<boolean> {
 		if (setDefault) {
-			initKeyCerts = null;
+			initKeyCerts = (null as any);
 		} else {
 			let isOK = 
-				('object' === typeof initKeyCerts) && !!initKeyCerts &&
+				(typeof initKeyCerts === 'object') && !!initKeyCerts &&
 				isLikeSignedKeyCert(initKeyCerts.pkeyCert) &&
 				isLikeSignedKeyCert(initKeyCerts.userCert) &&
 				isLikeSignedKeyCert(initKeyCerts.provCert);

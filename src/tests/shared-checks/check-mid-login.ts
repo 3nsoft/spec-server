@@ -89,6 +89,8 @@ export function midLoginSpecs(
 			};
 			
 			let serviceDomain = parseUrl(uInfo.midUrl).hostname;
+			if (!serviceDomain) { throw new Error(
+				`Cannot get hostname from ${uInfo.midUrl}`); }
 			let req: authSession.Request = {
 				assertion: midSigner.generateAssertionFor(
 					serviceDomain, sessionId),

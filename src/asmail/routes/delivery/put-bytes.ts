@@ -24,32 +24,29 @@ import { Request } from './start-session';
 
 let CONTENT_TYPE = 'application/octet-stream';
 
-function replyOnError(res: Response, total: number, append: boolean,
-		offset: number): boolean {
+function replyOnError(res: Response, total: number|undefined, append: boolean,
+		offset: number|undefined): boolean {
 	try {
-		if (total !== null) {
-			if (isNaN(total) || (total === 0)) {
+		if (total !== undefined) {
+			if (isNaN(total) || (total <= 0)) {
 				throw "Bad total parameter";
 			}
 		}
-		if (offset !== null) {
+		if (offset !== undefined) {
 			if (isNaN(offset) || (offset < 0)) {
 				throw "Bad chunk offset parameter";
 			}
 		}
 		if (append) {
-			if (offset !== null) {
+			if (offset !== undefined) {
 				throw "When appending file, offset parameter is illegal.";
 			}
-			if ((total !== null) && (total > 0)) {
+			if (total !== undefined) {
 				throw "Appending must be used only for blob of unknown size.";
 			}
 		} else {
-			if (offset === null) {
-				throw "Offset parameter is missing.";
-			}
-			if ((total === null) && (total < 0)) {
-				throw "Total size must be known in non-appending mode.";
+			if (offset === undefined) {
+				throw "Offset parameter is missing in a non-appending write.";
 			}
 		}
 		return false;
@@ -60,7 +57,7 @@ function replyOnError(res: Response, total: number, append: boolean,
 }
 
 function getContentLen(req: Request, res: Response,
-		maxChunkSize: number): number {
+		maxChunkSize: number): number|undefined {
 	let contentLength = parseInt(req.headers['content-length'], 10);
 	if (isNaN(contentLength)) {
 		res.status(ERR_SC.contentLenMissing).send(
@@ -72,6 +69,7 @@ function getContentLen(req: Request, res: Response,
 	} else {
 		return contentLength;
 	}
+	return;
 }
 
 export function saveMsgObjBytes(saveBytesFunc: ISaveBytes,
@@ -103,10 +101,10 @@ export function saveMsgObjBytes(saveBytesFunc: ISaveBytes,
 		let qOpts: BlobQueryOpts = req.query;
 		
 		let total = ('string' === typeof qOpts.total) ?
-			parseInt(<any> qOpts.total) : null;
+			parseInt(<any> qOpts.total) : undefined;
 		let append = ((<any> qOpts.append) === 'true');
 		let offset = ('string' === typeof qOpts.ofs) ?
-			parseInt(<any> qOpts.ofs) : null;
+			parseInt(<any> qOpts.ofs) : undefined;
 		// get and check Content-Length
 		let chunkLen = getContentLen(req, res, maxChunkSize);
 		if ('number' !== typeof chunkLen) { return; }
@@ -118,7 +116,7 @@ export function saveMsgObjBytes(saveBytesFunc: ISaveBytes,
 				objId: objId,
 				appendMode: append,
 				chunkLen: chunkLen,
-				isFirstReq: (total !== null)
+				isFirstReq: (total !== undefined)
 		};
 		if (opts.isFirstReq && (total > 0)) {
 			opts.totalSize = total;

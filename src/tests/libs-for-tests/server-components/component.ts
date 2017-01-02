@@ -57,7 +57,7 @@ export abstract class Component extends ServerRunner {
 		}
 		
 		// inject dns mock
-		dns.resolveTxt = this.dns.resolveTxt;
+		(dns as any).resolveTxt = this.dns.resolveTxt;
 
 		// setup servers
 		let app = express();

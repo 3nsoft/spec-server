@@ -36,7 +36,7 @@ export class StorageComponent extends Component {
 	
 	constructor(signupDomains: string[], public midServiceDomain: string) {
 		super({
-			rootFolder: null,
+			rootFolder: (null as any),
 			domain: midServiceDomain,
 			signup: {
 				domains: signupDomains
@@ -46,7 +46,7 @@ export class StorageComponent extends Component {
 				storage: true
 			},
 			mailerId: {
-				certs: null
+				certs: (null as any)
 			}
 		});
 		Object.seal(this);
@@ -80,7 +80,7 @@ export class StorageComponent extends Component {
 	}
 	
 	private async checkTransactionPresence(transFolder: string,
-			transactionId: string): Promise<boolean> {
+			transactionId: string|undefined): Promise<boolean> {
 		let transFile = 'transaction';
 		try {
 			let lst = await fs.readdir(transFolder);
@@ -109,8 +109,8 @@ export class StorageComponent extends Component {
 			this.storeFolder(userId)+'/transactions/'+objId, transactionId);
 	}
 	
-	private async checkObjPresence(objFolder: string, ver: number, obj: Obj):
-			Promise<boolean> {
+	private async checkObjPresence(objFolder: string, ver: number|undefined,
+			obj: Obj|undefined): Promise<boolean> {
 		let status: ObjStatusInfo;
 		try {
 			status = JSON.parse(await fs.readFile(
@@ -121,14 +121,14 @@ export class StorageComponent extends Component {
 		}
 		if (status.state !== 'current') { return false; }
 		let currVer = status.currentVersion;
-		if ((ver !== null) && (currVer !== ver)) { return false; }
+		if ((ver !== undefined) && (currVer !== ver)) { return false; }
 		if (obj) {
 			let fd = await fs.open(`${objFolder}/${currVer}.`, 'r')
 			.catch((exc: fs.FileException) => {
-				if (exc.notFound) { return null; }
+				if (exc.notFound) { return undefined; }
 				throw exc;
 			});
-			if (fd === null) { return false; }
+			if (fd === undefined) { return false; }
 			try {
 				let { headerOffset, segsOffset, diff } = await parseObjFile(fd);
 				let bytes = new Buffer(segsOffset - headerOffset);
@@ -147,13 +147,13 @@ export class StorageComponent extends Component {
 		return true;
 	}
 	
-	rootObjExists(userId: string, ver: number = null, obj?: Obj):
+	rootObjExists(userId: string, ver?: number, obj?: Obj):
 			Promise<boolean> {
 		return this.checkObjPresence(
 			this.storeFolder(userId)+'/root', ver, obj);
 	}
 	
-	objExists(userId: string, objId: string, ver: number = null, obj?: Obj):
+	objExists(userId: string, objId: string, ver?: number, obj?: Obj):
 			Promise<boolean> {
 		return this.checkObjPresence(
 			this.storeFolder(userId)+'/objects/'+objId, ver, obj);

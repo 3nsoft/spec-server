@@ -49,7 +49,7 @@ describe('ASMail configuration', () => {
 	
 	afterAllAsync(async () => {
 		await asmailServer.stop();
-		asmailServer = null;
+		asmailServer = (undefined as any);
 	});
 	
 	describe('MailerId login', midLoginSpecs(

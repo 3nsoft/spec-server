@@ -28,6 +28,7 @@ type ExportedSpecs<TSetup> =
 
 function setupSpecs<TSetup>(specs: GenericSpecDescribe<TSetup>,
 		setup: () => TSetup): void {
+	if (!specs.definition) { return; }
 	if (specs.focused) {
 		fdescribe(specs.description, specs.definition(setup));
 	} else {

@@ -53,7 +53,7 @@ describe('3NStorage owner service', () => {
 		} else {
 			await storageServer.clean();
 		}
-		storageServer = null;
+		storageServer = (undefined as any);
 	});
 	
 	describe('session', () => {

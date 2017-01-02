@@ -22,25 +22,23 @@ import { readFile, FileException } from '../../lib-common/async-fs-node';
 import { base64urlSafe, utf8 } from '../../lib-common/buffer-utils';
 import { box } from 'ecma-nacl';
 import { JsonKey, keyFromJson } from '../../lib-common/jwkeys';
-import { IGetUserPKeyAndKeyGenParams } from 
+import { IGetUserPKeyAndKeyGenParams, UserPKeyAndKeyGenParams } from 
 	'../../lib-server/routes/pub-key-login/start-exchange';
-import * as adminApi from '../../lib-common/admin-api/users';
+import { UserMidParams } from '../../lib-common/admin-api/signup';
 
 export interface Factory {
 	getUserParamsAndKey: IGetUserPKeyAndKeyGenParams;
 }
 
-interface UserParams extends adminApi.updateUserMailerId.Request { }
-
 async function getUser(rootFolder: string, userId: string):
-		Promise<UserParams> {
+		Promise<UserMidParams|undefined> {
 	try {
 		let path = `${ rootFolder }/${ base64urlSafe.pack(utf8.pack(userId)) }/info/mid-params`;
 		let str = await readFile(path, { encoding: 'utf8' });
-		return <UserParams> JSON.parse(str);
+		return JSON.parse(str) as UserMidParams;
 	} catch (exc) {
 		if ((<FileException> exc).notFound) {
-			return null;
+			return;
 		}
 		throw exc;
 	}
@@ -56,13 +54,26 @@ function extractPKeyBytes(pkey: JsonKey): Uint8Array {
 export function makeFactory(rootFolder: string): Factory {
 	
 	let factory: Factory = {
-		getUserParamsAndKey: async (userId: string) => {
+		getUserParamsAndKey: async (userId: string, kid: string|undefined):
+				Promise<UserPKeyAndKeyGenParams|undefined> => {
 			let userInfo = await getUser(rootFolder, userId);
-			if (!userInfo) { return null; }
-			return {
-				pkey: extractPKeyBytes(userInfo.pkey),
-				params: userInfo.params
-			};
+			if (!userInfo) { return; }
+			let params: UserPKeyAndKeyGenParams;
+			if (typeof kid === 'string') {
+				let pkey = userInfo.otherPKeys.find((pkey) => {
+					return (pkey.kid === kid);
+				});
+				if (!pkey) { return; }
+				params = {
+					pkey: extractPKeyBytes(pkey),
+				};
+			} else {
+				params = {
+					pkey: extractPKeyBytes(userInfo.defaultPKey.pkey),
+					params: userInfo.defaultPKey.params
+				};
+			}
+			return params;
 		}
 	};
 	Object.freeze(factory);

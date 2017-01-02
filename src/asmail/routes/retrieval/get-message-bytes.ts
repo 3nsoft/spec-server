@@ -34,16 +34,16 @@ export function getMsgObjBytes(getMsgObjFunc: IGetBytes): RequestHandler {
 		let objId: string = req.params.objId;
 		
 		let query: BlobQueryOpts = req.query;
-		let maxLen = parseInt(<any> query.len);
+		let maxLen: number|undefined = parseInt(<any> query.len);
 		let bytesOffset = parseInt(<any> query.ofs);
 		
 		if (isNaN(bytesOffset)) {
 			bytesOffset = 0;
 		}
 		if (isNaN(maxLen)) {
-			maxLen = null;
+			maxLen = undefined;
 		}
-		if ((bytesOffset < 0) || ((maxLen !== null) && (maxLen < 1))) {
+		if ((bytesOffset < 0) || ((maxLen !== undefined) && (maxLen < 1))) {
 			res.status(ERR_SC.malformed).send("Bad numeric parameters");
 			return;
 		}

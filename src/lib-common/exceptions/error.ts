@@ -18,7 +18,7 @@ export interface ErrorWithCause extends Error {
 	cause: any;
 }
 
-export function errWithCause(cause: any, message: string): ErrorWithCause {
+export function errWithCause(cause: any, message?: string): ErrorWithCause {
 	var err = <ErrorWithCause> new Error(message);
 	err.cause = cause;
 	return err;

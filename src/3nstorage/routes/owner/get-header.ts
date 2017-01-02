@@ -30,7 +30,7 @@ export function getObjHeader(root: boolean, getObjHeaderFunc: IGetHeader):
 		let userId = req.session.params.userId;
 		let objId: string = (root ? null : req.params.objId);
 		
-		let requestedVersion = parseInt(req.query.ver);
+		let requestedVersion: number|null = parseInt(req.query.ver);
 		if (isNaN(requestedVersion)) {
 			requestedVersion = null;
 		}

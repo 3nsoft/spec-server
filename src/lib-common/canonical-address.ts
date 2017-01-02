@@ -49,7 +49,7 @@ export function areAddressesEqual(a: string, b: string): boolean {
  * @return if given address is ok, its canonical form is returned.
  * Otherwise, undefined is returned.
  */
-export function checkAndTransformAddress(address: string): string {
+export function checkAndTransformAddress(address: string): string|undefined {
 	try {
 		return toCanonicalAddress(address);
 	} catch (err) { }

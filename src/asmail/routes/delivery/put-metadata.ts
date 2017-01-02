@@ -21,7 +21,7 @@ import { msgMeta as api, ERR_SC, ErrorReply }
 import * as confUtil from '../../../lib-server/conf-util';
 import { Request } from './start-session';
 
-function findProblemWithObjIds(ids: string[]): ErrorReply {
+function findProblemWithObjIds(ids: string[]): ErrorReply|undefined {
 	if (!Array.isArray(ids)) {
 		return {
 			error: "Object ids are missing."
@@ -38,6 +38,7 @@ function findProblemWithObjIds(ids: string[]): ErrorReply {
 		}
 		objIdsInLowerCase.add(objId);
 	}
+	return;
 }
 
 export function saveMetadata(setMsgStorageFunc: ISetMsgStorage,

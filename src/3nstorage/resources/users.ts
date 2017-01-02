@@ -28,7 +28,7 @@ export { SC, ObjReader } from './store';
 
 export interface BlobGetOpts {
 	offset: number;
-	maxLen: number;
+	maxLen: number|null;
 }
 
 export interface BlobSaveOpts {
@@ -60,7 +60,7 @@ export interface ICancelTransaction {
 	(userId: string, objId: string): Promise<void>;
 }
 export interface IGetHeader {
-	(userId: string, objId: string, version: number): Promise<{
+	(userId: string, objId: string, version: number|null): Promise<{
 		header: Uint8Array; version?: number; segsLen: number; }>;
 }
 export interface IGetSegs {
@@ -116,7 +116,8 @@ export interface Factory {
 }
 
 export function makeFactory(rootFolder: string,
-		writeBufferSize?: string|number, readBufferSize?: string|number):
+		writeBufferSize?: string|number,
+		readBufferSize?: string|number):
 		Factory {
 	
 	let stores = new Map<string, Store>();
@@ -152,7 +153,7 @@ export function makeFactory(rootFolder: string,
 			(userId: string, param: T, setDefault?: boolean) => Promise<boolean> {
 		return async (userId: string, param: T, setDefault?: boolean) => {
 			let store = await getStore(userId);
-			return staticSetter(store, param, setDefault);
+			return staticSetter(store, param, !!setDefault);
 		};		
 	}
 	
@@ -167,6 +168,7 @@ export function makeFactory(rootFolder: string,
 				await store.appendObjSegs(objId, opts.transactionId,
 					bytes, opts.chunkLen);
 			} else {
+				if (typeof opts.offset !== 'number') { throw new Error(`Expectation failed: options argument for non-appending mode is missing an offset.`); }
 				await store.saveObjSegChunk(objId, opts.transactionId,
 					opts.offset, opts.chunkLen, bytes);
 			}
@@ -195,7 +197,7 @@ export function makeFactory(rootFolder: string,
 	}
 
 	function makeHeaderGetter(isRoot: boolean): IGetHeader {
-		return async(userId: string, objId: string, version: number) => {
+		return async(userId: string, objId: string, version: number|null) => {
 			if ((isRoot && objId) || (!isRoot && !objId)) {
 				throw new Error("Mixed object types' functions.");
 			}

@@ -68,7 +68,7 @@ describe('ASMail retrieval service', () => {
 	
 	afterAllAsync(async () => {
 		await asmailServer.stop();
-		asmailServer = null;
+		asmailServer = (undefined as any);
 	});
 	
 	describe('MailerId login', midLoginSpecs(
@@ -175,7 +175,7 @@ describe('ASMail retrieval service', () => {
 		expect(typeof rep.data.deliveryStart).toBe('number');
 		expect(typeof rep.data.deliveryCompletion).toBe('number');
 		expect(rep.data.deliveryStart).not.toBeGreaterThan(
-			rep.data.deliveryCompletion);
+			rep.data.deliveryCompletion!);
 		
 		// unknown message
 		reqOpts.url = resolveUrl(retrievalUrl, api.msgMetadata.genUrlEnd(

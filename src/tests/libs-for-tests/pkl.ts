@@ -27,9 +27,13 @@ import { bytesEqual } from './bytes-equal';
 
 export interface User {
 	id: string;
-	loginSKey: Uint8Array;
-	midUrl?: string;
-	storageOwnerUrl?: string;
+	loginDefaultSKey: Uint8Array;
+	loginLabeledSKey: {
+		kid: string;
+		k: Uint8Array;
+	};
+	midUrl: string;
+	storageOwnerUrl: string;
 }
 
 export interface ExchangeCrypto {
@@ -69,19 +73,22 @@ export interface ExchangeParams {
 	sessionId: string;
 }
 
-export async function startPKLSession(loginUrl: string, user: User):
-		Promise<ExchangeParams> {
+export async function startPKLSession(loginUrl: string, user: User,
+		useDefaultKey: boolean): Promise<ExchangeParams> {
 	let reqOpts: RequestOpts= {
 		url: resolveUrl(loginUrl, pklApi.start.URL_END),
 		method: 'POST',
 		responseType: 'json'
 	};
-	let req: pklApi.start.Request = { userId: user.id };
+	let req: pklApi.start.Request = (useDefaultKey ?
+		{ userId: user.id } :
+		{ userId: user.id, kid: user.loginLabeledSKey.kid });
 	let rep = await doJsonRequest<pklApi.start.Reply>(reqOpts, req);
 	expect(rep.status).toBe(pklApi.start.SC.ok);
+	let skey = (useDefaultKey ? user.loginDefaultSKey : user.loginLabeledSKey.k)
 	return {
 		sessionId: rep.data.sessionId,
-		crypto: decryptSessionParamsForCurve25519(rep.data, user.loginSKey)
+		crypto: decryptSessionParamsForCurve25519(rep.data, skey)
 	};
 }
 
@@ -112,7 +119,7 @@ async function validatePKLSession(loginUrl: string,
 
 export async function doPubKeyLogin(loginUrl: string, user: User):
 		Promise<SessionParams> {
-	let exchangeParams = await startPKLSession(loginUrl, user);
+	let exchangeParams = await startPKLSession(loginUrl, user, false);
 	return validatePKLSession(loginUrl, exchangeParams);
 }
 

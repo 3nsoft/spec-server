@@ -65,7 +65,7 @@ export function servicesApp(conf: Configurations): express.Express {
 	let midAuthorizer = validator();	// share, allowing for caching of certs
 	if (conf.enabledServices.mailerId) {
 		serviceApp.use('/mailerid', makeMailerIdApp(
-			rootFolder, conf.domain, conf.mailerId.certs));
+			rootFolder, conf.domain, conf.mailerId!.certs));
 	}
 	if (conf.enabledServices.asmail) {
 		serviceApp.use('/asmail',

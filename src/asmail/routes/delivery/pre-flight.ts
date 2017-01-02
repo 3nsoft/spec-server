@@ -51,8 +51,8 @@ export function preFlight(allowedMsgSizeFunc: IAllowedMaxMsgSize,
 		
 		let rb: api.Request = req.body;
 		let recipient = checkAndTransformAddress(rb.recipient);
-		let sender = (rb.sender ? rb.sender : null);
-		let invitation = (rb.invitation ? rb.invitation : null);
+		let sender = (rb.sender ? rb.sender : undefined);
+		let invitation = (rb.invitation ? rb.invitation : undefined);
 		let session = req.session;
 		
 		// already existing session indicates repeated call, which should be bounced off
@@ -83,7 +83,7 @@ export function preFlight(allowedMsgSizeFunc: IAllowedMaxMsgSize,
 		}
 		
 		async function serveRequestHere(): Promise<void> {
-			let msgSize = await allowedMsgSizeFunc(recipient, sender, invitation);
+			let msgSize = await allowedMsgSizeFunc(recipient!, sender, invitation);
 			if (msgSize > 0) {
 				res.status(api.SC.ok).json( <api.Reply> {
 					maxMsgLength: msgSize

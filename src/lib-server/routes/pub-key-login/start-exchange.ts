@@ -51,14 +51,14 @@ function addEncryptorToSession(session: Session<SessionParams>,
 	session.addCleanUp(() => {
 		encryptor.destroy();
 		if (session.params.encryptor === encryptor) {
-			session.params.encryptor = null;
+			session.params.encryptor = (undefined as any);
 		}
 	});
 }
 
 export interface UserPKeyAndKeyGenParams {
 	pkey: Uint8Array;
-	params: any;
+	params?: any;
 }
 
 export interface ICheckAndTransformUserId {
@@ -69,11 +69,17 @@ export interface ICheckAndTransformUserId {
 	 * @return if incoming id is ok, same, or transformed id is returned,
 	 * else, if incoming id is not ok, undefined is returned.
 	 */
-	(initUserId: string): string;
+	(initUserId: string): string|undefined;
 }
 
 export interface IGetUserPKeyAndKeyGenParams {
-	(userId: string): Promise<UserPKeyAndKeyGenParams>;
+	/**
+	 * This returns a promise of user public key and related parameters.
+	 * @param userId
+	 * @param kid is a key id that should be used at login. Undefined value
+	 * indicates that default key should be used.
+	 */
+	(userId: string, kid: string|undefined): Promise<UserPKeyAndKeyGenParams>;
 }
 
 export interface IComputeDHSharedKey {
@@ -99,7 +105,8 @@ export function startPKLogin(
 
 	return async function(req: Request, res: Response, next: NextFunction) {
 
-		let userId = checkIdFunc((<api.Request> req.body).userId);
+		let userId = checkIdFunc((req.body as api.Request).userId);
+		let kid = (req.body as api.Request).kid;
 		let session = req.session;
 		
 		// missing userId makes a bad request
@@ -109,22 +116,28 @@ export function startPKLogin(
 			});
 			return;
 		}
+
+		if ((kid !== undefined) && (typeof kid !== 'string')) {
+			res.status(ERR_SC.malformed).json( <ErrorReply> {
+				error: "Key id is invalid in the request."
+			});
+			return;
+		}
 		
 		// bounce off existing session
 		if (session) {
 			res.status(ERR_SC.duplicate).json( <ErrorReply> {
-				error: "Repeated call: "+
-					"this session has already been authorized."
+				error: `Repeated call: this session has already been authorized.`
 			});
 			return;
 		}
 
 		try {
 			// find user info
-			let userParamsAndKey = await findUserParamsAndKeyFunc(userId)
+			let userParamsAndKey = await findUserParamsAndKeyFunc(userId, kid);
 			if (!userParamsAndKey) {
 				res.status(api.SC.unknownUser).json( <ErrorReply> {
-					error: "User "+userId+" is unknown."
+					error: `User ${userId} ${kid ? `and/or key ${kid} are` : 'is'} unknown.`
 				});
 				return;
 			}

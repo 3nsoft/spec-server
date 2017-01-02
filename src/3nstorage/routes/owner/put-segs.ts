@@ -24,22 +24,22 @@ import { attachByteDrainToRequest }
 	from '../../../lib-server/middleware/body-parsers';
 
 function replyOnError(res: Response, transactionId: string,
-		append: boolean, offset: number): boolean {
+		append: boolean, offset: number|undefined): boolean {
 	try {
 		if ('string' !== typeof transactionId) {
 			throw "Missing transaction id";
 		}
-		if (offset !== null) {
+		if (offset !== undefined) {
 			if (isNaN(offset) || (offset < 0)) {
 				throw "Bad chunk offset parameter";
 			}
 		}
 		if (append) {
-			if (offset !== null) {
+			if (offset !== undefined) {
 				throw "When appending file, offset parameter is illegal.";
 			}
 		} else {
-			if (offset === null) {
+			if (offset === undefined) {
 				throw "Offset parameter is missing.";
 			}
 		}
@@ -51,7 +51,7 @@ function replyOnError(res: Response, transactionId: string,
 }
 
 function getContentLen(req: Request, res: Response,
-		maxChunkSize: number): number {
+		maxChunkSize: number): number|undefined {
 	let contentLength = parseInt(req.get(HTTP_HEADER.contentLength), 10);
 	if (isNaN(contentLength)) {
 		res.status(ERR_SC.contentLenMissing).send(
@@ -63,7 +63,7 @@ function getContentLen(req: Request, res: Response,
 	} else {
 		return contentLength;
 	}
-	return null;
+	return;
 }
 
 export function saveObjSegments(root: boolean, saveBytesFunc: ISaveSegs,
@@ -89,11 +89,11 @@ export function saveObjSegments(root: boolean, saveBytesFunc: ISaveSegs,
 		
 		let transactionId = qOpts.trans;
 		let append = ((<any> qOpts.append) === 'true');
-		let offset = ('string' === typeof qOpts.ofs) ?
-			parseInt(<any> qOpts.ofs) : null;
+		let offset = (typeof qOpts.ofs === 'string') ?
+			parseInt(<any> qOpts.ofs) : undefined;
 		// get and check Content-Length, implicitly sending replies for bad length
 		let chunkLen = getContentLen(req, res, maxChunkSize);
-		if (chunkLen === null) {
+		if (chunkLen === undefined) {
 			attachByteDrainToRequest(req);
 			return;
 		}

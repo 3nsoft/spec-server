@@ -34,20 +34,20 @@ let conf: Configurations =
 	JSON.parse(fs.readFileSync(confFile, 'utf8'));
 
 let serviceApp = makeServiceApp(conf);
-let serviceServer = (conf.servicesConnect.sslOts ?
-	https.createServer(conf.servicesConnect.sslOts, serviceApp) :
+let serviceServer = (conf.servicesConnect!.sslOts ?
+	https.createServer(conf.servicesConnect!.sslOts!, serviceApp) :
 	http.createServer(serviceApp));
 
 let adminApp = makeAdminApp(conf);
-let adminServer = (conf.adminConnect.sslOts ?
-	https.createServer(conf.servicesConnect.sslOts, adminApp) :
+let adminServer = (conf.adminConnect!.sslOts ?
+	https.createServer(conf.adminConnect!.sslOts!, adminApp) :
 	http.createServer(adminApp));
 
 (async () => {
 	try {
 		await startService(serviceServer,
-			conf.servicesConnect.port,
-			conf.servicesConnect.hostname)
+			conf.servicesConnect!.port,
+			conf.servicesConnect!.hostname)
 		console.log('\nServices are up and running.');
 		// TODO start administrative interface
 		// await startService(adminServer,

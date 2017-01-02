@@ -21,8 +21,8 @@ export class AdminComponent extends Component {
 	
 	constructor(signupDomains: string[]) {
 		super({
-			rootFolder: null,
-			domain: null,
+			rootFolder: (null as any),
+			domain: (null as any),
 			signup: {
 				domains: signupDomains
 			},

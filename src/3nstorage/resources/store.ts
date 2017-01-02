@@ -104,7 +104,7 @@ export interface ObjReader {
 	/**
 	 * This is a pipe function that reads bytes directly from file.
 	 */
-	pipe: SegsPipe;
+	pipe?: SegsPipe;
 	
 	/**
 	 * This is a total segments' length of this object version.
@@ -177,7 +177,7 @@ SINGLE_BYTE_BUF[0] = 0;
 function getFstAndLastSections(sections: number[][], offset: number,
 		len: number): { fstInd: number; fstSec: number[];
 			lastInd: number; lastSec: number[]; } {
-	let fstInd: number;
+	let fstInd: number = (undefined as any);
 	let fstSec = new Array(3);
 	let sectionEnd = 0;
 	for (let i=0; i < sections.length; i+=1) {
@@ -193,7 +193,7 @@ function getFstAndLastSections(sections: number[][], offset: number,
 			break;
 		}
 	}
-	if (typeof fstInd !== 'number') { return <any> {}; }
+	if (typeof fstInd !== 'number') { return ({} as any); }
 	if (fstSec[2] >= len) {
 		fstSec[2] = len;
 		return { fstSec, fstInd, lastSec: fstSec, lastInd: fstInd };
@@ -201,7 +201,7 @@ function getFstAndLastSections(sections: number[][], offset: number,
 	if ((fstInd + 1) === sections.length) {
 		return { fstSec, fstInd, lastSec: fstSec, lastInd: fstInd };
 	}
-	let lastInd: number;
+	let lastInd: number = (undefined as any);
 	let lastSec = new Array<number>(3);
 	for (let i=fstInd+1; i < sections.length; i+=1) {
 		let s = sections[i];
@@ -239,13 +239,13 @@ async function pipeBytes(src: NodeJS.ReadableStream,
 export class Store extends UserFiles {
 	
 	constructor(userId: string, path: string,
-			writeBufferSize: string|number, readBufferSize: string|number) {
+			writeBufferSize?: string|number, readBufferSize?: string|number) {
 		super(userId, path, writeBufferSize, readBufferSize);
 		Object.freeze(this);
 	}
 	
 	static async make(rootFolder: string, userId: string,
-			writeBufferSize: string|number, readBufferSize: string|number):
+			writeBufferSize?: string|number, readBufferSize?: string|number):
 			Promise<Store> {
 		let path = rootFolder+'/'+addressToFName(userId)+'/store';
 		let store = new Store(userId, path, writeBufferSize, readBufferSize);
@@ -253,7 +253,7 @@ export class Store extends UserFiles {
 		return store;
 	}
 	
-	private objFolder(objId: string): string {
+	private objFolder(objId: string|null): string {
 		return (objId ? this.path+'/objects/'+objId : this.path+'/root');
 	}
 	
@@ -411,7 +411,8 @@ export class Store extends UserFiles {
 		if (status.state === 'current') {
 			// if needed, remove previous version, right after exposing a new one
 			let verToDel = (status.archivedVersions &&
-				(status.archivedVersions.indexOf(status.currentVersion) >= 0)) ?
+				(status.archivedVersions.indexOf(
+					status.currentVersion as number) >= 0)) ?
 				null : status.currentVersion;
 			status.currentVersion = trans.version;
 			await this.setObjStatus(objId, status);
@@ -485,12 +486,13 @@ export class Store extends UserFiles {
 	 * (1) header, with object's header bytes, (2) segsLen, with segments length,
 	 * (3) version, with object's version. 
 	 */
-	async getObjHeader(objId: string, version: number): Promise<{
+	async getObjHeader(objId: string, version: number|null): Promise<{
 			header: Uint8Array; version?: number; segsLen: number; }> {
 		let objFolder = this.objFolder(objId);
 		if (version === null) {
 			let status = await this.getObjStatus(objId);
 			if (status.state !== 'current') { throw SC.WRONG_OBJ_STATE; }
+			if (typeof status.currentVersion !== 'number') { throw new Error(`Illegal state of object status file for ${objId}: state is current, while current version is missing.`); }
 			version = status.currentVersion;
 		}
 		let file = `${objFolder}/${version}.`;
@@ -546,12 +548,12 @@ export class Store extends UserFiles {
 	}
 	
 	private makeSegsPipe(objId: string, file: string, offset: number,
-			len: number, diff: DiffInfo, segsOffset: number): SegsPipe {
+			len: number, diff: DiffInfo|undefined, segsOffset: number):
+			SegsPipe|null {
 		if (len < 1) { return null; }
 		if (!diff) {
 			let stream = createReadStream(file, {
 				flags: 'r',
-				encoding: null,
 				start: offset+segsOffset,
 				end: offset+segsOffset+len-1
 			});
@@ -569,7 +571,6 @@ export class Store extends UserFiles {
 				if (s[0] === 1) {
 					let stream = createReadStream(file, {
 						flags: 'r',
-						encoding: null,
 						start: s[1]+segsOffset,
 						end: s[1]+segsOffset+s[2]-1
 					});
@@ -577,7 +578,9 @@ export class Store extends UserFiles {
 				} else {
 					let base = await this.getObjSegs(
 						objId, diff.baseVersion, s[1], s[2]);
-					await base.pipe(outStream);
+					if (base.pipe) {
+						await base.pipe(outStream);
+					}
 				}
 				// continue recursively
 				secInd += 1;
@@ -599,7 +602,7 @@ export class Store extends UserFiles {
 	 * @return
 	 */
 	async getObjSegs(objId: string, version: number, offset: number,
-			maxLen: number): Promise<ObjReader> {
+			maxLen: number|null): Promise<ObjReader> {
 		let objFolder = this.objFolder(objId);
 		let file = `${objFolder}/${version}.`;
 		let fd = await fs.open(file, 'r').catch((exc: fs.FileException) => {
@@ -629,12 +632,12 @@ export class Store extends UserFiles {
 				len = maxLen;
 			}
 			// construct reader
-			let reader: ObjReader = {
-				len,
-				pipe: this.makeSegsPipe(
-					objId, file, offset, len, diff, segsOffset),
-				segsLen
-			};
+			let pipe = this.makeSegsPipe(
+				objId, file, offset, len, diff, segsOffset);
+			let reader: ObjReader = { len, segsLen };
+			if (pipe) {
+				reader.pipe = pipe;
+			}
 			Object.freeze(reader);
 			return reader;
 		} finally {
@@ -667,11 +670,12 @@ export class Store extends UserFiles {
 	 * @param objId is a string object id for non-root objects, and null for
 	 * root object.
 	 * @param archVersion is an optional parameter, identifying archived version
-	 * to delet. Default null value indicates that an object should be removed.
+	 * to delete. Default null value indicates that an object should be removed.
 	 * If an object has any archived versions (even if current), these will not
 	 * be removed, and such object state will be labeled as archived.
 	 */
-	async deleteObj(objId: string, archVersion: number = null): Promise<void> {
+	async deleteObj(objId: string, archVersion: number|null = null):
+			Promise<void> {
 		let status = await this.getObjStatus(objId);
 		let arch = status.archivedVersions;
 		// XXX need to put removal transaction, closing it in a finally clause
@@ -687,6 +691,7 @@ export class Store extends UserFiles {
 				delete status.currentVersion;
 				status.state = 'archived';
 				await this.setObjStatus(objId, status);
+				if (typeof currVer !== 'number') { throw new Error(`Illegal state of object status file for ${objId}: state is current, while current version is missing.`); }
 				if (arch.indexOf(currVer) < 0) {
 					await this.rmObjFiles(objId, currVer);
 				}
@@ -718,6 +723,7 @@ export class Store extends UserFiles {
 
 		let status = await this.getObjStatus(objId);
 		if (status.state !== 'current') { throw SC.WRONG_OBJ_STATE; }
+		if (typeof status.currentVersion !== 'number') { throw new Error(`Illegal state of object status file for ${objId}: state is current, while current version is missing.`); }
 		let arch = status.archivedVersions;
 		if (Array.isArray(arch)) {
 			arch.push(status.currentVersion);

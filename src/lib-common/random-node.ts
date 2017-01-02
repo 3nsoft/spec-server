@@ -14,11 +14,22 @@
  You should have received a copy of the GNU General Public License along with
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
-import * as crypto from 'crypto';
 import { base64urlSafe } from './buffer-utils';
+import { randomBytes } from 'crypto';
 
 export function bytes(numOfBytes: number): Uint8Array {
-	return new Uint8Array(<any> crypto.randomBytes(numOfBytes));
+	return randomBytes(numOfBytes);
+}
+
+export function uint8(): number {
+	return bytes(1)[0];
+}
+
+export function uint48(): number {
+	let b = bytes(6);
+	let l = b[0] + (b[1] << 8) + (b[2] << 16) + (b[3] << 24);
+	let h = b[4] + (b[5] << 8);
+	return h*0x100000000 + l;
 }
 
 export function stringOfB64UrlSafeChars(numOfChars: number): string {
@@ -29,8 +40,7 @@ export function stringOfB64UrlSafeChars(numOfChars: number): string {
 
 export function stringOfB64Chars(numOfChars: number): string {
 	let numOfbytes = 3*(1 + Math.floor(numOfChars/4));
-	let buf = crypto.randomBytes(numOfbytes);
-	return buf.toString('base64').substring(0, numOfChars);
+	return randomBytes(numOfbytes).toString('base64', 0, numOfChars);
 }
 
 Object.freeze(exports);

@@ -65,7 +65,7 @@ function checkReplyExpectation(rep: Reply<Uint8Array>, obj: Obj,
 		expectedBytes: Uint8Array): void {
 	expect(rep.status).toBe(api.SC.okGet, 'status for returned bytes');
 	let segsLen = (obj.diff ? obj.diff.segsSize : obj.segs.length);
-	expect(parseInt(rep.headers.get(HTTP_HEADER.objSegmentsLength))).toBe(segsLen, 'object segments size must be given in the reply header');
+	expect(parseInt(rep.headers!.get(HTTP_HEADER.objSegmentsLength)!)).toBe(segsLen, 'object segments size must be given in the reply header');
 	expect(bytesEqual(rep.data, expectedBytes)).toBe(true, 'reply should have proper segments bytes');
 }
 
@@ -179,6 +179,7 @@ let diffVer: Obj = {
 };
 
 function combineDiffSegs(baseSegs: Uint8Array, diffObj: Obj): Uint8Array {
+	if (!diffObj.diff) { throw new Error(`object has no diff`); }
 	let combined = new Buffer(diffObj.diff.segsSize);
 	let offset = 0;
 	for (let s of diffObj.diff.sections) {
@@ -226,8 +227,8 @@ accessDiffedObjVersion.definition = (setup: () => TestSetup) => (() => {
 		let opts = copy(reqOpts);
 		let combinedBytes = combineDiffSegs(obj.segs, diffVer);
 		// with non-overflowing length
-		for (let offset=0; offset <= diffVer.diff.segsSize; offset+=512) {
-			let chunkLen = Math.min(512, diffVer.diff.segsSize - offset);
+		for (let offset=0; offset <= diffVer.diff!.segsSize; offset+=512) {
+			let chunkLen = Math.min(512, diffVer.diff!.segsSize - offset);
 			opts.url = resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd(diffVer.objId, diffVer.version, { ofs: offset, len: chunkLen }));
 			let rep = await doBodylessRequest<Uint8Array>(opts);
 			checkReplyExpectation(rep, diffVer, combinedBytes.subarray(offset, offset+chunkLen));

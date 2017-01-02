@@ -58,7 +58,7 @@ describe('MailerId', () => {
 	
 	afterAllAsync(async () => {
 		await midServer.stop();
-		midServer = null;
+		midServer = (undefined as any);
 	});
 	
 	itAsync('provides root certificates', async () => {
@@ -87,7 +87,7 @@ describe('MailerId', () => {
 		// TODO refactor Public Key Login into shared-checks spec, similarly to
 		//		MailerId login, so as to reuse it where PKL is used.
 		
-		itAsync('starts with Public Key Login', async () => {
+		async function testFirstReqFor(useDefaultKey: boolean): Promise<void> {
 			
 			let reqOpts: RequestOpts= {
 				url: provUrl + pklApi.start.URL_END,
@@ -96,14 +96,16 @@ describe('MailerId', () => {
 			};
 			
 			// request with known user id
-			let req: pklApi.start.Request = { userId: user1.id };
+			let req: pklApi.start.Request = (useDefaultKey ?
+				{ userId: user1.id } :
+				{ userId: user1.id, kid: user1.loginLabeledSKey.kid });
 			let rep = await doJsonRequest<pklApi.start.Reply>(reqOpts, req);
 			expect(rep.status).toBe(pklApi.start.SC.ok, 'status code for OK reply');
 			expect(typeof rep.data).toBe('object');
 			expect(typeof rep.data.sessionId).toBe('string');
 			expect(() => {
 				// note that this user uses NaCl's box (Curve25519)
-				decryptSessionParamsForCurve25519(rep.data, user1.loginSKey);
+				decryptSessionParamsForCurve25519(rep.data, user1.loginDefaultSKey);
 			}).not.toThrow();
 			
 			// duplicating request, with session id now in a header
@@ -133,11 +135,18 @@ describe('MailerId', () => {
 			await expectNonAcceptanceOfBadJsonRequest(reqOpts,
 				REQ_SIZE_LIMIT, badJSONs);
 			
-		});
+		}
+
+		itAsync('starts with Public Key Login, using default key',
+			() => testFirstReqFor(true));
 		
-		itAsync('second request completes Public Key Login', async () => {
+		itAsync('starts with Public Key Login, using non-default (labeled) key',
+			() => testFirstReqFor(false));
+		
+		async function testSecondReqFor(useDefaultKey: boolean): Promise<void> {
 			
-			let exchangeParams = await startPKLSession(provUrl, user1);
+			let exchangeParams = await startPKLSession(
+				provUrl, user1, useDefaultKey);
 			
 			let reqOpts: RequestOpts= {
 				url: provUrl + pklApi.complete.URL_END,
@@ -161,14 +170,14 @@ describe('MailerId', () => {
 			
 			// send incorrect challenge response
 			for (let i=0; i < exchangeParams.crypto.encResponse.length; i+=1) {
-				let exchange2 = await startPKLSession(provUrl, user2);
+				let exchange2 = await startPKLSession(provUrl, user2, useDefaultKey);
 				let badReply = exchange2.crypto.encResponse;
 				badReply[i] ^= 1;
 				reqOpts.sessionId = exchange2.sessionId;
 				let rep = await doBinaryRequest<Uint8Array>(reqOpts, badReply);
 				expect(rep.status).toBe(pklApi.complete.SC.authFailed);
 			}
-			let exchange2 = await startPKLSession(provUrl, user2);
+			let exchange2 = await startPKLSession(provUrl, user2, useDefaultKey);
 			let badReply = exchange2.crypto.encResponse.subarray(5);
 			reqOpts.sessionId = exchange2.sessionId;
 			rep = await doBinaryRequest<Uint8Array>(reqOpts, badReply);
@@ -179,7 +188,7 @@ describe('MailerId', () => {
 			
 			// too long
 			const REQ_SIZE_LIMIT = 1024;
-			exchange2 = await startPKLSession(provUrl, user2);
+			exchange2 = await startPKLSession(provUrl, user2, useDefaultKey);
 			reqOpts.sessionId = exchange2.sessionId;
 			await expectNonAcceptanceOfLongBody(reqOpts,
 				'application/octet-stream', REQ_SIZE_LIMIT);
@@ -188,7 +197,13 @@ describe('MailerId', () => {
 			await expectNonAcceptanceOfBadType(reqOpts, 
 				'application/octet-stream', exchange2.crypto.encResponse);
 			
-		});
+		}
+
+		itAsync('second request completes Public Key Login, using default key',
+			() => testSecondReqFor(true));
+
+		itAsync('second request completes Public Key Login, with non-default key',
+			() => testSecondReqFor(true));
 		
 		itAsync('certifies user\'s MailerId public key', async () => {
 			

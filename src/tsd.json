@@ -8,9 +8,6 @@
     "node/node.d.ts": {
       "commit": "e0abafb1a6ff652f7ff967120e312d5c1916eaef"
     },
-    "nodeunit/nodeunit.d.ts": {
-      "commit": "846a250e0a6f5e6adf6347ee4ca442a9d1abd8fc"
-    },
     "express/express.d.ts": {
       "commit": "e0abafb1a6ff652f7ff967120e312d5c1916eaef"
     },

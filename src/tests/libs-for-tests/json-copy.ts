@@ -16,16 +16,16 @@
 
 export function copy<T>(orig: T): T {
 	if (typeof orig !== 'object') { return orig; }
-	if (orig === null) { return null; }
+	if (orig === null) { return (null as any); }
 	if (Array.isArray(orig)) {
-		let arr: any[] = <any> orig;
-		let c = [];
+		let arr: any[] = orig;
+		let c: any[] = [];
 		for (let i=0; i < arr.length; i+=1) {
 			c[i] = copy(arr[i]);
 		}
-		return <any> c;
+		return (c as any);
 	} else {
-		let c = <T> {};
+		let c = ({} as T);
 		let fields = Object.keys(orig);
 		for (let f of fields) {
 			c[f] = copy<any>(orig[f]);

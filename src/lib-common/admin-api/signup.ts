@@ -20,24 +20,21 @@
 
 import { JsonKey } from '../jwkeys';
 
-// XXX REPLACE this signup api with users' api which is a proper part of a home
-//		server. 
-
-export let ERR_SC = {
+export const ERR_SC = {
 	duplicate: 475,
 	malformed: 400
 };
 Object.freeze(ERR_SC);
 
-export module isAvailable {
+export namespace isAvailable {
 	
-	export let URL_END = 'is-available';
+	export const URL_END = 'is-available';
 	
 	export interface Request {
 		userId: string;
 	}
 	
-	export let SC = {
+	export const SC = {
 		ok: 200,
 		userAlreadyExists: 473
 	};
@@ -46,15 +43,15 @@ export module isAvailable {
 }
 Object.freeze(isAvailable);
 
-export module availableAddressesForName {
+export namespace availableAddressesForName {
 	
-	export let URL_END = 'available-addresses-for-name';
+	export const URL_END = 'available-addresses-for-name';
 	
 	export interface Request {
 		name: string;
 	}
 	
-	export let SC = {
+	export const SC = {
 		ok: 200
 	};
 	Object.freeze(SC);
@@ -62,30 +59,52 @@ export module availableAddressesForName {
 }
 Object.freeze(availableAddressesForName);
 
-export module addUser {
+export interface UserMidParams {
+	defaultPKey: {
+		pkey: JsonKey;
+		params: any;
+	};
+	otherPKeys: JsonKey[];
+}
+
+export interface UserStorageParams {
+	params: any;
+}
+
+export namespace addUser {
 	
-	export let URL_END = 'add';
+	export const URL_END = 'add';
 	
 	export interface Request {
 		userId: string;
-		mailerId: {
-			pkey: JsonKey;
-			params: any;
-		};
-		storage: {
-			params: any;
-		};
+		mailerId: UserMidParams;
+		storage: UserStorageParams;
 	}
 	
-	export let SC = isAvailable.SC;
+	export const SC = isAvailable.SC;
 	
 }
 Object.freeze(addUser);
+
+export namespace isActivated {
+	
+	export const URL_END = 'is-active';
+	
+	export interface Request extends isAvailable.Request { }
+	
+	export const SC = {
+		ok: 200,
+		notActive: 274,
+		userUnkown: 474
+	};
+	Object.freeze(SC);
+	
+}
+Object.freeze(isActivated);
 
 
 export interface ErrorReply {
 	error: string;
 }
-
 
 Object.freeze(exports);

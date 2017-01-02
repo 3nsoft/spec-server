@@ -40,7 +40,7 @@ export function makeSingleProcFactory(timeout: number): Factory {
 	}
 	let sessionCount = 0;
 	let timeoutMillis = timeout*1000;
-	let timeoutCodeIntervalId: number = null;
+	let timeoutCodeIntervalId: number|undefined = undefined;
 	let checkSessionsForTimeout = () => {
 		let now = Date.now();
 		for (let s of sessions.values()) {
@@ -58,11 +58,12 @@ export function makeSingleProcFactory(timeout: number): Factory {
 				}
 			},
 			remove: async (s: Session<any>) => {
-				sessions.delete(s.id);
-				sessionCount -= 1;
-				if (sessionCount === 0) {
-					clearInterval(timeoutCodeIntervalId);
-					timeoutCodeIntervalId = null;
+				if (sessions.delete(s.id)) {
+					sessionCount -= 1;
+					if (sessionCount === 0) {
+						clearInterval(timeoutCodeIntervalId!);
+						timeoutCodeIntervalId = undefined;
+					}
 				}
 			},
 			get: async (sId: string) => {

@@ -143,7 +143,7 @@ export function makeSingleProcCertifier(domain: string, certsPath: string):
 		
 		let provider = midIdP.generateProviderKey(
 				domain, PROVIDER_CERT_VALIDITY, certsAndKey.skey, random.bytes);
-		certsAndKey = null;
+		certsAndKey = (undefined as any);
 		
 		provCert = provider.cert;
 		Object.freeze(provCert);

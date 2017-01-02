@@ -23,7 +23,7 @@ import { errWithCause } from '../../../lib-common/exceptions/error';
 
 let EMPTY_BUFFER = new Buffer(0);
 
-function extractNumParams(req: Request): BlobGetOpts {
+function extractNumParams(req: Request): BlobGetOpts|undefined {
 	let query: GetSegsQueryOpts = req.query;
 
 	let offsetStr: string = <any> query.ofs;
@@ -69,7 +69,7 @@ export function getObjSegments(root: boolean, getObjSegsFunc: IGetSegs):
 			res.set(HTTP_HEADER.objSegmentsLength, `${objReader.segsLen}`);
 			if (objReader.len > 0) {
 				try {
-					await objReader.pipe(res);
+					await objReader.pipe!(res);
 				} catch (err) {
 					console.error(errWithCause(err, 'Wasn\'t able to complete sending segments due to error in piping'));
 				} finally {

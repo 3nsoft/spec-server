@@ -21,7 +21,8 @@ let jas = new (require('jasmine'))();
 jas.loadConfig({
 	spec_dir: 'build/tests',
 	spec_files: [
-		'home-admin/**/*.js',
+		'admin-proto/**/*.js',
+		'protocols/mailerid.js',
 		'protocols/3nstorage/*.js',
 		'protocols/asmail/*.js',
 	]

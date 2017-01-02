@@ -104,8 +104,8 @@ specReadOfCommonObjectVersion.definition = (setup: () => TestSetup) => (() => {
 		opts.url = resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd(obj.objId));
 		let rep = await doBodylessRequest<Uint8Array>(opts);
 		expect(rep.status).toBe(api.SC.okGet);
-		expect(parseInt(rep.headers.get(HTTP_HEADER.objVersion))).toBe(obj.version, 'object version must be given in the reply header');
-		expect(parseInt(rep.headers.get(HTTP_HEADER.objSegmentsLength))).toBe(obj.segs.length, 'object segments size must be given in the reply header');
+		expect(parseInt(rep.headers!.get(HTTP_HEADER.objVersion)!)).toBe(obj.version, 'object version must be given in the reply header');
+		expect(parseInt(rep.headers!.get(HTTP_HEADER.objSegmentsLength)!)).toBe(obj.segs.length, 'object segments size must be given in the reply header');
 		expect(bytesEqual(rep.data, obj.header)).toBe(true, 'reply should have proper header bytes');
 	});
 
@@ -114,8 +114,8 @@ specReadOfCommonObjectVersion.definition = (setup: () => TestSetup) => (() => {
 		opts.url = resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd(obj.objId, obj.version));
 		let rep = await doBodylessRequest<Uint8Array>(opts);
 		expect(rep.status).toBe(api.SC.okGet);
-		expect(rep.headers.get(HTTP_HEADER.objVersion)).toBeFalsy('object version should not be present in the reply header');
-		expect(parseInt(rep.headers.get(HTTP_HEADER.objSegmentsLength))).toBe(obj.segs.length, 'object segments size must be given in the reply header');
+		expect(rep.headers!.get(HTTP_HEADER.objVersion)).toBeFalsy('object version should not be present in the reply header');
+		expect(parseInt(rep.headers!.get(HTTP_HEADER.objSegmentsLength)!)).toBe(obj.segs.length, 'object segments size must be given in the reply header');
 		expect(bytesEqual(rep.data, obj.header)).toBe(true, 'reply should have proper header bytes');
 	});
 
@@ -140,8 +140,8 @@ let diffVer: Obj = {
 let specReadOfDiffObjectVersion: SpecDescribe = {
 	description: `${description}, diff recorded version,`
 };
-specs.push(specReadOfCommonObjectVersion);
-specReadOfCommonObjectVersion.definition = (setup: () => TestSetup) => (() => {
+specs.push(specReadOfDiffObjectVersion);
+specReadOfDiffObjectVersion.definition = (setup: () => TestSetup) => (() => {
 
 	beforeAllAsync(async () => {
 		await setupCommonObjVersion(setup);
@@ -154,8 +154,8 @@ specReadOfCommonObjectVersion.definition = (setup: () => TestSetup) => (() => {
 		opts.url = resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd(diffVer.objId));
 		let rep = await doBodylessRequest<Uint8Array>(opts);
 		expect(rep.status).toBe(api.SC.okGet);
-		expect(parseInt(rep.headers.get(HTTP_HEADER.objVersion))).toBe(diffVer.version, 'object version must be given in the reply header');
-		expect(parseInt(rep.headers.get(HTTP_HEADER.objSegmentsLength))).toBe(diffVer.diff.segsSize, 'object segments size must be given in the reply header');
+		expect(parseInt(rep.headers!.get(HTTP_HEADER.objVersion)!)).toBe(diffVer.version, 'object version must be given in the reply header');
+		expect(parseInt(rep.headers!.get(HTTP_HEADER.objSegmentsLength)!)).toBe(diffVer.diff!.segsSize, 'object segments size must be given in the reply header');
 		expect(bytesEqual(rep.data, diffVer.header)).toBe(true, 'reply should have proper header bytes');
 	});
 
@@ -164,8 +164,8 @@ specReadOfCommonObjectVersion.definition = (setup: () => TestSetup) => (() => {
 		opts.url = resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd(diffVer.objId, diffVer.version));
 		let rep = await doBodylessRequest<Uint8Array>(opts);
 		expect(rep.status).toBe(api.SC.okGet);
-		expect(rep.headers.get(HTTP_HEADER.objVersion)).toBeFalsy('object version should not be present in the reply header');
-		expect(parseInt(rep.headers.get(HTTP_HEADER.objSegmentsLength))).toBe(diffVer.diff.segsSize, 'object segments size must be given in the reply header');
+		expect(rep.headers!.get(HTTP_HEADER.objVersion)).toBeFalsy('object version should not be present in the reply header');
+		expect(parseInt(rep.headers!.get(HTTP_HEADER.objSegmentsLength)!)).toBe(diffVer.diff!.segsSize, 'object segments size must be given in the reply header');
 		expect(bytesEqual(rep.data, diffVer.header)).toBe(true, 'reply should have proper header bytes');
 	});
 

@@ -27,7 +27,7 @@ import * as express from 'express';
  */
 export function allowCrossDomain(allowHeaders: string[],
 		allowMethods: string[]): express.RequestHandler {
-	let headersToAllow: string;
+	let headersToAllow: string|null;
 	if (allowHeaders) {
 		if (!Array.isArray(allowHeaders)) { throw new Error(
 				"Given argument headersToAllow must be either "+
@@ -36,7 +36,7 @@ export function allowCrossDomain(allowHeaders: string[],
 	} else {
 		headersToAllow = null;
 	}
-	let methodsToAllow: string;
+	let methodsToAllow: string|null;
 	if (allowMethods) {
 		if (!Array.isArray(allowMethods)) { throw new Error(
 				"Given argument methodsToAllow must be either "+

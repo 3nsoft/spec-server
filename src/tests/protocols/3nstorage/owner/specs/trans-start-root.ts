@@ -39,7 +39,7 @@ let user: User;
 let sessionId: string;
 
 let obj: Obj = {
-	objId: null,
+	objId: (null as any),
 	version: 1,
 	header: randomBytes(100),
 	segs: randomBytes(573)

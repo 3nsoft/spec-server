@@ -48,7 +48,7 @@ describe('Home server Admin', () => {
 		
 		afterEachAsync(async () => {
 			await admin.stop();
-			admin = null;
+			admin = (undefined as any);
 		});
 		
 		itAsync('tells available addresses for a given name', async () => {
@@ -146,13 +146,21 @@ describe('Home server Admin', () => {
 					params: {}
 				},
 				mailerId: {
-					pkey: {
-						alg: box.JWK_ALG_NAME,
-						kid: (new Buffer(12)).toString('base64'),
-						use: use.MID_PKLOGIN,
-						k: (new Buffer(box.KEY_LENGTH)).toString('base64')
+					defaultPKey: {
+						pkey: {
+							alg: box.JWK_ALG_NAME,
+							kid: (new Buffer(12)).toString('base64'),
+							use: use.MID_PKLOGIN,
+							k: (new Buffer(box.KEY_LENGTH)).toString('base64')
+						},
+						params: {}
 					},
-					params: {}
+					otherPKeys: [ {
+							alg: box.JWK_ALG_NAME,
+							kid: (new Buffer(12)).toString('base64'),
+							use: use.MID_PKLOGIN,
+							k: (new Buffer(box.KEY_LENGTH)).toString('base64')
+						} ]
 				}
 			};
 		}
@@ -182,22 +190,40 @@ describe('Home server Admin', () => {
 			delete req.mailerId;
 			badJSONs.push(req);
 			req = makeAddUserReq(goodId);
-			delete req.mailerId.pkey;
+			delete req.mailerId.defaultPKey;
 			badJSONs.push(req);
 			req = makeAddUserReq(goodId);
-			delete req.mailerId.pkey.alg;
+			delete req.mailerId.defaultPKey.pkey.alg;
 			badJSONs.push(req);
 			req = makeAddUserReq(goodId);
-			delete req.mailerId.pkey.k;
+			delete req.mailerId.defaultPKey.pkey.k;
 			badJSONs.push(req);
 			req = makeAddUserReq(goodId);
-			delete req.mailerId.pkey.kid;
+			delete req.mailerId.defaultPKey.pkey.kid;
 			badJSONs.push(req);
 			req = makeAddUserReq(goodId);
-			delete req.mailerId.pkey.use;
+			delete req.mailerId.defaultPKey.pkey.use;
 			badJSONs.push(req);
 			req = makeAddUserReq(goodId);
-			delete req.mailerId.params;
+			delete req.mailerId.defaultPKey.params;
+			badJSONs.push(req);
+			req = makeAddUserReq(goodId);
+			delete req.mailerId.otherPKeys;
+			badJSONs.push(req);
+			req = makeAddUserReq(goodId);
+			delete req.mailerId.otherPKeys[0];
+			badJSONs.push(req);
+			req = makeAddUserReq(goodId);
+			delete req.mailerId.otherPKeys[0].alg;
+			badJSONs.push(req);
+			req = makeAddUserReq(goodId);
+			delete req.mailerId.otherPKeys[0].k;
+			badJSONs.push(req);
+			req = makeAddUserReq(goodId);
+			delete req.mailerId.otherPKeys[0].kid;
+			badJSONs.push(req);
+			req = makeAddUserReq(goodId);
+			delete req.mailerId.otherPKeys[0].use;
 			badJSONs.push(req);
 			return badJSONs;
 		}

@@ -37,7 +37,7 @@ interface AddressToSizeMap {
  * @return numeric value found in the list, or undefined,
  * if neither address, nor its domain can be matched in the list.
  */
-function findMatchIn(lst: AddressToSizeMap, address: string): number {
+function findMatchIn(lst: AddressToSizeMap, address: string): number|undefined {
 	// check address as a whole
 	let v = lst[address];
 	if ('undefined' !== typeof v) { return v; }
@@ -158,7 +158,8 @@ export interface IExists {
  *     box.
  */
 export interface IAllowedMaxMsgSize {
-	(recipient: string, sender: string, invitation: string): Promise<number>;
+	(recipient: string, sender: string|undefined, invitation: string|undefined):
+		Promise<number>;
 }
 /**
  * This allocates storage for a message returning a promise, resolvable to
@@ -167,7 +168,7 @@ export interface IAllowedMaxMsgSize {
  */
 export interface ISetMsgStorage {
 	(recipient: string, msgMeta: deliveryApi.msgMeta.Request,
-		authSender: string): Promise<string>;
+		authSender: string|undefined): Promise<string>;
 }
 /**
  * This saves given object's bytes, returning a promise, resolvable when saving
@@ -292,7 +293,7 @@ export function makeFactory(rootFolder: string,
 			(userId: string, param: T, setDefault?: boolean) => Promise<boolean> {
 		return async (userId: string, param: T, setDefault?: boolean) => {
 			let inbox = await getInbox(userId);
-			return staticSetter(inbox, param, setDefault);
+			return staticSetter(inbox, param, !!setDefault);
 		};		
 	}
 	
@@ -303,6 +304,7 @@ export function makeFactory(rootFolder: string,
 				return inbox.appendObj(opts.msgId, opts.objId,
 					fileHeader, opts.isFirstReq, bytes, opts.chunkLen);
 			} else {
+				if (typeof opts.offset !== 'number') { throw new Error(`Expectation failed: options argument for non-appending mode is missing an offset.`); }
 				return inbox.saveObjChunk(opts.msgId, opts.objId,
 					fileHeader, opts.isFirstReq, opts.totalSize,
 					opts.offset, opts.chunkLen, bytes);

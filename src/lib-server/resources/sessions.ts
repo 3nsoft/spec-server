@@ -164,7 +164,7 @@ export interface Session<T> {
 }
 
 function makeSession(id: string, factory: SessionFactory): Session<any> {
-	let cleanUpFuncs: { (): void; }[] = [];
+	let cleanUpFuncs: ({ (): void; }|undefined)[] = [];
 	let session: Session<any> = {
 		params: <any> {},
 		isAuthorized: false,
@@ -180,7 +180,7 @@ function makeSession(id: string, factory: SessionFactory): Session<any> {
 			let func;
 			for (var i=0; i<cleanUpFuncs.length; i++) {
 				func = cleanUpFuncs[i];
-				cleanUpFuncs[i] = null;
+				cleanUpFuncs[i] = undefined;
 				try {
 					if ('function' === typeof func) { func(); }
 				} catch (err) {

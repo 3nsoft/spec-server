@@ -40,7 +40,7 @@ let server: https.Server;
 parent.addHandler('set-dns-mock', setDnsMock);
 async function setDnsMock(env: RequestEnvelope<DnsTxtRecords>) {
 	dnsMock = new DNSMock(env.req);
-	dns.resolveTxt = dnsMock.resolveTxt;
+	(dns as any).resolveTxt = dnsMock.resolveTxt;
 }
 
 interface ServiceUrls {
@@ -120,6 +120,6 @@ parent.addHandler('stop', stop);
 async function stop(env: RequestEnvelope<void>): Promise<void> {
 	if (!server) { return; }
 	await stopService(server);
-	server = null;
+	server = (undefined as any);
 	await cleanDataFolder();
 }

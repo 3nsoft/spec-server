@@ -37,9 +37,9 @@ export function readFile(path: string,
 			else { resolve(data); }
 		};
 		if (options) {
-			fs.readFile(path, cb);
-		} else {
 			fs.readFile(path, options, cb);
+		} else {
+			fs.readFile(path, cb);
 		}
 	});
 }
@@ -74,12 +74,17 @@ export function open(path: string, flags: string): Promise<number> {
 }
 
 function writeOrig(fd: number, buffer: Buffer, offset: number,
-		length: number, position: number): Promise<number> {
+		length: number, position?: number): Promise<number> {
 	return new Promise<number>((resolve, reject) => {
-		fs.write(fd, buffer, offset, length, position, (err, written) => {
+		let cb = (err, written) => {
 			if (err) { reject(makeFileExceptionFromNodes(err)); }
 			else { resolve(written); }
-		});
+		};
+		if (typeof position === 'number') {
+			fs.write(fd, buffer, offset, length, position, cb);
+		} else {
+			fs.write(fd, buffer, offset, length, cb);
+		}
 	});
 }
 
@@ -231,10 +236,10 @@ SINGLE_BYTE_BUF[0] = 0;
  * else return value is undefined and should be ignored.
  */
 export async function createEmptyFile(filePath: string, fileSize: number,
-		keepFileOpen?: boolean): Promise<number> {
+		keepFileOpen?: boolean): Promise<number|undefined> {
 	if ((typeof fileSize !== 'number') || (fileSize < 0)) { throw new Error(
 		'Illegal file size given: '+fileSize); }
-	let fileDescr: number;
+	let fileDescr: number|undefined;
 	try {
 		fileDescr = await open(filePath, 'wx');
 		if (fileSize > 0) {
@@ -244,9 +249,7 @@ export async function createEmptyFile(filePath: string, fileSize: number,
 		await close(fileDescr);
 	} catch (exc) {
 		if (fileDescr) {
-			try {
-				close(fileDescr);
-			} catch (err) {}
+			close(fileDescr).catch(() => {});
 		}
 		throw exc;
 	}
@@ -301,6 +304,21 @@ export async function write(fd: number, pos: number, buf: Buffer):
 }
 
 /**
+ * @param fd is an open file descriptor in append mode.
+ * @param buf is a buffer, from which all bytes should be written into the file.
+ * @returns a promise, resolvable when all bytes were written to it.
+ */
+export async function append(fd: number, buf: Buffer):
+		Promise<void> {
+	let bytesWritten = 0;
+	while (bytesWritten < buf.length) {
+		let bNum = await writeOrig(fd, buf,
+			bytesWritten, buf.length-bytesWritten);
+		bytesWritten += bNum;
+	}
+}
+
+/**
  * @param filePath is a path to an existing file
  * @param pos is a position in the file, from which writing should start
  * @param buf is a buffer, from which all bytes should be written into the file.
@@ -348,18 +366,21 @@ export async function streamToExistingFile(filePath: string, pos: number,
 		let bufInd = 0;
 		let writeProc = new SingleProc<void>();
 		let bytesWritten = 0;
-		
+
 		src.on('data', (data: Buffer) => {
 			if (done) { return; }
 			bytesRead += data.length;
 			if (bytesRead >= len) {
-				writeProc.startOrChain(async function() {
+				writeProc.startOrChain(async () => {
 					if (done) { return; }
 					try {
-						await writeToExistingFile(filePath,
-							pos, buf.slice(0, bufInd));
-						pos += bufInd;
-						bytesWritten += bufInd;
+						if (bufInd > 0) {
+							await writeToExistingFile(filePath,
+								pos, buf.slice(0, bufInd));
+							pos += bufInd;
+							bytesWritten += bufInd;
+							bufInd = 0;
+						}
 						if (data.length > (len - bytesWritten)) {
 							data = data.slice(0, len - bytesWritten);
 						}
@@ -373,16 +394,19 @@ export async function streamToExistingFile(filePath: string, pos: number,
 				data.copy(buf, bufInd);
 				bufInd += data.length;
 			} else {
-				writeProc.startOrChain(async function() {
+				writeProc.startOrChain(async () => {
 					if (done) { return; }
 					try {
-						await writeToExistingFile(filePath,
-							pos, buf.slice(0, bufInd));
-						pos += bufInd;
-						bytesWritten += bufInd;
+						if (bufInd > 0) {
+							await writeToExistingFile(filePath,
+								pos, buf.slice(0, bufInd));
+							pos += bufInd;
+							bytesWritten += bufInd;
+							bufInd = 0;
+						}
 						await writeToExistingFile(filePath, pos, data);
 						pos += data.length;
-						bytesWritten = data.length;
+						bytesWritten += data.length;
 					} catch (err) {
 						setDone(err);
 					}
@@ -462,7 +486,7 @@ export async function rmDirWithContent(folder: string): Promise<void> {
 		await rmdir(folder);
 		return;
 	}
-	let rmTasks = [];
+	let rmTasks: Promise<void>[] = [];
 	for (let name of files) {
 		let innerPath = folder+'/'+name
 		let task = stat(innerPath)
@@ -477,6 +501,51 @@ export async function rmDirWithContent(folder: string): Promise<void> {
 	}
 	await Promise.all(rmTasks);
 	await rmdir(folder);
+}
+
+/**
+ * @param w is a writable stream
+ * @param buf is buffer of bytes that should be sunk into given stream
+ * @return a promise, resolvable when all bytes have been absobed by the
+ * writable.
+ */
+function sinkBytes(w: Writable, buf: Buffer): Promise<void> {
+	return new Promise<void>((resolve, reject) => {
+		w.write(buf, (err) => {
+			if (err) { reject(err); }
+			else { resolve(); }
+		});
+	});
+}
+
+/**
+ * @param filePath
+ * @param pos is a position in the file, from which read should start
+ * @param len is a number of bytes to read from file and write into a sink
+ * @param sink is a writable stream, into which bytes should be sunk
+ * @param bufSize is a size of the buffer, used in this streaming
+ * @return a promise, resolvable when streaming from file into given writable
+ * sink completes.
+ */
+export async function streamFromFile(filePath: string, pos: number,
+		len: number, sink: Writable, bufSize: number): Promise<void> {
+	if ((typeof pos !== 'number') || (pos < 0)) { throw new Error(
+		'Illegal file position given: '+pos); }
+	if ((typeof len !== 'number') || (len < 1)) { throw new Error(
+		'Illegal length given: '+len); }
+	if ((typeof bufSize !== 'number') || (bufSize < 1024)) { throw new Error(
+		'Illegal buffer size given: '+bufSize); }
+	let buf = new Buffer(Math.min(bufSize, len));
+	let byteCount = 0;
+	while (byteCount < len) {
+		let bytesLeft = len - byteCount;
+		if (buf.length > bytesLeft) {
+			buf = buf.slice(0, bytesLeft);
+		}
+		await readFromFile(filePath, pos+byteCount, buf);
+		await sinkBytes(sink, buf);
+		byteCount += buf.length;
+	}
 }
 
 /**

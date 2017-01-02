@@ -33,7 +33,13 @@ export async function addUserIn(rootServerUrl: string, userId: string): Promise<
 	};
 	let user: User = {
 		id: userId,
-		loginSKey: random.bytes(box.KEY_LENGTH)
+		loginDefaultSKey: random.bytes(box.KEY_LENGTH),
+		loginLabeledSKey: {
+			k: random.bytes(box.KEY_LENGTH),
+			kid: random.stringOfB64Chars(12)
+		},
+		midUrl: (undefined as any),
+		storageOwnerUrl: (undefined as any)
 	};
 	let req: signup.addUser.Request = {
 		userId: user.id,
@@ -41,13 +47,21 @@ export async function addUserIn(rootServerUrl: string, userId: string): Promise<
 			params: {}
 		},
 		mailerId: {
-			pkey: {
-				alg: box.JWK_ALG_NAME,
-				kid: random.stringOfB64Chars(12),
-				use: use.MID_PKLOGIN,
-				k: base64.pack(box.generate_pubkey(user.loginSKey))
+			defaultPKey: {
+				pkey: {
+					alg: box.JWK_ALG_NAME,
+					kid: '_',
+					use: use.MID_PKLOGIN,
+					k: base64.pack(box.generate_pubkey(user.loginDefaultSKey))
+				},
+				params: {}
 			},
-			params: {}
+			otherPKeys: [ {
+					alg: box.JWK_ALG_NAME,
+					kid: user.loginLabeledSKey.kid,
+					use: use.MID_PKLOGIN,
+					k: base64.pack(box.generate_pubkey(user.loginLabeledSKey.k))
+				} ]
 		}
 	};
 	let rep = await doJsonRequest<string[]>(reqOpts, req);
@@ -59,7 +73,7 @@ export class MailerIdComponent extends Component {
 	
 	constructor(signupDomains: string[], public midServiceDomain: string) {
 		super({
-			rootFolder: null,
+			rootFolder: (null as any),
 			domain: midServiceDomain,
 			signup: {
 				domains: signupDomains
@@ -68,7 +82,7 @@ export class MailerIdComponent extends Component {
 				mailerId: true
 			},
 			mailerId: {
-				certs: null
+				certs: (null as any)
 			}
 		});
 		Object.seal(this);

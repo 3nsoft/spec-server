@@ -109,9 +109,9 @@ export async function parseObjFile(fd: number):
 }
 
 async function writeObjFileToDisk(path: string, fileSize: number,
-		headerOffset: number, segsOffset: number, diffBytes: Buffer):
+		headerOffset: number, segsOffset: number, diffBytes: Buffer|null):
 		Promise<void> {
-	let fd = await fs.createEmptyFile(path, fileSize, true);
+	let fd = (await fs.createEmptyFile(path, fileSize, true))!;
 	try {
 		if (diffBytes) {
 			await fs.write(fd, 0, DIFF_BYTES_FILE_START);

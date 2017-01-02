@@ -42,8 +42,10 @@ export interface RequestOpts {
 }
 
 export interface Headers {
-	get(name: string): string;
+	get(name: string): string|undefined;
 }
+
+let logHttp = (process.argv.indexOf('--console-log-http') > 0);
 
 function makeHeadersInstanceFrom(xhr: XMLHttpRequest, selectHeaders: string[]):
 		Headers {
@@ -55,19 +57,23 @@ function makeHeadersInstanceFrom(xhr: XMLHttpRequest, selectHeaders: string[]):
 		m.set(h.toLowerCase(), value);
 	}
 	return {
-		get(name: string): string {
+		get(name: string): string|undefined {
 			return m.get(name.toLowerCase());
 		}
 	};
 }
 
-export function request<T>(contentType: string, opts: RequestOpts):
+export function request<T>(contentType: string|undefined, opts: RequestOpts):
 		{ xhr: XMLHttpRequest; promise: Promise<Reply<T>>; } {
 	let xhr: XMLHttpRequest = new xhr2();
 	let promise = new Promise<Reply<T>>((resolve, reject) => {
 		xhr.open(opts.method, opts.url);
+// DEBUG
+if (logHttp) { console.log(` - ${opts.method} @ ${opts.url} ...\n`); }
 		xhr.onload = () => {
 			let data = xhr.response;
+// DEBUG
+if (logHttp) { console.log(` > ${xhr.status} reply to ${opts.method} @ ${opts.url}\n > ${(data instanceof ArrayBuffer) ? (<ArrayBuffer> data).byteLength+' bytes' : JSON.stringify(data) }\n`); }
 			if ((opts.responseType === 'arraybuffer') &&
 					(data instanceof ArrayBuffer)) {
 				data = new Uint8Array(data);
@@ -84,6 +90,8 @@ export function request<T>(contentType: string, opts: RequestOpts):
 			resolve(rep);
 		};
 		xhr.onerror = (ev) => {
+// DEBUG
+if (logHttp) { console.log(` * cannot connect to ${opts.method} @ ${opts.url} ...\n${ev}\n`); }
 			reject(makeConnectionException(opts.url, opts.method, 'Cannot connect'));
 		};
 		if (contentType) {
@@ -147,7 +155,7 @@ export function doTextRequest<T>(opts: RequestOpts, txt: string):
  * @return a promise, resolvable to reply object
  */
 export function doBodylessRequest<T>(opts: RequestOpts): Promise<Reply<T>> {
-	let req = request<T>(null, opts);
+	let req = request<T>(undefined, opts);
 	req.xhr.send();
 	return req.promise;
 }

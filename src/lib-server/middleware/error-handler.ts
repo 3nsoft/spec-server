@@ -41,7 +41,7 @@ export interface ErrLogger {
 	(err: any, req: Request): void;
 }
 
-export function makeErrHandler(log: ErrLogger = null): ErrorRequestHandler {
+export function makeErrHandler(log?: ErrLogger): ErrorRequestHandler {
 	return async function (err: HttpError, req: Request, res: Response,
 			next: NextFunction) {
 		let resStatus: number;

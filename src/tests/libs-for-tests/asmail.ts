@@ -118,6 +118,7 @@ export async function startMsgDelivery(deliveryUrl: string,
 
 export async function sendMsgObj(deliveryUrl: string, sessionId: string,
 		obj: Obj): Promise<void> {
+	if (!obj.objId) { throw new Error(`Message object doesn't have an id`); }
 	let reqOpts: RequestOpts = {
 		url: resolveUrl(deliveryUrl, deliveryApi.msgObjHeader.genUrlEnd(
 			obj.objId, { total: obj.header.length, ofs: 0 })),
@@ -129,7 +130,7 @@ export async function sendMsgObj(deliveryUrl: string, sessionId: string,
 	reqOpts.url = resolveUrl(deliveryUrl, deliveryApi.msgObjSegs.genUrlEnd(
 		obj.objId, { total: obj.segs.length, ofs: 0 }));
 	rep = await doBinaryRequest<void>(reqOpts, obj.segs);
-	expect(rep.status).toBe(deliveryApi.msgObjHeader.SC.ok);
+	expect(rep.status).toBe(deliveryApi.msgObjSegs.SC.ok);
 }
 
 export interface Msg {
@@ -142,7 +143,10 @@ export async function sendMsg(deliveryUrl: string, recipient: string,
 	let meta = <deliveryApi.msgMeta.Request> msg.cryptoMeta;
 	meta.objIds = new Array<string>(msg.msgObjs.length);
 	for (let i=0; i < msg.msgObjs.length; i+=1) {
-		meta.objIds[i] = msg.msgObjs[i].objId;
+		let objId = msg.msgObjs[i].objId;
+		if (!objId) { throw new Error(
+			`Message object #${i} doesn't have an id`); }
+		meta.objIds[i] = objId;
 	}
 	let sessInfo = await startMsgDelivery(deliveryUrl, { recipient }, meta);
 	for (let msgObj of msg.msgObjs) {

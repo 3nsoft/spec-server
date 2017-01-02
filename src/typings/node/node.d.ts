@@ -465,7 +465,7 @@ interface NodeBuffer extends Uint8Array {
     writeFloatBE(value: number, offset: number, noAssert?: boolean): number;
     writeDoubleLE(value: number, offset: number, noAssert?: boolean): number;
     writeDoubleBE(value: number, offset: number, noAssert?: boolean): number;
-    fill(value: any, offset?: number, end?: number): Buffer;
+    fill(value: any, offset?: number, end?: number): this;
     // TODO: encoding param
     indexOf(value: string | number | Buffer, byteOffset?: number): number;
     // TODO: entries
@@ -1827,7 +1827,7 @@ declare module "tls" {
     }
 
     export interface Server extends net.Server {
-        close(): Server;
+        close(callback?: Function): Server;
         address(): { port: number; family: string; address: string; };
         addContext(hostName: string, credentials: {
             key: string;

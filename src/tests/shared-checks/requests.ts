@@ -63,7 +63,7 @@ export declare type BodyType =
 	'application/octet-stream' | 'text/plain' | 'application/json';
 
 const bodyTypes = [ 'application/octet-stream',
-	'text/plain', 'application/json', null ];
+	'text/plain', 'application/json', undefined ];
 
 export async function expectNonAcceptanceOfBadType(opts: RequestOpts,
 		correctType: BodyType, body: Uint8Array): Promise<void> {
@@ -88,7 +88,7 @@ export async function expectNonAcceptanceOfLongBody(opts: RequestOpts,
 export async function expectNonAcceptanceOfNonEmptyBody(opts: RequestOpts):
 		Promise<void> {
 	let badReq = randomBytes(1);
-	let req = request<void>(null, opts);
+	let req = request<void>(undefined, opts);
 	req.xhr.send(badReq);
 	let rep = await req.promise;
 	expect(rep.status).toBe(LONG_BODY_STATUS, 'status code for long request');
@@ -105,7 +105,7 @@ export async function expectNonAcceptanceOfBadSessionId(
 	
 	// missing session id
 	delete opts.sessionId;
-	let req = request<void>(null, opts);
+	let req = request<void>(undefined, opts);
 	if (hasBody) { req.xhr.send(randomBytes(5)); }
 	else { req.xhr.send(); }
 	let rep = await req.promise;
@@ -113,7 +113,7 @@ export async function expectNonAcceptanceOfBadSessionId(
 	
 	// invalid session id
 	opts.sessionId = 'bogus session id';
-	req = request<void>(null, opts);
+	req = request<void>(undefined, opts);
 	if (hasBody) { req.xhr.send(randomBytes(5)); }
 	else { req.xhr.send(); }
 	rep = await req.promise;

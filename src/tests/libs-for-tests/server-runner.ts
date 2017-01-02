@@ -27,7 +27,7 @@ export type ServerState = 'stopped' | 'starting' | 'running' | 'stopping';
 export abstract class ServerRunner {
 	
 	protected state: ServerState = 'stopped';
-	protected server: https.Server = null;
+	protected server: https.Server = (undefined as any);
 	
 	constructor(
 		protected servicePort: number) {}
@@ -55,7 +55,7 @@ export abstract class ServerRunner {
 			`Home server is in ${this.state} state instead of running state`); }
 		this.state = 'stopping';
 		await stopService(this.server);
-		this.server = null;
+		this.server = (undefined as any);
 		if (doCleanup) {
 			await this.clean();
 		}

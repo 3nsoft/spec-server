@@ -57,7 +57,7 @@ describe('ASMail delivery service', () => {
 	
 	afterAllAsync(async () => {
 		await asmailServer.stop();
-		asmailServer = null;
+		asmailServer = (undefined as any);
 	});
 	
 	itAsync('first request starts delivery session', async () => {
@@ -135,7 +135,7 @@ describe('ASMail delivery service', () => {
 	let obj2: Obj = {
 		objId: 'bbbb',
 		header: randomBytes(100),
-		segs: randomBytes(2*1024 + 7)
+		segs: randomBytes(20*1024 + 7)
 	};
 	let msg: Msg = {
 		cryptoMeta: { pid: 'xxxx' },
@@ -365,7 +365,7 @@ describe('ASMail delivery service', () => {
 		
 		let rep = await doBodylessRequest<void>(reqOpts);
 		expect(rep.status).toBe(api.completion.SC.ok, 'normal end of message delivering session');
-		expect(await asmailServer.msgExists(user1.id, sessInfo.msgId, true, msg)).toBeTruthy('message is now delivered');
+		expect(await asmailServer.msgExists(user1.id, sessInfo.msgId, true, msg)).toBeTruthy('message must now be delivered');
 		
 		// duplicate should not work, as session is already closed
 		rep = await doBodylessRequest<void>(reqOpts);

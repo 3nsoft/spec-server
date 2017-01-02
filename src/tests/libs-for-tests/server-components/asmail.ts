@@ -30,7 +30,7 @@ export class ASMailComponent extends Component {
 	
 	constructor(signupDomains: string[], public midServiceDomain: string) {
 		super({
-			rootFolder: null,
+			rootFolder: (null as any),
 			domain: midServiceDomain,
 			signup: {
 				domains: signupDomains
@@ -40,7 +40,7 @@ export class ASMailComponent extends Component {
 				asmail: true
 			},
 			mailerId: {
-				certs: null
+				certs: (null as any)
 			}
 		});
 		Object.seal(this);
@@ -93,26 +93,26 @@ export class ASMailComponent extends Component {
 		let extMeta = meta.extMeta;
 		if (deliveryComplete && msg) {
 			if (msg.cryptoMeta.pid) {
-				expect(extMeta.pid).toBe(msg.cryptoMeta.pid);
+				expect(extMeta.pid).toBe(msg.cryptoMeta.pid, 'correct key-pair id in meta');
 			}
 			if (msg.cryptoMeta.recipientKid) {
-				expect(extMeta.recipientKid).toBe(msg.cryptoMeta.recipientKid);
+				expect(extMeta.recipientKid).toBe(msg.cryptoMeta.recipientKid, 'correct recipient key id in meta');
 			}
 			if (msg.cryptoMeta.senderPKey) {
-				expect(extMeta.senderPKey).toBe(msg.cryptoMeta.senderPKey);
+				expect(extMeta.senderPKey).toBe(msg.cryptoMeta.senderPKey, 'correct sender\'s public key');
 			}
-			expect(extMeta.objIds.length).toBe(msg.msgObjs.length);
-			expect(Object.keys(meta.objSizes).length).toBe(msg.msgObjs.length);
+			expect(extMeta.objIds.length).toBe(msg.msgObjs.length, 'correct number of message objects in meta');
+			expect(Object.keys(meta.objSizes).length).toBe(msg.msgObjs.length, 'correct noumber of message object sizes in meta');
 			for (let i=0; i < msg.msgObjs.length; i+=1) {
 				let obj = msg.msgObjs[i];
-				let objId = obj.objId;
+				let objId = obj.objId!;
 				expect(extMeta.objIds[i]).toBe(objId);
-				expect(meta.objSizes[objId].header).toBe(obj.header.length);
-				expect(meta.objSizes[objId].segments).toBe(obj.segs.length);
+				expect(meta.objSizes![objId].header).toBe(obj.header.length, 'header length of a message object');
+				expect(meta.objSizes![objId].segments).toBe(obj.segs.length, 'segments length of a message object');
 				let bytes = await fs.readFile(`${msgFolder}/${objId}.hxsp`);
-				expect(bytesEqual(bytes, obj.header)).toBeTruthy();
+				expect(bytesEqual(bytes, obj.header)).toBeTruthy('header bytes must match');
 				bytes = await fs.readFile(`${msgFolder}/${objId}.sxsp`);
-				expect(bytesEqual(bytes, obj.segs)).toBeTruthy();
+				expect(bytesEqual(bytes, obj.segs)).toBeTruthy('segments bytes must match');
 			}
 		}
 		return true;

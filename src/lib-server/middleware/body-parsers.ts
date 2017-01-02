@@ -115,7 +115,7 @@ export async function parseBinaryBodyWithExpectedSize(req: express.Request,
 	req.on('end', () => {
 		if (erred) { return; }
 		if (bytes.length === expectedLen) {
-			deffered.resolve(bytes.getBytes(null));
+			deffered.resolve(bytes.getBytes(undefined)!);
 		} else {
 			deffered.reject(makeErr(400,
 				"Request body is shorter than expected."));

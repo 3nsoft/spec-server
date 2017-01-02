@@ -33,7 +33,7 @@ export interface ICheckAndTransformUserId {
 	 * @return if incoming id is ok, same, or transformed id is returned,
 	 * else, if incoming id is not ok, undefined is returned.
 	 */
-	(initUserId: string): string;
+	(initUserId: string): string|undefined;
 }
 
 export interface IUserExists {
@@ -90,10 +90,10 @@ export function startSession(
 		}
 		
 		async function serveRequestHere() {
-			let userExists = await userExistsFunc(userId);
+			let userExists = await userExistsFunc(userId!);
 			if (userExists) {
 				let session = await sessionGenFunc();
-				(<SessionParams> session.params).userId = userId;
+				(<SessionParams> session.params).userId = userId!;
 				res.status(api.SC.ok).json( <api.Reply> {
 					sessionId: session.id,
 				});

@@ -29,7 +29,7 @@ export interface IRedirect {
 
 export interface SessionParams {
 	recipient: string;
-	sender: string;
+	sender?: string;
 	maxMsgLength: number;
 	currentMsgLength: number;
 	msgId: string;
@@ -67,8 +67,8 @@ export function startSession(allowedMsgSizeFunc: IAllowedMaxMsgSize,
 		
 		let rb: api.Request = req.body;
 		let recipient = checkAndTransformAddress(rb.recipient);
-		let sender = (rb.sender ? rb.sender : null);
-		let invitation = (rb.invitation ? rb.invitation : null);
+		let sender = (rb.sender ? rb.sender : undefined);
+		let invitation = (rb.invitation ? rb.invitation : undefined);
 		let session = req.session;
 		
 		// already existing session indicates repeated call, which should be bounced off
@@ -99,10 +99,10 @@ export function startSession(allowedMsgSizeFunc: IAllowedMaxMsgSize,
 		}
 		
 		async function serveRequestHere() {
-			let msgSize = await allowedMsgSizeFunc(recipient, sender, invitation);
+			let msgSize = await allowedMsgSizeFunc(recipient!, sender, invitation);
 			if (msgSize > 0) {
 				let session = await sessionGenFunc();
-				session.params.recipient = recipient;
+				session.params.recipient = recipient!;
 				session.params.sender = sender;
 				session.params.maxMsgLength = msgSize;
 				if (!sender) {

@@ -47,7 +47,7 @@ export abstract class UserFiles {
 	fileReadingBufferSize: number;
 	
 	constructor(userId: string, path: string,
-			writeBufferSize: string|number, readBufferSize: string|number) {
+			writeBufferSize?: string|number, readBufferSize?: string|number) {
 		this.userId = userId;
 		this.path = path;
 		this.fileWritingBufferSize = (writeBufferSize ?

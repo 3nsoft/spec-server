@@ -52,16 +52,16 @@ import { startService } from './lib-server/async-server';
 				mailerId: true
 			},
 			rootFolder: rootFolder,
-			domain: 'staging.3nsoft.net',
-			// domain: '3nweb.net',
+			// domain: 'staging.3nsoft.net',
+			domain: '3nweb.net',
 			mailerId: {
 				certs: dataFolder+'/mid-certs.json'
 			},
 			signup: {
 // XXX check domains on app start
-				domains: [ 'staging.3nsoft.net' ]
-				// domains: [ '3nweb.com', '3nweb.ch', '3nweb.is', '3nweb.de',
-				// 				'3nweb.ru', '3nweb.by', '3nweb.com.ua' ]
+				// domains: [ 'staging.3nsoft.net' ]
+				domains: [ '3nweb.com', '3nweb.ch', '3nweb.is', '3nweb.de',
+								'3nweb.ru', '3nweb.by', '3nweb.com.ua' ]
 			}
 		}
 		

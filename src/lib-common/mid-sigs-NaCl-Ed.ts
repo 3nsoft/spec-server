@@ -201,7 +201,7 @@ export module idProvider {
 		}
 		let signKey = jwk.keyFromJson(signJKey, KEY_USE.PROVIDER,
 				nacl.signing.JWK_ALG_NAME, nacl.signing.SECRET_KEY_LENGTH);
-		signJKey = null;
+		signJKey = (undefined as any);
 		if (!arrFactory) {
 			arrFactory = nacl.arrays.makeFactory();
 		}
@@ -228,9 +228,9 @@ export module idProvider {
 			destroy: (): void => {
 				if (!signKey) { return; }
 				nacl.arrays.wipe(signKey.k);
-				signKey = null;
-				arrFactory.wipeRecycled();
-				arrFactory = null;
+				signKey = (undefined as any);
+				arrFactory!.wipeRecycled();
+				arrFactory = undefined;
 			}
 		};
 	}
@@ -255,7 +255,7 @@ export interface CertsChain {
 export module relyingParty {
 
 	function verifyCertAndGetPubKey(signedCert: jwk.SignedLoad, use: string,
-			validAt: number, arrFactory: nacl.arrays.Factory,
+			validAt: number, arrFactory: nacl.arrays.Factory|undefined,
 			issuer?: string, issuerPKey?: jwk.Key):
 			{ pkey: jwk.Key; address:string; } {
 		let cert = jwk.getKeyCert(signedCert);
@@ -271,9 +271,10 @@ export module relyingParty {
 		}
 		let pkey = jwk.keyFromJson(cert.cert.publicKey, use,
 				nacl.signing.JWK_ALG_NAME, nacl.signing.PUBLIC_KEY_LENGTH);
-		let certOK = nacl.signing.verify(
-			base64.open(signedCert.sig), base64.open(signedCert.load),
-			(issuer ? issuerPKey.k : pkey.k), arrFactory);
+		let pk = (issuer ? issuerPKey!.k : pkey.k);
+		let sig = base64.open(signedCert.sig);
+		let load = base64.open(signedCert.load);
+		let certOK = nacl.signing.verify(sig, load, pk, arrFactory);
 		if (!certOK) { throw new Error(use+" certificate failed validation."); }
 		return { pkey: pkey, address: cert.cert.principal.address };
 	}
@@ -541,9 +542,9 @@ export module user {
 			destroy: (): void => {
 				if (!signKey) { return; }
 				nacl.arrays.wipe(signKey.k);
-				signKey = null;
-				arrFactory.wipeRecycled();
-				arrFactory = null;
+				signKey = (undefined as any);
+				arrFactory!.wipeRecycled();
+				arrFactory = (undefined as any);
 			}
 		};
 		Object.freeze(signer);

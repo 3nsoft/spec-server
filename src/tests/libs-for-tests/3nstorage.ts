@@ -113,7 +113,7 @@ export async function getSessionParams(ownerUrl: string, sessionId: string):
  * @param obj
  */
 export async function writeObjBytes(ownerUrl: string, sessionId: string,
-		transactionId: string, objId: string, obj: Obj): Promise<void> {
+		transactionId: string, objId: string|null, obj: Obj): Promise<void> {
 		let reqOpts: RequestOpts = {
 			url: resolveUrl(ownerUrl, ((objId === null) ?
 				api.rootHeader.putReqUrlEnd(transactionId) :
@@ -151,7 +151,7 @@ export async function writeObjBytes(ownerUrl: string, sessionId: string,
  * @return a promise, resolvable object is writen.
  */
 export async function saveObj(ownerUrl: string,
-		sessionId: string, objId: string, obj: Obj, isNewObj: boolean): Promise<void> {
+		sessionId: string, objId: string|null, obj: Obj, isNewObj: boolean): Promise<void> {
 	let sessParam = await getSessionParams(ownerUrl, sessionId);
 	let transactionId = await startTransaction(ownerUrl, sessionId,
 		obj, isNewObj);

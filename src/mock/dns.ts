@@ -76,7 +76,7 @@ export class DNSMock {
 	}
 	
 	private mockResolve(domain: string,
-			callback: (err: Error, txt: string[][]) => void): void {
+			callback: (err: Error|null, txt: string[][]|null) => void): void {
 		let d = domainOfAddress(domain);
 		let txt = this.domains.get(d);
 		if (txt) {
