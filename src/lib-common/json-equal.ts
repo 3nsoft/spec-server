@@ -20,7 +20,7 @@
 
 export function deepEqual(a: any, b: any): boolean {
 	
-	let t = typeof a;
+	const t = typeof a;
 	
 	if (t !== typeof b) { return false; }
 	
@@ -29,20 +29,21 @@ export function deepEqual(a: any, b: any): boolean {
 	}
 	
 	if (a === b) { return true; }
+	if ((a === null) || (b === null)) { return false; }
 		
 	if (Array.isArray(a)) {
 		if (!Array.isArray(b)) { return false; }
-		let aArr = <Array<any>> a;
-		let bArr = <Array<any>> b;
+		const aArr = <Array<any>> a;
+		const bArr = <Array<any>> b;
 		if (aArr.length !== bArr.length) { return false; }
 		for (let i=0; i<aArr.length; i+=1) {
 			if (!deepEqual(aArr[i], bArr[i])) { return false; }
 		}
 	} else {
-		let keys = Object.keys(a);
+		const keys = Object.keys(a);
 		if (keys.length !== Object.keys(b).length) { return false; }
 		for (let i=0; i<keys.length; i+=1) {
-			let key = keys[i];
+			const key = keys[i];
 			if (!deepEqual(a[key], b[key])) { return false; }
 		}
 	}

@@ -28,7 +28,7 @@ interface DnsError extends Error {
 }
 
 function makeDnsError(code: string, hostname: string): DnsError {
-	let e = <DnsError> new Error(`Mocked DNS error with code ${code}`);
+	const e = <DnsError> new Error(`Mocked DNS error with code ${code}`);
 	e.code = code;
 	e.hostname = hostname;
 	return e;
@@ -40,8 +40,8 @@ function makeDnsError(code: string, hostname: string): DnsError {
  */
 function domainOfAddress(address: string): string {
 	address = address.trim();
-	let indOfAt = address.lastIndexOf('@');
-	let domain = ((indOfAt < 0) ? address : address.substring(indOfAt+1));
+	const indOfAt = address.lastIndexOf('@');
+	const domain = ((indOfAt < 0) ? address : address.substring(indOfAt+1));
 	return domain;
 }
 
@@ -66,19 +66,20 @@ export class DNSMock {
 				this.mailerIdRec = midUrlOrBulkRecs;
 			}
 		} else {
-			let domains = Object.keys(midUrlOrBulkRecs);
-			for (let d of domains) {
+			const domains = Object.keys(midUrlOrBulkRecs);
+			for (const d of domains) {
 				this.domains.set(d, midUrlOrBulkRecs[d]);
 			}
 		}
-		this.resolveTxt = bind(this, this.mockResolve);
+		// node's definition incorrectly describes callback argument
+		this.resolveTxt = (bind(this, this.mockResolve) as any);
 		Object.freeze(this);
 	}
 	
 	private mockResolve(domain: string,
 			callback: (err: Error|null, txt: string[][]|null) => void): void {
-		let d = domainOfAddress(domain);
-		let txt = this.domains.get(d);
+		const d = domainOfAddress(domain);
+		const txt = this.domains.get(d);
 		if (txt) {
 			callback(null, txt);
 		} else {

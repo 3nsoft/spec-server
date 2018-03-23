@@ -17,8 +17,7 @@
 import { RequestHandler, Response, NextFunction } from 'express';
 import { utf8 } from '../../lib-common/buffer-utils';
 import { ICertify } from '../resources/certifier';
-import { Request } from 
-	'../../lib-server/routes/pub-key-login/start-exchange';
+import { Request } from '../resources/sessions';
 import * as jwk from '../../lib-common/jwkeys';
 import { certify as api }
 	from '../../lib-common/service-api/mailer-id/provisioning';
@@ -28,10 +27,10 @@ export function certify(certifyingFunc: ICertify): RequestHandler {
 			"Given argument 'certifyingFunc' must be function, but is not."); }
 	
 	return function (req: Request, res: Response, next: NextFunction) {
-		let session = req.session;
-		let c = new Uint8Array(req.body);
-		let encryptor = session.params.encryptor;
-		let email = session.params.userId;
+		const session = req.session;
+		const c = new Uint8Array(req.body);
+		const encryptor = session.params.encryptor;
+		const email = session.params.userId;
 		let bodyBytes: Uint8Array;
 		
 		// decrypt request body
@@ -48,7 +47,7 @@ export function certify(certifyingFunc: ICertify): RequestHandler {
 		
 		// extract parameters and certify
 		try {
-			let reqParams: api.Request =
+			const reqParams: api.Request =
 				JSON.parse(utf8.open(bodyBytes));
 			if (!reqParams.pkey) { throw new Error("Missing field"); }
 			signedCerts = certifyingFunc(

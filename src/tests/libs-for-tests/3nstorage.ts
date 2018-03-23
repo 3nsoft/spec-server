@@ -18,6 +18,7 @@ import { RequestOpts, doBodylessRequest, doBinaryRequest, doJsonRequest }
 	from '../libs-for-tests/xhr-utils';
 import { resolve as resolveUrl } from 'url';
 import * as api from '../../lib-common/service-api/3nstorage/owner';
+import { utf8 } from '../../lib-common/buffer-utils';
 
 export async function get3NStorageServiceUrl(storageUrl: string,
 		service: 'owner'|'shared'): Promise<string> {
@@ -42,39 +43,6 @@ export interface BaseObj {
 export interface Obj extends BaseObj {
 	version: number,
 	diff?: api.DiffInfo
-}
-
-export async function startTransaction(ownerUrl: string, sessionId: string,
-		obj: Obj, isNew: boolean, appendingTrans = false): Promise<string> {
-	let url = resolveUrl(ownerUrl, ((obj.objId === null) ?
-		api.startRootTransaction.URL_END :
-		api.startTransaction.getReqUrlEnd(obj.objId)));
-	let reqOpts: RequestOpts = {
-		url,
-		method: 'POST',
-		responseType: 'json',
-		sessionId
-	};
-	let transParams: api.startTransaction.Request = {
-		version: obj.version,
-		sizes: {
-			header: obj.header.length,
-			segments: (appendingTrans ? -1 : obj.segs.length)
-		}
-	};
-	if (isNew) {
-		transParams.isNewObj = true;
-	}
-	if (obj.diff) {
-		if (appendingTrans) { throw new Error('Diff transaction cannot be appending'); }
-		transParams.diff = obj.diff;
-	}
-	let rep = await doJsonRequest<api.startTransaction.Reply>(
-		reqOpts, transParams);
-	expect(rep.status).toBe((obj.objId === null) ?
-		api.startRootTransaction.SC.ok :
-		api.startTransaction.SC.ok);
-	return rep.data.transactionId;
 }
 
 export async function cancelTransaction(ownerUrl: string, sessionId: string,
@@ -107,66 +75,58 @@ export async function getSessionParams(ownerUrl: string, sessionId: string):
 }
 
 /**
- * @param sessionId
- * @param transactionId
- * @param objId is object's id. Null stands for root object.
- * @param obj
- */
-export async function writeObjBytes(ownerUrl: string, sessionId: string,
-		transactionId: string, objId: string|null, obj: Obj): Promise<void> {
-		let reqOpts: RequestOpts = {
-			url: resolveUrl(ownerUrl, ((objId === null) ?
-				api.rootHeader.putReqUrlEnd(transactionId) :
-				api.objHeader.putReqUrlEnd(objId, transactionId))),
-			method: 'PUT',
-			sessionId
-		};
-		
-		let rep = await doBinaryRequest<void>(reqOpts, obj.header);
-		expect(rep.status).toBe((objId === null) ?
-			api.rootHeader.SC.okPut : api.objHeader.SC.okPut);
-	
-		let params = {
-			trans: transactionId,
-			ofs: 0
-		};
-		reqOpts = {
-			url: resolveUrl(ownerUrl, ((objId === null) ?
-				api.rootSegs.putReqUrlEnd(params) :
-				api.objSegs.putReqUrlEnd(objId, params))),
-			method: 'PUT',
-			sessionId
-		};
-
-		rep = await doBinaryRequest<void>(reqOpts, obj.segs);
-		expect(rep.status).toBe((objId === null) ?
-			api.rootSegs.SC.okPut : api.objSegs.SC.okPut);
-}
-
-/**
  * @param user
  * @param objId is object's id. Null stands for root object.
+ * @param ver
  * @param obj
- * @param isNewObj
  * @return a promise, resolvable object is writen.
  */
-export async function saveObj(ownerUrl: string,
-		sessionId: string, objId: string|null, obj: Obj, isNewObj: boolean): Promise<void> {
-	let sessParam = await getSessionParams(ownerUrl, sessionId);
-	let transactionId = await startTransaction(ownerUrl, sessionId,
-		obj, isNewObj);
-	await writeObjBytes(ownerUrl, sessionId, transactionId, objId, obj);
-	let reqOpts: RequestOpts = {
-		url: resolveUrl(ownerUrl, ((objId === null) ?
-			api.finalizeRootTransaction.getReqUrlEnd(transactionId) :
-			api.finalizeTransaction.getReqUrlEnd(objId, transactionId))),
-		method: 'POST',
-		sessionId: sessionId
-	};
-	let rep = await doBodylessRequest<void>(reqOpts);
+export async function saveObj(ownerUrl: string, sessionId: string,
+		objId: string|null, ver: number, obj: Obj): Promise<void> {
+
+	const header = obj.header.length;
+	const segs = obj.segs.length;
+	const diffBytes = (obj.diff ?
+		utf8.pack(JSON.stringify(obj.diff)) : undefined);
+	const diff = (diffBytes ? diffBytes.length : undefined);
+	let opts: RequestOpts;
+	if (objId) {
+		opts = {
+			url: resolveUrl(ownerUrl, api.currentObj.firstPutReqUrlEnd(objId,
+				{ ver, diff, header, segs })),
+			method: 'PUT',
+			responseType: 'json',
+			sessionId
+		};
+	} else {
+		opts = {
+			url: resolveUrl(ownerUrl, api.currentRootObj.firstPutReqUrlEnd(
+				{ ver, diff, header, segs })),
+			method: 'PUT',
+			responseType: 'json',
+			sessionId
+		};
+	}
+
+	const bytes = [ obj.header, obj.segs ];
+	if (diffBytes) {
+		bytes.unshift(diffBytes);
+	}
+	const rep = await doBinaryRequest<api.currentObj.ReplyToPut>(opts, bytes);
 	expect(rep.status).toBe((objId === null) ?
-		api.finalizeRootTransaction.SC.ok :
-		api.finalizeTransaction.SC.ok);
+		api.currentRootObj.SC.okPut : api.currentRootObj.SC.okPut);
+
+}
+
+export async function removeObj(ownerUrl: string, sessionId: string,
+		objId: string): Promise<void> {
+	const opts: RequestOpts = {
+		url: resolveUrl(ownerUrl, api.currentObj.getReqUrlEnd(objId)),
+		method: 'DELETE',
+		sessionId
+	};
+	const rep = await doBodylessRequest(opts);
+	expect(rep.status).toBe(api.currentObj.SC.okDelete);
 }
 
 Object.freeze(exports);

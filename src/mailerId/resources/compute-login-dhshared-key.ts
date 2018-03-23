@@ -23,12 +23,12 @@ import * as random from '../../lib-common/random-node';
 
 // XXX update the key from time-to-time
 
-let testLoginSecretKey = random.bytes(32);
+const testLoginSecretKey = random.bytes(32);
 
-let testLoginPublicKey = box.generate_pubkey(testLoginSecretKey);
+const testLoginPublicKey = box.generate_pubkey(testLoginSecretKey);
 
 export function calcNaClBoxSharedKey(userPubKey: Uint8Array) {
-	let dhsharedKey = box.calc_dhshared_key(userPubKey, testLoginSecretKey);
+	const dhsharedKey = box.calc_dhshared_key(userPubKey, testLoginSecretKey);
 	return {
 		dhsharedKey: dhsharedKey,
 		serverPubKey: testLoginPublicKey

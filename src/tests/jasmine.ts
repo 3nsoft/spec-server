@@ -16,7 +16,7 @@
 
 // NOTE: due to bad definition file, typescript below is not very type-strict.
 
-let jas = new (require('jasmine'))();
+const jas = new (require('jasmine'))();
 
 jas.loadConfig({
 	spec_dir: 'build/tests',

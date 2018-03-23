@@ -22,17 +22,15 @@
 import * as express from 'express';
 
 // Internal libs
-import { allowCrossDomain } from '../lib-server/middleware/allow-cross-domain';
 import { json as parseJSON, emptyBody }
 	from '../lib-server/middleware/body-parsers';
-import { checkAndTransformAddress } from '../lib-common/canonical-address';
 
 // Resource/Data modules
-import { Factory as sessionsFactory } from '../lib-server/resources/sessions';
+import { SessionsFactory } from './resources/sessions';
 import { Factory as usersFactory } from './resources/recipients';
 
 // routes
-import { IMidAuthorizer, midLogin }
+import { MidAuthorizer, midLogin }
 	from '../lib-server/routes/sessions/mid-auth';
 import { startSession } from '../lib-server/routes/sessions/start';
 import { closeSession } from '../lib-server/routes/sessions/close';
@@ -41,22 +39,18 @@ import { setParam } from './routes/config/param-setter';
 
 import * as api from '../lib-common/service-api/asmail/config';
 
-export function makeApp(domain: string, sessions: sessionsFactory,
-		recipients: usersFactory, midAuthorizer: IMidAuthorizer):
+export function makeApp(domain: string, sessions: SessionsFactory,
+		recipients: usersFactory, midAuthorizer: MidAuthorizer):
 		express.Express {
 	
-	let app = express();
+	const app = express();
 	app.disable('etag');
 	
-	app.use(allowCrossDomain(
-			[ "Content-Type", "X-Session-Id" ],
-			[ 'GET', 'POST', 'PUT' ]));
 	
 	app.post('/'+api.midLogin.START_URL_END,
 			sessions.checkSession(),
 			parseJSON('1kb'),
-			startSession(checkAndTransformAddress,
-				recipients.exists, sessions.generate));
+			startSession(recipients.exists, sessions.generate));
 	app.post('/'+api.midLogin.AUTH_URL_END,
 			sessions.ensureOpenedSession(),
 			parseJSON('4kb'),

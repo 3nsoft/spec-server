@@ -26,21 +26,21 @@ export function uint8(): number {
 }
 
 export function uint48(): number {
-	let b = bytes(6);
-	let l = b[0] + (b[1] << 8) + (b[2] << 16) + (b[3] << 24);
-	let h = b[4] + (b[5] << 8);
+	const b = bytes(6);
+	const l = b[0] + (b[1] << 8) + (b[2] << 16) + (b[3] << 24);
+	const h = b[4] + (b[5] << 8);
 	return h*0x100000000 + l;
 }
 
 export function stringOfB64UrlSafeChars(numOfChars: number): string {
-	let numOfbytes = 3*(1 + Math.floor(numOfChars/4));
-	let byteArr = bytes(numOfbytes);
+	const numOfbytes = 3*(1 + Math.floor(numOfChars/4));
+	const byteArr = bytes(numOfbytes);
 	return base64urlSafe.pack(byteArr).substring(0, numOfChars);
 }
 
 export function stringOfB64Chars(numOfChars: number): string {
-	let numOfbytes = 3*(1 + Math.floor(numOfChars/4));
-	return randomBytes(numOfbytes).toString('base64', 0, numOfChars);
+	const numOfbytes = 3*(1 + Math.floor(numOfChars/4));
+	return randomBytes(numOfbytes).toString('base64').substring(0, numOfChars);
 }
 
 Object.freeze(exports);

@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2017 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -20,6 +20,7 @@ import { FileException, Code as excCode }
 import { stringToNumOfBytes } from '../conf-util';
 import { toCanonicalAddress } from '../../lib-common/canonical-address';
 import { base64urlSafe, utf8 } from '../../lib-common/buffer-utils';
+import { defer } from '../../lib-common/processes';
 
 const DEFAULT_FILE_WRITE_BUFFER_SIZE = 4*1024;
 const DEFAULT_FILE_READ_BUFFER_SIZE = 64*1024;
@@ -31,7 +32,7 @@ export const SC = {
 Object.freeze(SC);
 
 async function readJsonFile<T>(path): Promise<T> {
-	let buf = await fs.readFile(path);
+	const buf = await fs.readFile(path);
 	return <T> JSON.parse(buf.toString('utf8'));
 }
 
@@ -60,9 +61,9 @@ export abstract class UserFiles {
 	
 	async ensureUserExistsOnDisk(): Promise<void> {
 		try {
-			let stats = await fs.stat(this.path);
+			const stats = await fs.stat(this.path);
 			if (!stats.isDirectory()) { throw new Error(
-				"Path for users' folder is not a folder: "+this.path); }
+				`Path for users' folder is not a folder: ${this.path}`); }
 		} catch (err) {
 			if ((<FileException> err).code === excCode.notFound) {
 				throw SC.USER_UNKNOWN;
@@ -72,18 +73,56 @@ export abstract class UserFiles {
 	}
 	
 	getSpaceQuota(): Promise<number> {
-		return readJsonFile<number>(this.path+'/../info/quota');
+		return readJsonFile<number>(`${this.path}/../info/quota`);
 	}
 	
 	getParam<T>(paramFileName: string): Promise<T> {
-		return readJsonFile<T>(this.path+'/params/'+paramFileName);
+		return readJsonFile<T>(`${this.path}/params/${paramFileName}`);
 	}
 	
 	setParam<T>(paramFileName: string, param: T): Promise<void> {
-		return fs.writeFile(this.path+'/params/'+paramFileName,
+		return fs.writeFile(`${this.path}/params/${paramFileName}`,
 			JSON.stringify(param), { encoding: 'utf8', flag: 'w' })
 	}
 	
+}
+
+export type ObjPipe = (outStream: NodeJS.WritableStream) => Promise<void>;
+
+export interface ObjReader {
+	len: number;
+	
+	/**
+	 * This is a pipe function that reads bytes directly from file.
+	 */
+	pipe?: ObjPipe;
+
+	/**
+	 * This is header length. It is present only if header is included in piped
+	 * bytes.
+	 */
+	headerLen?: number;
+	
+	/**
+	 * This is a total segments' length of this object version.
+	 */
+	segsLen: number;
+
+}
+
+export async function pipeBytes(src: NodeJS.ReadableStream,
+		sink: NodeJS.WritableStream): Promise<void> {
+	const deferred = defer<void>();
+	src.pipe(sink, { end: false });
+	src.on('error', (err) => {
+		deferred.reject(err);
+		src.unpipe(sink);
+	});
+	src.on('end', () => {
+		src.unpipe(sink);
+		deferred.resolve();
+	});
+	return deferred.promise;
 }
 
 Object.freeze(exports);

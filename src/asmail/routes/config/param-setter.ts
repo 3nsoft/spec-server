@@ -18,7 +18,7 @@ import { RequestHandler, Response, NextFunction } from 'express';
 import { SC as recipSC } from '../../resources/recipients';
 import { PARAM_SC, ERR_SC }
 	from '../../../lib-common/service-api/asmail/config';
-import { Request } from '../../../lib-server/routes/sessions/start';
+import { Request } from '../../resources/sessions';
 
 export function setParam<T>(
 		paramSetter: (userId: string, param: T) => Promise<boolean>):
@@ -29,12 +29,12 @@ export function setParam<T>(
 	
 	return async function(req: Request, res: Response, next: NextFunction) {
 		
-		let session = req.session;
-		let userId = session.params.userId;
-		let pValue: T = req.body;
+		const session = req.session;
+		const userId = session.params.userId;
+		const pValue: T = req.body;
 		
 		try{
-			let valChanged = await paramSetter(userId, pValue)
+			const valChanged = await paramSetter(userId, pValue)
 			if (valChanged) {
 				res.status(PARAM_SC.ok).end();
 			} else {

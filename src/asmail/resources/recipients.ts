@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2017 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -19,13 +19,16 @@
  */
 
 import * as fs from '../../lib-common/async-fs-node';
-import { Stream, Readable } from 'stream';
-import { Inbox, ObjReader, AuthSenderPolicy, SC } from './inbox';
+import { Readable } from 'stream';
+import { Inbox, ObjReader, AuthSenderPolicy, SC, MailEventsSink }
+	from './inbox';
 import * as deliveryApi from '../../lib-common/service-api/asmail/delivery';
 import * as configApi from '../../lib-common/service-api/asmail/config';
 import * as retrievalApi from '../../lib-common/service-api/asmail/retrieval';
 
 export { SC } from './inbox';
+
+export const BIN_TYPE = 'application/octet-stream';
 
 interface AddressToSizeMap {
 	[address: string]: number;
@@ -42,7 +45,7 @@ function findMatchIn(lst: AddressToSizeMap, address: string): number|undefined {
 	let v = lst[address];
 	if ('undefined' !== typeof v) { return v; }
 	// check address' own domain
-	let ind = address.indexOf('@');
+	const ind = address.indexOf('@');
 	if (ind < 0) { return; }
 	address = address.substring(ind+1);
 	if (address.length === 0) { return; }
@@ -50,7 +53,7 @@ function findMatchIn(lst: AddressToSizeMap, address: string): number|undefined {
 	if ('undefined' !== typeof v) { return v; }
 	// check parent domains
 	while (true) {
-		let ind = address.indexOf('.');
+		const ind = address.indexOf('.');
 		if (ind < 0) { return; }
 		address = address.substring(ind+1);
 		if (address.length === 0) { return; }
@@ -69,7 +72,7 @@ function findMatchIn(lst: AddressToSizeMap, address: string): number|undefined {
  */
 async function adaptToFreeSpaceLeft(inbox: Inbox, msgSize: number):
 		Promise<number> {
-	let bytesFree = await inbox.freeSpace();
+	const bytesFree = await inbox.freeSpace();
 	return ((bytesFree > 0) ? Math.min(bytesFree, msgSize) : -1);
 }
 
@@ -84,15 +87,15 @@ async function adaptToFreeSpaceLeft(inbox: Inbox, msgSize: number):
  */
 async function allowedMsgSizeForAnonSender(
 		inbox: Inbox, invitation: string): Promise<number> {
-	let policy = await inbox.getAnonSenderPolicy();
+	const policy = await inbox.getAnonSenderPolicy();
 	if (!policy.accept) { return 0; }
 	if (!invitation) {
 		if (policy.acceptWithInvitesOnly) { return 0; }
 		return await adaptToFreeSpaceLeft(inbox, policy.defaultMsgSize);
 	} else {
-		let invites = await inbox.getAnonSenderInvites();
-		let sizeForInvite = invites[invitation];
-		if (typeof sizeForInvite === 'number') { return 0; }
+		const invites = await inbox.getAnonSenderInvites();
+		const sizeForInvite = invites[invitation];
+		if (typeof sizeForInvite !== 'number') { return 0; }
 		return adaptToFreeSpaceLeft(inbox, sizeForInvite);
 	}
 }
@@ -109,11 +112,11 @@ async function allowedMsgSizeForAnonSender(
  */
 async function allowedMsgSizeForAuthSender(inbox: Inbox, sender: string,
 		invitation: string): Promise<number> {
-	let results = await Promise.all<any>([
+	const results = await Promise.all<any>([
 		inbox.getAuthSenderPolicy(),
 		inbox.getAuthSenderWhitelist()])
-	let policy: AuthSenderPolicy = results[0];
-	let sizeFromWL = findMatchIn(<AddressToSizeMap> results[1], sender);
+	const policy: AuthSenderPolicy = results[0];
+	const sizeFromWL = findMatchIn(<AddressToSizeMap> results[1], sender);
 	// check whitelist for specific size
 	if (typeof sizeFromWL === 'number') {
 		return adaptToFreeSpaceLeft(inbox, sizeFromWL);
@@ -124,7 +127,7 @@ async function allowedMsgSizeForAuthSender(inbox: Inbox, sender: string,
 	if (policy.acceptFromWhiteListOnly) { return 0; }
 	// if needed, apply blacklist
 	if (policy.applyBlackList) {
-		let bList = await inbox.getAuthSenderBlacklist();
+		const bList = await inbox.getAuthSenderBlacklist();
 		if (typeof findMatchIn(bList, sender) === 'undefined') {
 			return adaptToFreeSpaceLeft(inbox, policy.defaultMsgSize);
 		} else {
@@ -134,20 +137,12 @@ async function allowedMsgSizeForAuthSender(inbox: Inbox, sender: string,
 	return adaptToFreeSpaceLeft(inbox, policy.defaultMsgSize);
 }
 
-interface IGetParam<T> {
-	(userId: string): Promise<T>;
-}
-interface ISetParam<T> {
-	(userId: string, param: T): Promise<boolean>;
-}
-
 /**
  * This checks existence of a given user, returning a promise, resolvable
  * either to true, when given user id is known, or to false, when it is not.
  */
-export interface IExists {
-	(userId: string): Promise<boolean>;
-}
+export type UserExists = (userId: string) => Promise<boolean>;
+
 /**
  * This tells what is an allowable maximum message size for a given recipient,
  * for a given sender and/or under a given invitation token.
@@ -157,86 +152,99 @@ export interface IExists {
  * (3) -1 (less than zero), if mail cannot be accepted due to full mail
  *     box.
  */
-export interface IAllowedMaxMsgSize {
-	(recipient: string, sender: string|undefined, invitation: string|undefined):
-		Promise<number>;
-}
+export type AllowedMaxMsgSize = (recipient: string,
+	sender: string|undefined, invitation: string|undefined) => Promise<number>;
+
 /**
  * This allocates storage for a message returning a promise, resolvable to
  * (1) message id, when a folder for new message has been created,
  * (2) undefined, if recipient is unknown.
  */
-export interface ISetMsgStorage {
-	(recipient: string, msgMeta: deliveryApi.msgMeta.Request,
-		authSender: string|undefined): Promise<string>;
-}
+export type SetMsgStorage = (recipient: string,
+	msgMeta: deliveryApi.msgMeta.Request,
+	authSender: string|undefined, invite: string|undefined,
+	maxMsgLength: number) => Promise<string>;
+
 /**
- * This saves given object's bytes, returning a promise, resolvable when saving
- * is OK, otherwise, promise rejected with string error code from SC.
+ * This saves object's bytes, returning a promise, resolvable when saving
+ * is OK, otherwise, promise rejects with string error code from SC.
  */
-export interface ISaveBytes {
-	(recipient: string, bytes: Stream,
-		opts: BlobSaveOpts): Promise<void>;
-}
+export type SaveObj = (recipient: string, msgId: string, objId: string,
+	fstReq: deliveryApi.PutObjFirstQueryOpts|undefined,
+	sndReq: deliveryApi.PutObjSecondQueryOpts|undefined,
+	bytesLen: number, bytes: Readable) => Promise<void>;
+
 /**
  * This finalizes delivery of a message, returning a promise.
  * Rejected promise may have a string error code from SC.
  */
-export interface IFinalizeDelivery {
-	(recipient: string, msgId: string): Promise<void>;
-}
+export type FinalizeDelivery = (recipient: string,
+	msgId: string) => Promise<void>;
+
 /**
  * This returns a promise, resolvable to array with ids of available messages.
  * Rejected promise may have a string error code from SC.
  */
-export interface IGetMsgIds {
-	(userId: string): Promise<retrievalApi.listMsgs.Reply>;
-}
+export type GetMsgIds = (userId: string) =>
+	Promise<retrievalApi.listMsgs.Reply>;
+
 /**
  * This returns a promise, resolvable to message meta.
  * Rejected promise may have a string error code from SC.
  */
-export interface IGetMsgMeta {
-	(userId: string, msgId: string): Promise<retrievalApi.msgMetadata.Reply>;
-}
+export type GetMsgMeta = (userId: string, msgId: string) =>
+	Promise<retrievalApi.MsgMeta>;
+
 /**
  * This deletes a message returning a promise, resolvable when message is
  * removed.
  * Rejected promise may have a string error code from SC.
  */
-export interface IDeleteMsg {
-	(userId: string, msgId: string): Promise<void>;
-}
-export interface ObjReader extends ObjReader {}
+export type DeleteMsg = (userId: string, msgId: string) => Promise<void>;
+
 /**
- * This returns a promise, resolvable to readable stream of bytes.
+ * This returns parameter of a message that is still in delivery, identified
+ * by given recipient and message id. If message is unknown, or if it has
+ * already been delivered, error code is thrown.
+ * Rejected promise may have a string error code from SC.
+ */
+export type IncompleteMsgDeliveryParams = (recipient: string, msgId: string) =>
+	Promise<{ maxMsgLength: number; currentMsgLength: number; }>;
+
+/**
+ * This returns a promise, resolvable to readable stream of object bytes.
  * Rejected promise may be passing string error code from SC.
  */
-export interface IGetBytes {
-	(userId: string, opts: BlobGetOpts): Promise<ObjReader>;
-}
-export interface IGetPubKey extends IGetParam<configApi.p.initPubKey.Certs> {}
-export interface ISetPubKey extends ISetParam<configApi.p.initPubKey.Certs> {}
-export interface IGetAnonSenderInvites
-	extends IGetParam<configApi.p.anonSenderInvites.List> {}
-export interface ISetAnonSenderInvites
-	extends ISetParam<configApi.p.anonSenderInvites.List> {}
+export type GetObj = (userId: string, msgId: string, objId: string,
+	header: boolean, segsOffset: number, segsLimit: number|undefined) =>
+	Promise<ObjReader>;
+
+type GetParam<T> = (userId: string) => Promise<T>;
+type SetParam<T> = (userId: string, param: T) => Promise<boolean>;
+
+export type GetPubKey = GetParam<configApi.p.initPubKey.Certs>;
+export type SetPubKey = SetParam<configApi.p.initPubKey.Certs>;
+export type GetAnonSenderInvites = GetParam<configApi.p.anonSenderInvites.List>;
+export type SetAnonSenderInvites = SetParam<configApi.p.anonSenderInvites.List>;
+
+export type EventsSink = MailEventsSink;
+
 export interface Factory {
-	exists: IExists;
-	allowedMaxMsgSize: IAllowedMaxMsgSize;
-	setMsgStorage: ISetMsgStorage;
-	saveObjSegments: ISaveBytes;
-	saveObjHeader: ISaveBytes;
-	finalizeDelivery: IFinalizeDelivery;
-	getMsgIds: IGetMsgIds;
-	getMsgMeta: IGetMsgMeta;
-	deleteMsg: IDeleteMsg;
-	getObjHeader: IGetBytes;
-	getObjSegments: IGetBytes;
-	getPubKey: IGetPubKey;
-	setPubKey: ISetPubKey;
-	getAnonSenderInvites: IGetAnonSenderInvites;
-	setAnonSenderInvites: ISetAnonSenderInvites;
+	exists: UserExists;
+	allowedMaxMsgSize: AllowedMaxMsgSize;
+	setMsgStorage: SetMsgStorage;
+	saveObj: SaveObj;
+	finalizeDelivery: FinalizeDelivery;
+	getMsgIds: GetMsgIds;
+	getMsgMeta: GetMsgMeta;
+	deleteMsg: DeleteMsg;
+	getObj: GetObj;
+	incompleteMsgDeliveryParams: IncompleteMsgDeliveryParams;
+	getPubKey: GetPubKey;
+	setPubKey: SetPubKey;
+	getAnonSenderInvites: GetAnonSenderInvites;
+	setAnonSenderInvites: SetAnonSenderInvites;
+	setMailEventsSink(sink: EventsSink): void;
 }
 
 export interface BlobSaveOpts {
@@ -260,9 +268,12 @@ export function makeFactory(rootFolder: string,
 		writeBufferSize?: string|number, readBufferSize?: string|number):
 		Factory {
 	
-	let boxes = new Map<string, Inbox>();
+	const boxes = new Map<string, Inbox>();
+
+	let mailEventsSink: EventsSink|undefined = undefined;
 	
 	async function getInbox(userId: string): Promise<Inbox> {
+		if (!mailEventsSink) { throw new Error(`Mail events sink is not set`); }
 		let inbox = boxes.get(userId);
 		if (inbox) {
 			try {
@@ -273,7 +284,7 @@ export function makeFactory(rootFolder: string,
 				throw err;
 			}
 		} else {
-			inbox = await Inbox.make(rootFolder, userId,
+			inbox = await Inbox.make(rootFolder, userId, mailEventsSink,
 				writeBufferSize, readBufferSize)
 			boxes.set(userId, inbox);
 			return inbox;
@@ -283,7 +294,7 @@ export function makeFactory(rootFolder: string,
 	function makeParamGetter<T>(staticGetter: (inbox: Inbox) => Promise<T>):
 			(userId: string) => Promise<T> {
 		return async (userId: string) => {
-			let inbox = await getInbox(userId);
+			const inbox = await getInbox(userId);
 			return staticGetter(inbox);
 		};	
 	}
@@ -292,35 +303,12 @@ export function makeFactory(rootFolder: string,
 			(inbox: Inbox, param: T, setDefault: boolean) => Promise<boolean>):
 			(userId: string, param: T, setDefault?: boolean) => Promise<boolean> {
 		return async (userId: string, param: T, setDefault?: boolean) => {
-			let inbox = await getInbox(userId);
+			const inbox = await getInbox(userId);
 			return staticSetter(inbox, param, !!setDefault);
 		};		
 	}
 	
-	function makeBlobSaver(fileHeader: boolean): ISaveBytes {
-		return async (recipient: string, bytes: Readable, opts: BlobSaveOpts) => {
-			let inbox = await getInbox(recipient);
-			if (opts.appendMode) {
-				return inbox.appendObj(opts.msgId, opts.objId,
-					fileHeader, opts.isFirstReq, bytes, opts.chunkLen);
-			} else {
-				if (typeof opts.offset !== 'number') { throw new Error(`Expectation failed: options argument for non-appending mode is missing an offset.`); }
-				return inbox.saveObjChunk(opts.msgId, opts.objId,
-					fileHeader, opts.isFirstReq, opts.totalSize,
-					opts.offset, opts.chunkLen, bytes);
-			}
-		};
-	}
-	
-	function makeBlobGetter(fileHeader: boolean): IGetBytes {
-		return async (userId: string, opts: BlobGetOpts) => {
-			let inbox = await getInbox(userId);
-			return inbox.getObj(opts.msgId, opts.objId, fileHeader,
-				opts.offset, opts.maxLen);
-		};
-	}
-	
-	let recipients: Factory = {
+	const recipients: Factory = {
 
 		exists: async (userId: string) => {
 			try {
@@ -343,7 +331,7 @@ export function makeFactory(rootFolder: string,
 	
 		allowedMaxMsgSize: async (recipient: string,
 				sender: string, invitation: string) => {
-			let inbox = await getInbox(recipient);
+			const inbox = await getInbox(recipient);
 			// XXX move these two functions into inbox
 			if (sender) {
 				return allowedMsgSizeForAuthSender(inbox, sender, invitation);
@@ -353,36 +341,61 @@ export function makeFactory(rootFolder: string,
 		},
 	
 		setMsgStorage: async (recipient: string,
-				msgMeta: deliveryApi.msgMeta.Request, authSender: string) => {
-			let inbox = await getInbox(recipient);
-			return inbox.recordMsgMeta(msgMeta, authSender);
+				msgMeta: deliveryApi.msgMeta.Request, authSender: string|undefined, invite: string|undefined, maxMsgLength: number) => {
+			const inbox = await getInbox(recipient);
+			return inbox.recordMsgMeta(msgMeta, authSender, invite, maxMsgLength);
 		},
 		
-		saveObjSegments: makeBlobSaver(false),
-		saveObjHeader: makeBlobSaver(true),
+		saveObj: async (recipient: string, msgId: string, objId: string,
+				fstReq: deliveryApi.PutObjFirstQueryOpts|undefined,
+				sndReq: deliveryApi.PutObjSecondQueryOpts|undefined,
+				bytesLen: number, bytes: Readable): Promise<void> => {
+			const inbox = await getInbox(recipient);
+			if (fstReq) {
+				return inbox.startSavingObj(msgId, objId, bytes, bytesLen, fstReq);
+			} else if (sndReq) {
+				return inbox.continueSavingObj(msgId, objId, bytes, bytesLen, sndReq);
+			} else {
+				throw new Error(`Missing both request options`);
+			}
+		},
 	
 		finalizeDelivery: async (recipient: string, msgId: string) => {
-			let inbox = await getInbox(recipient);
+			const inbox = await getInbox(recipient);
 			return inbox.completeMsgDelivery(msgId);
 		},
 	
 		getMsgIds: async (userId: string) => {
-			let inbox = await getInbox(userId);
+			const inbox = await getInbox(userId);
 			return inbox.getMsgIds();
 		},
 	
 		getMsgMeta: async (userId: string, msgId: string) => {
-			let inbox = await getInbox(userId);
-			return inbox.getMsgMeta(msgId);
+			const inbox = await getInbox(userId);
+			return inbox.getMsgMeta(msgId, true);
 		},
 	
 		deleteMsg: async (userId: string, msgId: string) => {
-			let inbox = await getInbox(userId);
+			const inbox = await getInbox(userId);
 			return inbox.rmMsg(msgId);
 		},
+
+		incompleteMsgDeliveryParams: async (recipient: string, msgId: string) => {
+			const inbox = await getInbox(recipient);
+			return inbox.getIncompleteMsgParams(msgId);
+		},
 		
-		getObjSegments: makeBlobGetter(false),
-		getObjHeader: makeBlobGetter(true)
+		getObj: async (userId: string, msgId: string, objId: string,
+				header: boolean, segsOffset: number, segsLimit: number|undefined):
+				Promise<ObjReader> => {
+			const inbox = await getInbox(userId);
+			return inbox.getObj(msgId, objId, header, segsOffset, segsLimit);
+		},
+
+		setMailEventsSink(sink: EventsSink): void {
+			if (mailEventsSink) { throw new Error(`Mail events sink is already set`); }
+			mailEventsSink = sink;
+		}
 		
 	};
 	Object.freeze(recipients);

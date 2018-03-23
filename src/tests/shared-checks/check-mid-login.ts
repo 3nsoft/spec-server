@@ -34,7 +34,7 @@ export function midLoginSpecs(
 		
 		itAsync('first request starts session', async () => {
 			
-			let reqOpts: RequestOpts= {
+			const reqOpts: RequestOpts= {
 				url: resolveUrl(loginUrl(), startSession.URL_END),
 				method: 'POST',
 				responseType: 'json'
@@ -59,11 +59,11 @@ export function midLoginSpecs(
 			expect(rep.status).toBe(startSession.SC.unknownUser, 'status code for an unknown user id');
 			
 			// requests with bad json's
-			let badIds = [ '', ' ', '\t', '\n',	// equivalent to empty string
+			const badIds = [ '', ' ', '\t', '\n',	// equivalent to empty string
 				5, null, undefined, {} ];	// non-strings
-			let badJSONs: any[] = [ 'bar', 5, null, undefined, [ 'blah' ],
+			const badJSONs: any[] = [ 'bar', 5, null, undefined, [ 'blah' ],
 				{ a: 1 } ];
-			for (let id of badIds) {
+			for (const id of badIds) {
 				req = { userId: <string> id };
 				badJSONs.push(req);
 			}
@@ -75,23 +75,23 @@ export function midLoginSpecs(
 		
 		itAsync('second request authenticates session', async () => {
 			
-			let url = loginUrl();
+			const url = loginUrl();
 			let sessionId = await startMidSession(url, user().id);
-			let uInfo = user();
+			const uInfo = user();
 			
 			let midSigner = await provisionMidSigner(uInfo.midUrl, uInfo);
 			
-			let reqOpts: RequestOpts= {
+			const reqOpts: RequestOpts= {
 				url: resolveUrl(loginUrl(), authSession.URL_END),
 				method: 'POST',
 				responseType: 'json',
 				sessionId
 			};
 			
-			let serviceDomain = parseUrl(uInfo.midUrl).hostname;
+			const serviceDomain = parseUrl(uInfo.midUrl).hostname;
 			if (!serviceDomain) { throw new Error(
 				`Cannot get hostname from ${uInfo.midUrl}`); }
-			let req: authSession.Request = {
+			const req: authSession.Request = {
 				assertion: midSigner.generateAssertionFor(
 					serviceDomain, sessionId),
 				provCert: midSigner.providerCert,
@@ -120,14 +120,14 @@ export function midLoginSpecs(
 			expect(rep.status).toBe(authSession.SC.authFailed, 'status for autherization failure');
 			
 			// fake certs
-			let fakeRoot = mid.idProvider.generateRootKey(
+			const fakeRoot = mid.idProvider.generateRootKey(
 				uInfo.midUrl, 365*12*60*60, randomBytes);
-			let fakeProvider = mid.idProvider.generateProviderKey(
+			const fakeProvider = mid.idProvider.generateProviderKey(
 				uInfo.midUrl, 30*12*60*60, fakeRoot.skey, randomBytes);
-			let fakeIdCertifier = mid.idProvider.makeIdProviderCertifier(
+			const fakeIdCertifier = mid.idProvider.makeIdProviderCertifier(
 				uInfo.midUrl, 24*60*60, fakeProvider.skey);
-			let fakeUserKeys = mid.user.generateSigningKeyPair(randomBytes);
-			let fakeUserCert = fakeIdCertifier.certify(
+			const fakeUserKeys = mid.user.generateSigningKeyPair(randomBytes);
+			const fakeUserCert = fakeIdCertifier.certify(
 				fakeUserKeys.pkey, user().id);
 			midSigner = mid.user.makeMailerIdSigner(
 				fakeUserKeys.skey, fakeUserCert, fakeProvider.cert);
@@ -151,7 +151,7 @@ export function midLoginSpecs(
 			const REQ_SIZE_LIMIT = 4*1024;
 			sessionId = await startMidSession(url, user().id);
 			reqOpts.sessionId = sessionId;
-			let badJSONs: any[] = [ 1, null, undefined, 'string' ];
+			const badJSONs: any[] = [ 1, null, undefined, 'string' ];
 			await expectNonAcceptanceOfBadJsonRequest(reqOpts, REQ_SIZE_LIMIT,
 				badJSONs);
 			

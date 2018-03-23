@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 3NSoft Inc.
+ Copyright (C) 2016 - 2017 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -14,27 +14,26 @@
  You should have received a copy of the GNU General Public License along with
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
-import { startSession, SpecDescribe, TestSetup, User, StorageComponent,
-	writeObjBytes }
+import { startSession, SpecDescribe, TestSetup, User, StorageComponent }
 	from '../test-utils';
-import { cancelRootTransaction as api }
+import { cancelRootTransaction as api, currentRootObj as rootApi }
 	from '../../../../../lib-common/service-api/3nstorage/owner';
 import { beforeAllAsync, itAsync }
 	from '../../../../libs-for-tests/async-jasmine';
-import { RequestOpts, doBodylessRequest }
+import { RequestOpts, doBodylessRequest, doBinaryRequest }
 	from '../../../../libs-for-tests/xhr-utils';
-import { Obj, startTransaction }	from '../../../../libs-for-tests/3nstorage';
+import { Obj }	from '../../../../libs-for-tests/3nstorage';
 import { expectNonAcceptanceOfBadSessionId,
 	expectNonAcceptanceOfNonEmptyBody }
 	from '../../../../shared-checks/requests';
 import { bytes as randomBytes } from '../../../../../lib-common/random-node';
 import { resolve as resolveUrl } from 'url';
 
-export let specs: SpecDescribe = {
+export const specs: SpecDescribe = {
 	description: 'Request to cancel root object transaction'
 };
 
-let obj: Obj = {
+const obj: Obj = {
 	objId: (null as any),
 	version: 1,
 	header: randomBytes(100),
@@ -52,24 +51,31 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		storageServer = setup().storageServer;
 		user = setup().user;
 		await storageServer.restartAndClearStorageFor(user.id);
-		let sessionId = await startSession(user);
-		transactionId = await startTransaction(user.storageOwnerUrl, sessionId, obj, true);
-		await writeObjBytes(user.storageOwnerUrl, sessionId, transactionId, null, obj);
+		const sessionId = await startSession(user);
+		const fstReqOpts: RequestOpts = {
+			url: resolveUrl(user.storageOwnerUrl, rootApi.firstPutReqUrlEnd({
+				ver: 1, header: obj.header.length, append: true })),
+			method: 'PUT',
+			sessionId
+		};
+		const fstRep = await doBinaryRequest<rootApi.ReplyToPut>(
+			fstReqOpts, obj.header);
+		transactionId = fstRep.data.transactionId!;
 		reqOpts = {
 			url: resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd(transactionId)),
 			method: 'POST',
-			sessionId: sessionId
+			sessionId
 		};
 	});
 	
 	itAsync('cancels root object transaction', async () => {
-		expect(await storageServer.rootObjExists(user.id)).toBeFalsy('initially, there is no root object');
+		expect(await storageServer.currentRootObjExists(user.id)).toBeFalsy('initially, there is no root object');
 		expect(await storageServer.rootTransactionExists(user.id)).toBeTruthy('initially, there is a started transaction');
 		
-		let rep = await doBodylessRequest<void>(reqOpts);
+		const rep = await doBodylessRequest<void>(reqOpts);
 		expect(rep.status).toBe(api.SC.ok, 'status for normal transaction cancelation');
 		expect(await storageServer.rootTransactionExists(user.id)).toBeFalsy('transaction should not exist, as it has been cancelled.')
-		expect(await storageServer.rootObjExists(user.id, 1, obj)).toBeFalsy('object is not created, cause transaction has been cancelled');
+		expect(await storageServer.currentRootObjExists(user.id, 1, obj)).toBeFalsy('object is not created, cause transaction has been cancelled');
 
 		// XXX split out fuzzing requests
 		

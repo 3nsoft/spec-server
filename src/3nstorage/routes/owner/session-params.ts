@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2017 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -15,32 +15,22 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { IGetKeyDerivParams, SC as storeSC } from '../../resources/users';
+import { GetKeyDerivParams, SC as storeSC } from '../../resources/users';
 import { sessionParams as api, ERR_SC }
 	from '../../../lib-common/service-api/3nstorage/owner';
 import { stringToNumOfBytes } from '../../../lib-server/conf-util';
-import { Request } from '../../../lib-server/routes/sessions/start';
+import { Request } from '../../resources/sessions';
 
-export interface IGetSessionParams {
-	(userId: string): Promise<api.Reply>;
-}
-
-export function sessionParams(keyDerivParamsFunc: IGetKeyDerivParams,
-		maxChunk: number|string): RequestHandler {
-	if ('function' !== typeof keyDerivParamsFunc) { throw new TypeError(
-		"Given argument 'sessionRaramsFunc' must be function, but is not."); }
-	let maxChunkSize = stringToNumOfBytes(maxChunk);
+export function sessionParams(maxChunk: number|string): RequestHandler {
+	const maxChunkSize = stringToNumOfBytes(maxChunk);
 
 	return async function(req: Request, res: Response, next: NextFunction) {
 		
-		let userId = req.session.params.userId;
+		const userId = req.session.params.userId;
 		
 		try{
-			let kdParams = await keyDerivParamsFunc(userId);
-			res.status(api.SC.ok).json( <api.Reply> {
-				keyDerivParams: kdParams,
-				maxChunkSize: maxChunkSize
-			});
+			const reply: api.Reply = { maxChunkSize };
+			res.status(api.SC.ok).json(reply);
 		} catch (err) {
 			if ("string" !== typeof err) {
 				next(err);

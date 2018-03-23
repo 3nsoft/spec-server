@@ -24,15 +24,14 @@ export interface HttpError extends ErrorWithCause {
 }
 
 /**
+ * This creates an error object that should be given to next(), instead of
+ * throwing it.
  * @param code is http status code to be attached to produced error object.
- * @param msg goes into error message, and, if absent, will be substituted with
- * a standard on.
+ * @param msg goes into error message.
  * @param cause
- * @return an error object that should be given to next(), instead of throwing
- * it.
  */
-export function makeErr(code: number, msg?: string, cause?: any): HttpError{
-  let err = <HttpError> makeErrWithCause(cause, msg);
+export function makeErr(code: number, msg: string, cause?: any): HttpError{
+  const err = <HttpError> makeErrWithCause(cause, msg);
   err.status = code;
   return err;
 }
@@ -49,15 +48,15 @@ export function makeErrHandler(log?: ErrLogger): ErrorRequestHandler {
 		if (err && (typeof err.status === 'number')) {
 			resStatus = err.status;
 			if (resStatus === 500) {
-				resBody = http.STATUS_CODES[500];
+				resBody = http.STATUS_CODES[500]!;
 			} else if (err.message) {
 				resBody = err.message;
 			} else {
-				resBody = http.STATUS_CODES[err.status];
+				resBody = http.STATUS_CODES[err.status]!;
 			}
 		} else {
 			resStatus = 500;
-			resBody = http.STATUS_CODES[500];
+			resBody = http.STATUS_CODES[500]!;
 		}
 		res.status(resStatus).send(resBody);
 		if (log) {

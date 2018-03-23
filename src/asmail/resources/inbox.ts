@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2017 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -23,11 +23,10 @@
  *                  being delivered; complete messages are moved to
  *                  'messages' folder.
  * (b.3) params - is a place for information files about this mail box;
- * (c) message folder's name is message's id
- * (d) message folder contains file 'meta' with plain-text JSON-form metadata
- *     for this particular message.
- * (e) message folder contains folder 'objects' with all object files, that
- *     are part of this particular message.
+ * (c) message folder's name is message's id. Each message folder contains:
+ * (c.1) meta - is a file with plain-text JSON-form metadata for a message.
+ * (c.2) objects - is a folder with all object files, that are part of the
+ *                 message.
  */
 
 import * as fs from '../../lib-common/async-fs-node';
@@ -38,55 +37,55 @@ import * as random from '../../lib-common/random-node';
 import * as deliveryApi from '../../lib-common/service-api/asmail/delivery';
 import * as configApi from '../../lib-common/service-api/asmail/config';
 import * as retrievalApi from '../../lib-common/service-api/asmail/retrieval';
-import { UserFiles, SC as ufSC, addressToFName }
+import { UserFiles, SC as ufSC, addressToFName, ObjReader, pipeBytes }
 	from '../../lib-server/resources/user-files';
+import { parseObjFile, createObjFile } from '../../lib-common/obj-file';
+import { SingleProc } from '../../lib-common/processes';
+import { TimeWindowCache } from '../../lib-common/time-window-cache';
 
-interface AnonSenderPolicy extends configApi.p.anonSenderPolicy.Policy {}
-export interface AuthSenderPolicy extends configApi.p.authSenderPolicy.Policy {}
-interface Whitelist extends configApi.p.authSenderWhitelist.List {} 
-interface Blacklist extends configApi.p.authSenderBlacklist.List {} 
-interface AuthSenderInvites extends configApi.p.authSenderInvites.List {}
-interface AnonSenderInvites extends configApi.p.anonSenderInvites.List {}
+export { ObjPipe, ObjReader } from '../../lib-server/resources/user-files';
+
+type AnonSenderPolicy = configApi.p.anonSenderPolicy.Policy;
+export type AuthSenderPolicy = configApi.p.authSenderPolicy.Policy;
+type Whitelist = configApi.p.authSenderWhitelist.List;
+type Blacklist = configApi.p.authSenderBlacklist.List;
+type AuthSenderInvites = configApi.p.authSenderInvites.List;
+type AnonSenderInvites = configApi.p.anonSenderInvites.List;
+
+type MsgMeta = retrievalApi.MsgMeta;
+type ObjStatus = retrievalApi.ObjStatus;
+export type MsgEvents = retrievalApi.msgMainObjRecieved.Event |
+	retrievalApi.msgRecievedCompletely.Event;
+
+export type MailEventsSink = (userId: string,
+	channel: string, event: MsgEvents) => void;
 
 export const SC = {
 	OBJ_EXIST: 'obj-already-exist',
 	USER_UNKNOWN: ufSC.USER_UNKNOWN,
 	MSG_UNKNOWN: 'msg-unknown',
 	OBJ_UNKNOWN: 'obj-unknown',
+	WRONG_OBJ_STATE: 'wrong-obj-state',
 	WRITE_OVERFLOW: ufSC.WRITE_OVERFLOW
 };
 Object.freeze(SC);
 
-const XSP_HEADER_FILE_NAME_END = '.hxsp';
-const XSP_SEGS_FILE_NAME_END = '.sxsp';
+const META_FILE = 'meta.json';
 
 const MSG_ID_LEN = 32;
 
-interface MsgObjSizes {
-	[objId: string]: {
-		segments: number;
-		header: number;
-	};
-}
-
-export interface ObjReader {
-	len: number;
-	stream: Readable;
-	// pipeTo: (sink: Writable) => Promise<void>;
-}
-
 /**
+ * This returns a promise, resolvable to generated msg id, when folder for a
+ * message is created in the delivery folder.
  * @param delivPath
  * @param msgsFolder is an additional folder, checked against id-collision
- * @return a promise, resolvable to generated msg id, when folder for a message
- * is created in the delivery folder.
  */
 async function genMsgIdAndMakeFolder(delivPath: string, msgsFolder: string):
 		Promise<string> {
-	let msgId = random.stringOfB64UrlSafeChars(MSG_ID_LEN);
+	const msgId = random.stringOfB64UrlSafeChars(MSG_ID_LEN);
 	// make msg folder among deliveries
 	try {
-		await fs.mkdir(delivPath+'/'+msgId);
+		await fs.mkdir(`${delivPath}/${msgId}`);
 	} catch (exc) {
 		if ((<fs.FileException> exc).alreadyExists) {
 			return genMsgIdAndMakeFolder(delivPath, msgsFolder);
@@ -94,26 +93,32 @@ async function genMsgIdAndMakeFolder(delivPath: string, msgsFolder: string):
 	}
 	// ensure that msgId does not belong to any existing message
 	try {
-		await fs.stat(msgsFolder+'/'+msgId);
-		await fs.rmdir(delivPath+'/'+msgId);
+		await fs.stat(`${msgsFolder}/${msgId}`);
+		await fs.rmdir(`${delivPath}/${msgId}`);
 		return genMsgIdAndMakeFolder(delivPath, msgsFolder);
 	} catch (exc) {}
 	return msgId;
 }
 
 export class Inbox extends UserFiles {
+
+	private cachedMetas = new TimeWindowCache<string, MsgMeta>(5*60*1000);
+	private metaSavingProc = new SingleProc<void>();
+	private mailEventsSink: MailEventsSink;
 	
-	constructor(userId: string, path: string,
+	constructor(userId: string, path: string, mailEventsSink: MailEventsSink,
 			writeBufferSize?: string|number, readBufferSize?: string|number) {
 		super(userId, path, writeBufferSize, readBufferSize);
+		this.mailEventsSink = mailEventsSink;
 		Object.freeze(this);
 	}
 	
 	static async make(rootFolder: string, userId: string,
-			writeBufferSize?: string|number, readBufferSize?: string|number):
-			Promise<Inbox> {
-		let path = rootFolder+'/'+addressToFName(userId)+'/mail';
-		let inbox = new Inbox(userId, path, writeBufferSize, readBufferSize);
+			mailEventsSink: MailEventsSink, writeBufferSize?: string|number,
+			readBufferSize?: string|number): Promise<Inbox> {
+		const path = `${rootFolder}/${addressToFName(userId)}/mail`;
+		const inbox = new Inbox(userId, path, mailEventsSink,
+			writeBufferSize, readBufferSize);
 		await inbox.ensureUserExistsOnDisk();
 		return inbox;
 	}
@@ -132,46 +137,61 @@ export class Inbox extends UserFiles {
 	 */
 	async freeSpace(): Promise<number> {
 		// XXX need to use space-tracker service!
-		let usedSpace = await this.usedSpace();
-		let quota = await this.getSpaceQuota();
+		const usedSpace = await this.usedSpace();
+		const quota = await this.getSpaceQuota();
 		return Math.max(0, quota - usedSpace);
 	}
 
 	/**
-	 * @param msgMeta is json object with message's meta info directly from sender.
-	 * @param authSender is an address of sender, if such was authenticated.
-	 * @return a promise, resolvable to message id, when a folder for new
+	 * This returns a promise, resolvable to message id, when a folder for new
 	 * message has been created.
+	 * @param extMeta is json object with message's meta info directly from
+	 * sender.
+	 * @param authSender is an address of sender, if such was authenticated.
+	 * @param invite is an invitation token, if any were used.
 	 */
-	async recordMsgMeta(msgMeta: deliveryApi.msgMeta.Request,
-			authSender: string): Promise<string> {
-		let delivPath = this.path+'/delivery'
-		let msgId = await genMsgIdAndMakeFolder(delivPath, this.path+'/messages');
-		let meta: retrievalApi.msgMetadata.Reply = {
-			extMeta: msgMeta,
+	async recordMsgMeta(extMeta: deliveryApi.msgMeta.Request,
+			authSender: string|undefined, invite: string|undefined,
+			maxMsgLength: number): Promise<string> {
+		const msgId = await genMsgIdAndMakeFolder(
+			`${this.path}/delivery`, `${this.path}/messages`);
+		const meta: MsgMeta = {
+			extMeta, authSender, invite, maxMsgLength,
+			recipient: this.userId,
 			deliveryStart: Date.now(),
-			authSender: authSender
+			objs: {}
 		};
-		await fs.writeFile(delivPath+'/'+msgId+'/meta.json',
-			JSON.stringify(meta), { encoding: 'utf8', flag: 'wx' });
+		this.setMeta(msgId, meta, true);
 		return msgId;
 	}
 
 	/**
-	 * @param msgId
-	 * @param incompleteMsg flag, true for incomplete (in-delivery) messages,
-	 * and false (or undefined) for complete messages.
-	 * @return a promise, resolvable to message metadata from disk, when it has
-	 * been found on the disk.
+	 * This returns a promise, resolvable to message metadata from disk, when it
+	 * as been found on the disk.
 	 * Rejected promise may pass a string error code from SC.
+	 * @param msgId
+	 * @param completeMsg flag, true for complete messages, and false for
+	 * incomplete (in-delivery) messages.
 	 */
-	async getMsgMeta(msgId: string, incompleteMsg?: boolean):
-			Promise<retrievalApi.msgMetadata.Reply> {
-		let msgFolder = this.path+(incompleteMsg ? '/delivery' : '/messages');
+	async getMsgMeta(msgId: string, completeMsg): Promise<MsgMeta> {
+		return this.getMeta(msgId, completeMsg);
+	}
+
+	private async getMeta(msgId: string, completeMsg = false): Promise<MsgMeta> {
+		const meta = this.cachedMetas.get(msgId);
+		if (meta) {
+			if ((meta.deliveryCompletion && !completeMsg) ||
+					(!meta.deliveryCompletion && completeMsg)) {
+				throw SC.MSG_UNKNOWN; }
+			return meta;
+		}
+
 		try {
-			let str = await fs.readFile(msgFolder+'/'+msgId+'/meta.json',
-				{ encoding: 'utf8', flag: 'r' });
-			return JSON.parse(str);
+			const file = `${this.path}/${completeMsg ? 'messages' : 'delivery'}/${msgId}/${META_FILE}`;
+			const str = await fs.readFile(file, { encoding: 'utf8', flag: 'r' });
+			const meta = JSON.parse(str) as MsgMeta;
+			this.cachedMetas.set(msgId, meta);
+			return meta;
 		} catch (err) {
 			if ((<fs.FileException> err).notFound) {
 				throw SC.MSG_UNKNOWN;
@@ -181,155 +201,164 @@ export class Inbox extends UserFiles {
 	}
 
 	/**
-	 * @param msgId
-	 * @param objId
-	 * @return a promise, resolvable to undefined, when given pair of message
-	 * and object ids is correct, otherwise, rejected with a string error status,
-	 * found in SC of this object.
+	 * This sets meta for a given message.
+	 * @param msgId 
+	 * @param meta 
+	 * @param isNew Indicates with true, if this meta should be added as new,
+	 * else, false, default value, treats meta as existing one, and only updates
+	 * respective file.
 	 */
-	async checkIds(msgId: string, objId: string): Promise<void> {
-		let msgMeta = await this.getMsgMeta(msgId, true);
-		if (msgMeta.extMeta.objIds.indexOf(objId) < 0) {
-			throw SC.OBJ_UNKNOWN;
-		}
-	}
-
-	/**
-	 * @param msgId
-	 * @param objId
-	 * @param fileHeader
-	 * @param allocateFile
-	 * @param totalSize
-	 * @param offset
-	 * @param chunkLen
-	 * @param chunk
-	 * @return a promise, resolvable when all bytes are written to the file.
-	 * Rejected promise may pass a string error code from SC.
-	 */
-	async saveObjChunk(msgId: string, objId: string, fileHeader: boolean,
-			allocateFile: boolean, totalSize: number|undefined, offset: number,
-			chunkLen: number, chunk: Readable): Promise<void> {
-		let filePath = this.path+'/delivery/'+msgId+'/'+objId+
-			(fileHeader ? XSP_HEADER_FILE_NAME_END : XSP_SEGS_FILE_NAME_END);
-		await this.checkIds(msgId, objId);
-		if (allocateFile) {
-			if (typeof totalSize !== 'number') { throw new TypeError(
-				'totalSize is not a number'); }
-			if ((offset + chunkLen) > totalSize) {
-				throw SC.WRITE_OVERFLOW;
-			}
-			await fs.createEmptyFile(filePath, totalSize).catch(
-				(exc: fs.FileException) => {
-					if (exc.alreadyExists) { throw SC.OBJ_EXIST; }
-					else { throw exc; }
-				});
-		} else {
-			let fileSize = await fs.getFileSize(filePath).catch(
-				(exc: fs.FileException) => {
-					if (exc.notFound) { throw SC.OBJ_UNKNOWN; }
-					else { throw exc; }
-				});
-			if ((offset + chunkLen) > fileSize) {
-				throw SC.WRITE_OVERFLOW;
-			}
-		}
-		try {
-			await fs.streamToExistingFile(filePath, offset,
-				chunkLen, chunk, this.fileWritingBufferSize);
-		} catch (err) {
-			if (!allocateFile) { throw err; }
-			try {
-				await fs.unlink(filePath);
-			} catch (exc) {} finally { throw err; }
-		}
-	}
-
-	/**
-	 * @param msgId
-	 * @param objId
-	 * @param fileHeader
-	 * @param allocateFile
-	 * @param bytes
-	 * @param bytesLen
-	 * @return a promise, resolvable when all bytes are written to the file.
-	 * Rejected promise may pass a string error code from SC.
-	 */
-	async appendObj(msgId: string, objId: string, fileHeader: boolean,
-			allocateFile: boolean, bytes: Readable, bytesLen: number):
+	private async setMeta(msgId: string, meta: MsgMeta, isNew = false):
 			Promise<void> {
-		if (typeof bytesLen !== 'number') { throw new TypeError(
-			'bytesLen is not a number'); }
-		let filePath = this.path+'/delivery/'+msgId+'/'+objId+
-			(fileHeader ? XSP_HEADER_FILE_NAME_END : XSP_SEGS_FILE_NAME_END);
-		await this.checkIds(msgId, objId);
-		let initFileSize: number;
-		if (allocateFile) {
-			await fs.createEmptyFile(filePath, 0)
-			initFileSize = 0;
-		} else {
-			initFileSize = await fs.getFileSize(filePath);
+		if (isNew && this.cachedMetas.get(msgId)) { throw new Error(
+			`Meta is already created for message ${msgId}`); }
+		this.cachedMetas.set(msgId, meta);
+		await this.metaSavingProc.startOrChain(() => fs.writeFile(
+			`${this.path}/delivery/${msgId}/${META_FILE}`,
+			JSON.stringify(meta),
+			{ encoding: 'utf8', flag: (isNew ? 'wx' : 'r+') }));
+	}
+
+	async startSavingObj(msgId: string, objId: string, bytes: Readable,
+			bytesLen: number, opts: deliveryApi.PutObjFirstQueryOpts):
+			Promise<void> {
+		// check meta
+		const meta = await this.getMeta(msgId);
+		if (meta.objs[objId]) { throw SC.WRONG_OBJ_STATE; }
+		if (meta.extMeta.objIds.indexOf(objId) < 0) { throw SC.OBJ_UNKNOWN; }
+
+		// create file
+		const file = `${this.path}/delivery/${msgId}/${objId}`;
+		const { headerOffset } = await createObjFile(
+			file, opts.header, (opts.segs ? opts.segs : 0))
+		.catch((exc: fs.FileException) => {
+			if (exc.alreadyExists) { throw SC.OBJ_EXIST; }
+			else { throw exc; }
+		});
+
+		// write to file (remove it in case of an error)
+		await fs.streamToExistingFile(file, headerOffset, bytesLen, bytes,
+			this.fileWritingBufferSize)
+		.catch(async (err) => {
+			await fs.unlink(file).catch(() => {})
+			throw err;
+		});
+
+		// set obj status in meta
+		meta.objs[objId] = {
+			size: {
+				header: opts.header,
+				segments: opts.segs
+			}
+		};
+		const isComplete = ((typeof opts.segs === 'number') ?
+			(bytesLen === (opts.header + opts.segs)) : false);
+		if (isComplete) {
+			meta.objs[objId].completed = true;
 		}
-		try{
-			await fs.streamToExistingFile(filePath, initFileSize,
-				bytesLen, bytes, this.fileWritingBufferSize)
-		} catch (err) {
-			try{
-				if (allocateFile) {
-					fs.unlink(filePath);
-				} else {
-					fs.truncate(filePath, initFileSize);
+		await this.setMeta(msgId, meta);
+	}
+
+	async continueSavingObj(msgId: string, objId: string, bytes: Readable,
+			bytesLen: number, opts: deliveryApi.PutObjSecondQueryOpts):
+			Promise<void> {
+		// check obj status
+		const meta = await this.getMeta(msgId);
+		const objStatus = meta.objs[objId];
+		if (!objStatus) {
+			if (meta.extMeta.objIds.indexOf(objId) < 0) { throw SC.OBJ_UNKNOWN; }
+			else { throw SC.WRONG_OBJ_STATE; }
+		}
+		if ((!opts.last && !objStatus.size.segments && !opts.append) ||
+				(objStatus.size.segments && opts.append)) {
+			throw SC.WRONG_OBJ_STATE; }
+
+		// parse existing obj file
+		const file = `${this.path}/delivery/${msgId}/${objId}`;
+		const { segsOffset, fileSize } = await parseObjFile(file)
+		.catch((exc: fs.FileException) => {
+			if (exc.notFound) { throw SC.OBJ_UNKNOWN; }
+			else { throw exc; }
+		});
+
+		// write to object file only when there are bytes to write
+		if (bytesLen > 0) {
+
+			// find offset and check boundaries
+			let offset: number;
+			if (opts.append) {
+				offset = fileSize;
+			} else {
+				offset = segsOffset + opts.ofs!;
+				if ((offset + bytesLen) > fileSize) {
+					throw SC.WRITE_OVERFLOW;
 				}
-			} catch (exc) {} finally { throw err; }
+
+			}
+
+			// write to file (truncate appended bytes in case of error)
+			await fs.streamToExistingFile(file, offset, bytesLen, bytes,
+				this.fileWritingBufferSize)
+			.catch(async (err) => {
+				if (opts.append) {
+					await fs.truncate(file, fileSize);
+				}
+				throw err;
+			});
+		}
+
+		// update meta, if this is the last request
+		if (opts.last) {
+			if (opts.append) {
+				objStatus.size.segments = fileSize + bytesLen - segsOffset;
+			}
+			objStatus.completed = true;
+			await this.setMeta(msgId, meta);
 		}
 	}
 	
 	/**
-	 * @param msgId
-	 * @param objIds
-	 * @return a promise for sizes of all objects that are present on the disk,
-	 * out of given ones.
-	 */
-	private async getMsgObjSizes(msgId: string, objIds: string[]):
-			Promise<MsgObjSizes> {
-		let sizes: MsgObjSizes = {};
-		if (objIds.length === 0) { return sizes; }
-		let pathStart = this.path+'/delivery/'+msgId+'/';
-		for (let objId of objIds) {
-			try {
-				sizes[objId] = {
-					header: await fs.getFileSize(
-						pathStart+objId+XSP_HEADER_FILE_NAME_END),
-					segments: await fs.getFileSize(
-						pathStart+objId+XSP_SEGS_FILE_NAME_END)
-				}
-			} catch (err) {}
-		}
-		return sizes;
-	}
-
-	/**
-	 * @param msgId
-	 * @return a promise, resolvable, when a message has been moved from
+	 * This returns a promise, resolvable, when a message has been moved from
 	 * delivery to messages storing folder.
 	 * Rejected promise may pass string error code from SC.
+	 * @param msgId
 	 */
 	async completeMsgDelivery(msgId: string): Promise<void> {
-		let msgMeta = await this.getMsgMeta(msgId, true);
-		msgMeta.deliveryCompletion = Date.now();
-		msgMeta.objSizes = await this.getMsgObjSizes(
-			msgId, msgMeta.extMeta.objIds);
-		await fs.writeFile(this.path+'/delivery/'+msgId+'/meta.json',
-			JSON.stringify(msgMeta), { encoding: 'utf8', flag: 'r+' });
-		let srcFolder = this.path+'/delivery/'+msgId;
-		let dstFolder = this.path+'/messages/'+msgId;
+		// indicate completion in meta
+		const meta = await this.getMeta(msgId);
+		meta.deliveryCompletion = Date.now();
+		await this.setMeta(msgId, meta);
+
+		// move message folder to a place with completed messages
+		const srcFolder = `${this.path}/delivery/${msgId}`;
+		const dstFolder = `${this.path}/messages/${msgId}`;
 		await fs.rename(srcFolder, dstFolder);
+		
+		// raise event about completion of receiving a message
+		this.mailEventsSink(this.userId,
+			retrievalApi.msgRecievedCompletely.EVENT_NAME,
+			{ msgId });
 	}
 
 	/**
 	 * @return a promise, resolvable to a list of available message ids.
 	 */
 	getMsgIds(): Promise<retrievalApi.listMsgs.Reply> {
-		return fs.readdir(this.path+'/messages');
+		return fs.readdir(`${this.path}/messages`);
+	}
+
+	/**
+	 * This method returns parameters of an incomplete message, identified
+	 * by a given id.
+	 * @param msgId
+	 */
+	async getIncompleteMsgParams(msgId: string):
+			Promise<{ maxMsgLength: number; currentMsgLength: number; }> {
+		const msgMeta = await this.getMeta(msgId);
+		const msgFolder = `${this.path}/delivery/${msgId}`;
+		const currentMsgLength = await fs.getFolderContentSize(msgFolder);
+		const maxMsgLength = msgMeta.maxMsgLength;
+		return { maxMsgLength, currentMsgLength };
 	}
 
 	/**
@@ -341,12 +370,12 @@ export class Inbox extends UserFiles {
 	 */
 	async rmMsg(msgId: string): Promise<void> {
 		try {
-			let msgPath = this.path+'/messages/'+msgId
-			let rmPath = msgPath+'~remove';
+			const msgPath = `${this.path}/messages/${msgId}`;
+			const rmPath = `${msgPath}~remove`;
 			await fs.rename(msgPath, rmPath);
 			await fs.rmDirWithContent(rmPath);
 		} catch (exc) {
-			if ((<fs.FileException> exc).notFound) {
+			if ((exc as fs.FileException).notFound) {
 				throw SC.MSG_UNKNOWN;
 			}
 			throw exc;
@@ -354,42 +383,79 @@ export class Inbox extends UserFiles {
 	}
 
 	/**
+	 * This method returns promise that resolves to obj reader.
 	 * @param msgId
 	 * @param objId
-	 * @param fileHeader
-	 * @param offset
-	 * @param maxLen
-	 * @return a promise, resolvable to bytes reader.
+	 * @param header is a boolean flag that says if header bytes should be
+	 * present
+	 * @param segsOffset indicates offset from which segment bytes should be
+	 * read. If header is present this offset must be zero.
+	 * @param segsLimit
 	 */
-	async getObj(msgId: string, objId: string, fileHeader: boolean,
-			offset: number, maxLen?: number): Promise<ObjReader|undefined> {
-		let filePath = this.path+'/messages/'+msgId+'/'+objId+
-			(fileHeader ? XSP_HEADER_FILE_NAME_END : XSP_SEGS_FILE_NAME_END);
-		try {
-			let objSize = await fs.getFileSize(filePath);
-			if (objSize <= offset) { return; }
-			if ('number' !== typeof maxLen) {
-				maxLen = objSize - offset;
-			} else if ((offset+maxLen) >= objSize) {
-				maxLen = objSize - offset;
-			}
-			if (maxLen <= 0) { return; }
-			let reader: ObjReader = {
-				len: maxLen,
-				stream: createReadStream(filePath, {
-					flags: 'r',
-					start: offset,
-					end: offset+maxLen-1
-				})
-			}
-			Object.freeze(reader);
-			return reader;
-		} catch (exc) {
-			if ((<fs.FileException> exc).notFound) {
-				throw SC.OBJ_UNKNOWN;
-			}
-			throw exc;
+	async getObj(msgId: string, objId: string, header: boolean,
+			offsetIntoSegs: number, segsLimit: number|undefined):
+			Promise<ObjReader> {
+		if (header && (offsetIntoSegs !== 0)) { throw new Error(
+			`When header is read, segments offset must be zero`); }
+		const filePath = `${this.path}/messages/${msgId}/${objId}`;
+		
+		// parse first part of an object file
+		const { headerOffset, segsOffset, fileSize } =
+			await parseObjFile(filePath).catch((exc: fs.FileException) => {
+				if (exc.notFound) { throw SC.OBJ_UNKNOWN; }
+				throw exc;
+			});
+
+		// find total segments length
+		const segsLen = fileSize - segsOffset;
+
+		// contain boundary parameters offsetIntoSegs and len for segment bytes
+		if (segsLen < offsetIntoSegs) {
+			offsetIntoSegs = segsLen;
 		}
+		let segBytesToRead: number;
+		if (segsLimit === undefined) {
+			segBytesToRead = segsLen - offsetIntoSegs;
+		} else if ((offsetIntoSegs+segsLimit) >= segsLen) {
+			segBytesToRead = segsLen - offsetIntoSegs;
+		} else {
+			segBytesToRead = segsLimit;
+		}
+
+		// construct reader
+		let reader: ObjReader;
+		let start: number;
+		if (header) {
+			const headerLen = segsOffset - headerOffset;
+			reader = {
+				len: (segBytesToRead + headerLen),
+				segsLen,
+				headerLen,
+				pipe: undefined
+			};
+			start = headerOffset;
+		} else {
+			reader = {
+				len: segBytesToRead,
+				segsLen,
+				pipe: undefined
+			};
+			start = segsOffset + offsetIntoSegs;
+		}
+
+		// attach pipe function, if needed
+		if (reader.len > 0) {
+			reader.pipe = (outStream => pipeBytes(
+					createReadStream(filePath, {
+						flags: 'r',
+						start,
+						end: start+reader.len-1
+					}),
+					outStream));
+		}
+
+		Object.freeze(reader);
+		return reader;
 	}
 	
 	/**
@@ -406,7 +472,7 @@ export class Inbox extends UserFiles {
 		if (setDefault) {
 			initKeyCerts = (null as any);
 		} else {
-			let isOK = 
+			const isOK = 
 				(typeof initKeyCerts === 'object') && !!initKeyCerts &&
 				isLikeSignedKeyCert(initKeyCerts.pkeyCert) &&
 				isLikeSignedKeyCert(initKeyCerts.userCert) &&
@@ -433,11 +499,11 @@ export class Inbox extends UserFiles {
 		if (setDefault) {
 			policy = {
 				accept: true,
-				acceptWithInvitesOnly: true,
+				acceptWithInvitesOnly: false,
 				defaultMsgSize: 1024*1024
 			};
 		} else {
-			let isOK =
+			const isOK =
 				('object' === typeof policy) && !!policy &&
 				('boolean' === typeof policy.accept) &&
 				('boolean' === typeof policy.acceptWithInvitesOnly) &&
@@ -460,12 +526,11 @@ export class Inbox extends UserFiles {
 		if (setDefault) {
 			invites = {};
 		} else {
-			let isOK = ('object' === typeof invites) && !!invites;
+			const isOK = ('object' === typeof invites) && !!invites;
 			if (!isOK) { return false; }
-			let msgMaxSize: number;
 			for (var invite in invites) {
-				msgMaxSize = invites[invite];
-				isOK = ('number' === typeof msgMaxSize) && (msgMaxSize > 500);
+				const msgMaxSize = invites[invite];
+				const isOK = ('number' === typeof msgMaxSize) && (msgMaxSize > 500);
 				if (!isOK) { return false; }
 			}
 		}
@@ -489,7 +554,7 @@ export class Inbox extends UserFiles {
 				defaultMsgSize: 100*1024*1024,
 			};
 		} else {
-			let isOK =
+			const isOK =
 				('object' === typeof policy) && !!policy &&
 				('boolean' === typeof policy.applyBlackList) &&
 				('boolean' === typeof policy.acceptFromWhiteListOnly) &&
@@ -513,7 +578,7 @@ export class Inbox extends UserFiles {
 		if (setDefault) {
 			list = {};
 		} else {
-			let isOK = ('object' === typeof list) && !!list;
+			const isOK = ('object' === typeof list) && !!list;
 			if (!isOK) { return false; }
 		}
 		await inbox.setParam('authenticated/blacklist', list);
@@ -531,12 +596,11 @@ export class Inbox extends UserFiles {
 		if (setDefault) {
 			list = {};
 		} else {
-			let isOK = ('object' === typeof list) && !!list;
+			const isOK = ('object' === typeof list) && !!list;
 			if (!isOK) { return false; }
-			let msgMaxSize: number;
 			for (var addr in list) {
-				msgMaxSize = list[addr];
-				isOK = ('number' === typeof msgMaxSize) && (msgMaxSize > 500);
+				const msgMaxSize = list[addr];
+				const isOK = ('number' === typeof msgMaxSize) && (msgMaxSize > 500);
 				if (!isOK) { return false; }
 			}
 		}
@@ -555,12 +619,11 @@ export class Inbox extends UserFiles {
 		if (setDefault) {
 			invites = {};
 		} else {
-			let isOK = ('object' === typeof invites) && !!invites;
+			const isOK = ('object' === typeof invites) && !!invites;
 			if (!isOK) { return false; }
-			let msgMaxSize: number;
 			for (var invite in invites) {
-				msgMaxSize = invites[invite];
-				isOK = ('number' === typeof msgMaxSize) && (msgMaxSize > 500);
+				const msgMaxSize = invites[invite];
+				const isOK = ('number' === typeof msgMaxSize) && (msgMaxSize > 500);
 				if (!isOK) { return false; }
 			}
 		}

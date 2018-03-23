@@ -74,14 +74,14 @@ describe('ASMail configuration', () => {
 			
 			itAsync('is readable', async () => {
 				
-				let reqOpts: RequestOpts = {
+				const reqOpts: RequestOpts = {
 					url: resolveUrl(confUrl, paramUrlPart),
 					method: 'GET',
 					responseType: 'json',
 					sessionId
 				};
 				
-				let rep = await doBodylessRequest<any>(reqOpts);
+				const rep = await doBodylessRequest<any>(reqOpts);
 				expect(rep.status).toBe(api.PARAM_SC.ok, 'status for reading parameter');
 		
 				await expectNonAcceptanceOfBadSessionId(reqOpts);
@@ -89,33 +89,33 @@ describe('ASMail configuration', () => {
 			});
 			
 			async function getParam(): Promise<any> {
-				let reqOpts: RequestOpts = {
+				const reqOpts: RequestOpts = {
 					url: resolveUrl(confUrl, paramUrlPart),
 					method: 'GET',
 					responseType: 'json',
 					sessionId
 				};
-				let rep = await doBodylessRequest<any>(reqOpts);
+				const rep = await doBodylessRequest<any>(reqOpts);
 				expect(rep.status).toBe(api.PARAM_SC.ok);
 				return rep.data;
 			}
 			
 			itAsync('is writable', async () => {
 				
-				let initValue = await getParam();
+				const initValue = await getParam();
 				
-				let reqOpts: RequestOpts = {
+				const reqOpts: RequestOpts = {
 					url: resolveUrl(confUrl, paramUrlPart),
 					method: 'PUT',
 					sessionId
 				};
 				
-				for (let paramVal of goodValues) {
+				for (const paramVal of goodValues) {
 					
-					let rep = await doJsonRequest<void>(reqOpts, paramVal);
+					const rep = await doJsonRequest<void>(reqOpts, paramVal);
 					expect(rep.status).toBe(api.PARAM_SC.ok, 'status for successful parameter value update');
 					
-					let paramOnServer = await getParam();
+					const paramOnServer = await getParam();
 					expect(deepEqual(paramVal, paramOnServer)).toBe(true, 'parameter value on the server should be set to new value');
 					
 				}
@@ -146,9 +146,9 @@ describe('ASMail configuration', () => {
 		4*1024));
 	
 	itAsync('closing session', async () => {
-		let sessionId = await startSession(user1);
+		const sessionId = await startSession(user1);
 		
-		let reqOpts: RequestOpts = {
+		const reqOpts: RequestOpts = {
 			url: resolveUrl(confUrl, api.closeSession.URL_END),
 			method: 'POST',
 			sessionId

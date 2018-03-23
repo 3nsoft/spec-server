@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2017 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -14,9 +14,7 @@
  You should have received a copy of the GNU General Public License along with
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
-import { RuntimeException } from './runtime';
-
-export const ExceptionType = 'file';
+export const fileExceptionType = 'file';
 
 export const Code: web3n.files.exceptionCode = {
 	notFound: 'ENOENT',
@@ -26,21 +24,22 @@ export const Code: web3n.files.exceptionCode = {
 	notLink: 'not-link',
 	isDirectory: 'EISDIR',
 	notEmpty: 'ENOTEMPTY',
-	endOfFile: 'EEOF'
+	endOfFile: 'EEOF',
+	concurrentUpdate: 'concurrent-update'
 };
 Object.freeze(Code);
 
 export type FileException = web3n.files.FileException;
 
-export function makeFileException(code: string, msg?: string): FileException {
-	let err: FileException = {
+export function makeFileException(code: string|undefined, path: string,
+		cause?: any): FileException {
+	const err: FileException = {
 		runtimeException: true,
-		type: ExceptionType,
-		code: code
+		type: fileExceptionType,
+		code,
+		path,
+		cause
 	};
-	if (msg) {
-		err.message = msg;
-	}
 	if (code === Code.alreadyExists) {
 		err.alreadyExists = true;
 	} else if (code === Code.notFound) {
@@ -57,13 +56,10 @@ export function makeFileException(code: string, msg?: string): FileException {
 		err.endOfFile = true;
 	} else if (code === Code.notEmpty) {
 		err.notEmpty = true;
+	} else if (code === Code.concurrentUpdate) {
+		err.concurrentUpdate = true;
 	}
 	return err;
-}
-
-export function makeFileExceptionFromNodes(nodeExc: NodeJS.ErrnoException):
-		FileException {
-	return makeFileException(nodeExc.code!, `${nodeExc.code}: ${nodeExc.path}`);
 }
 
 export function maskPathInExc(pathPrefixMaskLen: number, exc: any):
@@ -73,6 +69,15 @@ export function maskPathInExc(pathPrefixMaskLen: number, exc: any):
 		exc.path = exc.path.substring(pathPrefixMaskLen);
 	}
 	return exc;
+}
+
+export function ensureCorrectFS(fs: web3n.files.FS, type: web3n.files.FSType,
+		writable: boolean): void {
+	if (!fs) { throw new Error("No file system given."); }
+	if (fs.type !== type) { throw new Error(
+		`Expected ${type} file system, instead got ${fs.type} type.`); }
+	if (fs.writable !== writable) { throw new Error(
+		`Given file system is ${fs.writable ? '' : 'not'} writable, while it is expected to be ${writable ? '' : 'not'} writable`); }
 }
 
 Object.freeze(exports);

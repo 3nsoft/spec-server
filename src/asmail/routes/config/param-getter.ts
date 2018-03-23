@@ -18,7 +18,7 @@ import { RequestHandler, Response, NextFunction } from 'express';
 import { SC as recipSC } from '../../resources/recipients';
 import { PARAM_SC, ERR_SC }
 	from '../../../lib-common/service-api/asmail/config';
-import { Request } from '../../../lib-server/routes/sessions/start';
+import { Request } from '../../resources/sessions';
 
 export function getParam<T>(paramGetter: (userId: string) => Promise<T>):
 		RequestHandler {
@@ -28,11 +28,11 @@ export function getParam<T>(paramGetter: (userId: string) => Promise<T>):
 	
 	return async function(req: Request, res: Response, next: NextFunction) {
 		
-		let session = req.session;
-		let userId = session.params.userId;
+		const session = req.session;
+		const userId = session.params.userId;
 		
 		try{
-			let value = await paramGetter(userId);
+			const value = await paramGetter(userId);
 			res.status(PARAM_SC.ok).json(value);
 		} catch (err) {
 			if (err === recipSC.USER_UNKNOWN) {

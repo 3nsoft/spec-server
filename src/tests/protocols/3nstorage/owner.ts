@@ -22,13 +22,15 @@ import { User, doMailerIdLogin } from '../../libs-for-tests/mailerid';
 import { midLoginSpecs } from '../../shared-checks/check-mid-login';
 import { resolve as resolveUrl } from 'url';
 import * as api from '../../../lib-common/service-api/3nstorage/owner';
-import { RequestOpts, doBodylessRequest }
+import { RequestOpts, doBodylessRequest, doJsonRequest }
 	from '../../libs-for-tests/xhr-utils';
-import { expectNonAcceptanceOfBadSessionId, expectNonAcceptanceOfNonEmptyBody }
+import { expectNonAcceptanceOfBadSessionId, expectNonAcceptanceOfNonEmptyBody,
+	expectNonAcceptanceOfBadJsonRequest }
 	from '../../shared-checks/requests';
 import { startSession } from './owner/test-utils';
 import { resolve } from 'path';
 import { addSpecsFrom } from '../../libs-for-tests/spec-assembly';
+import { deepEqual }  from '../../libs-for-tests/json-equal';
 
 const SPECS_FOLDER = resolve(__dirname, './owner/specs');
 
@@ -67,9 +69,9 @@ describe('3NStorage owner service', () => {
 			() => user ));
 		
 		itAsync('closing', async () => {
-			let sessionId = await startSession(user);
+			const sessionId = await startSession(user);
 			
-			let reqOpts: RequestOpts = {
+			const reqOpts: RequestOpts = {
 				url: resolveUrl(user.storageOwnerUrl, api.closeSession.URL_END),
 				method: 'POST',
 				sessionId
@@ -94,17 +96,17 @@ describe('3NStorage owner service', () => {
 		});
 	
 		itAsync('dictates parameters to client side', async () => {
-			let ownerUrl = user.storageOwnerUrl;
-			let sessionId = await startSession(user);
+			const ownerUrl = user.storageOwnerUrl;
+			const sessionId = await startSession(user);
 			
-			let reqOpts: RequestOpts = {
+			const reqOpts: RequestOpts = {
 				url: resolveUrl(ownerUrl, api.sessionParams.URL_END),
 				method: 'GET',
 				responseType: 'json',
 				sessionId
 			};
 			
-			let rep = await doBodylessRequest<api.sessionParams.Reply>(reqOpts);
+			const rep = await doBodylessRequest<api.sessionParams.Reply>(reqOpts);
 			expect(rep.status).toBe(200, 'for successful getting of session parameters');
 			expect(typeof rep.data.maxChunkSize).toBe('number');
 			expect(rep.data.maxChunkSize).not.toBeLessThan(64*1024);
@@ -114,6 +116,80 @@ describe('3NStorage owner service', () => {
 		});
 
 	});
+
+	function checkParamRoutes(paramUrlPart: string, goodValues: any[],
+			badValues: any[], maxBodyLen: number): () => void {
+		return () => {
+			
+			let sessionId: string;
+			
+			beforeAllAsync(async () => {
+				sessionId = await startSession(user); 
+			});
+			
+			itAsync('is readable', async () => {
+				
+				const reqOpts: RequestOpts = {
+					url: resolveUrl(user.storageOwnerUrl, paramUrlPart),
+					method: 'GET',
+					responseType: 'json',
+					sessionId
+				};
+				
+				const rep = await doBodylessRequest<any>(reqOpts);
+				expect(rep.status).toBe(api.PARAM_SC.ok, 'status for reading parameter');
+		
+				await expectNonAcceptanceOfBadSessionId(reqOpts);
+				
+			});
+			
+			async function getParam(): Promise<any> {
+				const reqOpts: RequestOpts = {
+					url: resolveUrl(user.storageOwnerUrl, paramUrlPart),
+					method: 'GET',
+					responseType: 'json',
+					sessionId
+				};
+				const rep = await doBodylessRequest<any>(reqOpts);
+				expect(rep.status).toBe(api.PARAM_SC.ok);
+				return rep.data;
+			}
+			
+			itAsync('is writable', async () => {
+				
+				const initValue = await getParam();
+				
+				const reqOpts: RequestOpts = {
+					url: resolveUrl(user.storageOwnerUrl, paramUrlPart),
+					method: 'PUT',
+					sessionId
+				};
+				
+				for (const paramVal of goodValues) {
+					
+					const rep = await doJsonRequest<void>(reqOpts, paramVal);
+					expect(rep.status).toBe(api.PARAM_SC.ok, 'status for successful parameter value update');
+					
+					const paramOnServer = await getParam();
+					expect(deepEqual(paramVal, paramOnServer)).toBe(true, 'parameter value on the server should be set to new value');
+					
+				}
+				
+				await expectNonAcceptanceOfBadJsonRequest(
+					reqOpts, maxBodyLen, badValues);
+				
+				await expectNonAcceptanceOfBadSessionId(reqOpts);
+				
+			});
+			
+		}
+	}
+	
+	describe(`user's key derivation parameters`, checkParamRoutes(
+		api.keyDerivParams.URL_END,
+		[],
+		[ 1, undefined, 'string', [ 1, 2 ], [] ],
+		1024));
 	
 	addSpecsFrom(SPECS_FOLDER, () => ({ user, storageServer }));
 	

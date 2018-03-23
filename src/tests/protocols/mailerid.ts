@@ -233,7 +233,7 @@ describe('MailerId', () => {
 				},
 				midServer.midServiceDomain,
 				Date.now()/1000);
-			expect(toCanonicalAddress(user1.id)).toBe(pkeyAndAddress.address, 'certificate must be issued for session\'s user canonical address.');
+			expect(pkeyAndAddress.address).toBe(toCanonicalAddress(user1.id), 'certificate must be issued for session\'s user canonical address.');
 			let pkeyFromCert: JsonKey = {
 				alg: pkeyAndAddress.pkey.alg,
 				kid: pkeyAndAddress.pkey.kid,

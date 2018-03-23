@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2017 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -18,59 +18,84 @@
  * This module constructs memory-backed sessions factories.
  */
 
-import { Factory, Session, IdGenerator, SessionsContainer, makeSessionFactory }
+import { Factory, Session, SessionParams, BaseSessionFactory, wrapFactory }
 	from './sessions';
+import { bind } from '../../lib-common/binding';
 import * as random from '../../lib-common/random-node';
 
-/**
- * @param timeout is a session timeout in seconds
- * @return Factory which works properly in a single process application,
- * clearing up sessions that past given timeout.
- */
-export function makeSingleProcFactory(timeout: number): Factory {
-	if (('number' !== typeof timeout) || (timeout <= 0)) {
-		throw new Error("Given timeout must be a number greater than zero."); }
-	let sessions = new Map<string, Session<any>>();
-	let idGenerator: IdGenerator = async () => {
+export class InMemorySessions<T> extends BaseSessionFactory<T> {
+
+	protected sessions = new Map<string, Session<T>>();
+	private timeoutCodeIntervalId: NodeJS.Timer|undefined = undefined;
+	private timeoutMillis: number;
+
+	private checkSessionsForTimeout = () => {
+		const now = Date.now();
+		for (const s of this.sessions.values()) {
+			if ((now - s.lastAccessedAt) >= this.timeoutMillis) { s.close(); }
+		}
+	};
+
+	private makeDefaultSessionParams: (sessionId: string) => T;
+
+	protected constructor(timeoutSecs: number,
+			makeSessionParams: (sessionId: string) => T) {
+		super();
+		if ((typeof timeoutSecs !== 'number') || (timeoutSecs <= 0)) {
+			throw new Error("Given timeout must be a number greater than zero."); }
+		this.timeoutMillis = timeoutSecs*1000;
+		if (typeof makeSessionParams !== 'function') { throw new TypeError(
+			`Given argument 'makeSessionParams' is not a function.`) }
+		this.makeDefaultSessionParams = makeSessionParams;
+	}
+
+	async generate(): Promise<Session<T>> {
 		let newSessionId: string;
 		do {
 			newSessionId = random.stringOfB64Chars(40);
-		} while (sessions.has(newSessionId));
-		return newSessionId;
+		} while (this.sessions.has(newSessionId));
+		const params = this.makeDefaultSessionParams(newSessionId);
+		const session = this.makeSession(newSessionId, params);
+		return session;
 	}
-	let sessionCount = 0;
-	let timeoutMillis = timeout*1000;
-	let timeoutCodeIntervalId: number|undefined = undefined;
-	let checkSessionsForTimeout = () => {
-		let now = Date.now();
-		for (let s of sessions.values()) {
-			if ((now - s.lastAccessedAt) >= timeoutMillis) { s.close(); }
+
+	protected async add(s: Session<T>): Promise<void> {
+		this.sessions.set(s.id, s);
+		if (this.sessions.size === 1) {
+			this.timeoutCodeIntervalId = setInterval(
+				this.checkSessionsForTimeout, this.timeoutMillis/2);
 		}
 	}
-	let checkPeriod = timeoutMillis/2;
-	let container: SessionsContainer = {
-			add: async (s: Session<any>) => {
-				sessions.set(s.id, s);
-				sessionCount += 1;
-				if (sessionCount === 1) {
-					timeoutCodeIntervalId = <any> setInterval(
-							checkSessionsForTimeout, checkPeriod);
-				}
-			},
-			remove: async (s: Session<any>) => {
-				if (sessions.delete(s.id)) {
-					sessionCount -= 1;
-					if (sessionCount === 0) {
-						clearInterval(timeoutCodeIntervalId!);
-						timeoutCodeIntervalId = undefined;
-					}
-				}
-			},
-			get: async (sId: string) => {
-				return sessions.get(sId);
+
+	protected async remove(s: Session<T>): Promise<void> {
+		if (this.sessions.delete(s.id)) {
+			if (this.sessions.size === 0) {
+				clearInterval(this.timeoutCodeIntervalId!);
+				this.timeoutCodeIntervalId = undefined;
 			}
-	};
-	return makeSessionFactory(idGenerator, container);
+		}
+	}
+
+	protected async get(sId: string): Promise<Session<T>|undefined> {
+		return this.sessions.get(sId);
+	}
+
+	/**
+	 * This returns factory, that works properly in a single process application,
+	 * clearing up sessions that past given timeout.
+	 * @param timeout is a session timeout in seconds
+	 * @param makeDefaultSessionParams is a function that creates session
+	 * parameters object in some initial/default state
+	 */
+	static factory<T>(timeout: number, makeDefaultSessionParams: () => T):
+			Factory<T> {
+		const factory = new InMemorySessions(timeout, makeDefaultSessionParams);
+		Object.seal(factory);
+		return Object.freeze(wrapFactory(factory));
+	}
+
 }
+Object.freeze(InMemorySessions.prototype);
+Object.freeze(InMemorySessions);
 
 Object.freeze(exports);

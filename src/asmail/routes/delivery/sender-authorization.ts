@@ -19,7 +19,7 @@ import { SignedLoad, getPrincipalAddress } from '../../../lib-common/jwkeys';
 import { SC as recipSC } from '../../resources/recipients';
 import { authSender as api, ERR_SC }
 	from '../../../lib-common/service-api/asmail/delivery';
-import { Request } from './start-session';
+import { Request } from '../../resources/delivery-sessions';
 
 export interface IMidAuthorizer {
 	(rpDomain: string, sessionId: string, userId: string,
@@ -47,9 +47,9 @@ export function authorize(relyingPartyDomain: string,
 			return;
 		}
 		
-		let rb: api.Request = req.body;
-		let sender = req.session.params.sender;
-		let sessionId = req.session.id;
+		const rb: api.Request = req.body;
+		const sender = req.session.params.sender;
+		const sessionId = req.session.id;
 
 		if (!sender) {
 			// This case must be rejected, because place for authorizing
@@ -67,7 +67,7 @@ export function authorize(relyingPartyDomain: string,
 		}
 		
 		try {
-			let certsVerified = await midAuthorizingFunc(relyingPartyDomain,
+			const certsVerified = await midAuthorizingFunc(relyingPartyDomain,
 				sessionId, sender, rb.assertion, rb.userCert, rb.provCert);
 			if (certsVerified) {
 				req.session.isAuthorized = true;

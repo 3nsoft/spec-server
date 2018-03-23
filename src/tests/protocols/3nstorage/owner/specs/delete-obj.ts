@@ -16,7 +16,7 @@
 
 import { startSession, SpecDescribe, TestSetup, User, StorageComponent }
 	from '../test-utils';
-import { deleteObj as api }
+import { currentObj as api }
 	from '../../../../../lib-common/service-api/3nstorage/owner';
 import { beforeAllAsync, itAsync, xitAsync }
 	from '../../../../libs-for-tests/async-jasmine';
@@ -29,11 +29,11 @@ import { bytes as randomBytes } from '../../../../../lib-common/random-node';
 import { resolve as resolveUrl } from 'url';
 import { copy } from '../../../../libs-for-tests/json-copy';
 
-export let specs: SpecDescribe = {
+export const specs: SpecDescribe = {
 	description: 'Request to delete object\'s current version'
 };
 
-let obj: Obj = {
+const obj: Obj = {
 	objId: 'aaaa',
 	version: 1,
 	header: randomBytes(100),
@@ -60,27 +60,27 @@ specs.definition = (setup: () => TestSetup) => (() => {
 	});
 
 	itAsync('fails when object does not exist', async () => {
-		let unknownObj = 'unknown-obj';
-		expect(await storageServer.objExists(user.id, unknownObj)).toBeFalsy();
-		let opts = copy(reqOpts);
+		const unknownObj = 'unknown-obj';
+		expect(await storageServer.currentObjExists(user.id, unknownObj)).toBeFalsy();
+		const opts = copy(reqOpts);
 		opts.url = resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd(unknownObj));
-		let rep = await doBodylessRequest(opts);
-		expect(rep.status).toBe(api.SC.missing);
+		const rep = await doBodylessRequest(opts);
+		expect(rep.status).toBe(api.SC.unknownObj);
 	});
 
 	itAsync('does remove it', async () => {
 		await saveObj(user.storageOwnerUrl, sessionId,
-			obj.objId, obj, true);
-		expect(await storageServer.objExists(user.id, obj.objId)).toBeTruthy();
-		let rep = await doBodylessRequest(reqOpts);
-		expect(rep.status).toBe(api.SC.ok);
-		expect(await storageServer.objExists(user.id, obj.objId)).toBeFalsy();
+			obj.objId, 1, obj);
+		expect(await storageServer.currentObjExists(user.id, obj.objId)).toBeTruthy();
+		const rep = await doBodylessRequest(reqOpts);
+		expect(rep.status).toBe(api.SC.okDelete);
+		expect(await storageServer.currentObjExists(user.id, obj.objId)).toBeFalsy();
 	});
 
 	xitAsync('keeps archived versions intact');
 
 	itAsync('will not work outside of a valid session', async () => {
-		let opts = copy(reqOpts);
+		const opts = copy(reqOpts);
 		await expectNonAcceptanceOfBadSessionId(opts);
 	});
 

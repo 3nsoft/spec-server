@@ -22,69 +22,87 @@
 import * as express from 'express';
 
 // Internal libs
-import { allowCrossDomain } from '../lib-server/middleware/allow-cross-domain';
 import { json as parseJSON, emptyBody }
 	from '../lib-server/middleware/body-parsers';
-import { checkAndTransformAddress } from '../lib-common/canonical-address';
+import { UserSockets, AppWithWSs } from '../lib-server/web-sockets/app';
+import { ServerEvents } from '../lib-server/web-sockets/server-events';
 
 // Resource/Data modules
-import { Factory as sessionsFactory } from '../lib-server/resources/sessions';
+import { SessionsFactory } from './resources/sessions';
 import { Factory as recipFactory } from './resources/recipients';
 
 // routes
-import { IMidAuthorizer, midLogin }
+import { MidAuthorizer, midLogin }
 	from '../lib-server/routes/sessions/mid-auth';
 import { startSession } from '../lib-server/routes/sessions/start';
 import { closeSession } from '../lib-server/routes/sessions/close';
 import { listMsgIds } from './routes/retrieval/list-messages';
 import { getMsgMeta } from './routes/retrieval/get-message-meta';
 import { deleteMsg } from './routes/retrieval/remove-message';
-import { getMsgObjBytes } from './routes/retrieval/get-message-bytes';
+import { getMsgObj } from './routes/retrieval/get-message-obj';
 
 import * as api from '../lib-common/service-api/asmail/retrieval';
 
-export function makeApp(domain: string, sessions: sessionsFactory,
-		recipients: recipFactory, midAuthorizer: IMidAuthorizer):
-		express.Express {
+export function makeApp(domain: string, sessions: SessionsFactory,
+		recipients: recipFactory, midAuthorizer: MidAuthorizer): AppWithWSs {
 	
-	let app = express();
-	app.disable('etag');
+	const app = new AppWithWSs();
 	
-	app.use(allowCrossDomain(
-			[ "Content-Type", "X-Session-Id" ],
-			[ 'GET', 'POST', 'DELETE' ]));
+	setHttpPart(app, domain, sessions, recipients, midAuthorizer);
+	setWSPart(app, sessions, recipients);
+
+	return app;
+}
+
+function setWSPart(app: AppWithWSs, sessions: SessionsFactory,
+		recipients: recipFactory): void {
+	const sockets = new UserSockets(
+		sessions.ensureAuthorizedSessionForSocketStart());
 	
-	app.post('/'+api.midLogin.START_URL_END,
+	const mailEvents = new ServerEvents(undefined,
+		[ api.msgRecievedCompletely.EVENT_NAME,
+			api.msgMainObjRecieved.EVENT_NAME ],
+		sockets.socketGetter);
+	
+	// give events ipc to both ends
+	sockets.addSocketIPC(mailEvents);
+	recipients.setMailEventsSink(mailEvents.eventsSink);
+
+	app.addWS(api.wsEventChannel.URL_END, sockets);
+}
+
+function setHttpPart(app: AppWithWSs, domain: string,
+		sessions: SessionsFactory, recipients: recipFactory,
+		midAuthorizer: MidAuthorizer): void {
+	app.http.disable('etag');
+	
+	app.http.post('/'+api.midLogin.START_URL_END,
 			sessions.checkSession(),
 			parseJSON('1kb'),
-			startSession(checkAndTransformAddress,
-				recipients.exists, sessions.generate));
-	app.post('/'+api.midLogin.AUTH_URL_END,
+			startSession(recipients.exists, sessions.generate));
+	app.http.post('/'+api.midLogin.AUTH_URL_END,
 			sessions.ensureOpenedSession(),
 			parseJSON('4kb'),
 			midLogin(domain, midAuthorizer));
 	
 	// *** Require authorized session for everything below ***
-	app.use(sessions.ensureAuthorizedSession());
+	app.http.use(sessions.ensureAuthorizedSession());
 	
-	app.post('/'+api.closeSession.URL_END,
+	app.http.post('/'+api.closeSession.URL_END,
 			emptyBody(),
 			closeSession());
 	
-	app.get('/'+api.listMsgs.URL_END,
+	app.http.get('/'+api.listMsgs.URL_END,
 			listMsgIds(recipients.getMsgIds));
 	
-	app.get('/'+api.msgMetadata.EXPRESS_URL_END,
+	app.http.get('/'+api.msgMetadata.EXPRESS_URL_END,
 			getMsgMeta(recipients.getMsgMeta));
 	
-	app.delete('/'+api.rmMsg.EXPRESS_URL_END,
+	app.http.delete('/'+api.rmMsg.EXPRESS_URL_END,
 			deleteMsg(recipients.deleteMsg));
-	
-	app.get('/'+api.msgObjHeader.EXPRESS_URL_END,
-			getMsgObjBytes(recipients.getObjHeader));
-	app.get('/'+api.msgObjSegs.EXPRESS_URL_END,
-			getMsgObjBytes(recipients.getObjSegments));
-	
-	return app;
+
+	app.http.get('/'+api.msgObj.EXPRESS_URL_END,
+			getMsgObj(recipients.getObj));
 }
+
 Object.freeze(exports);

@@ -30,7 +30,7 @@ export function isUserIdAvailable(idCheckFunc: ICheckId,
 	
 	return async function (req: Request, res: Response, next: NextFunction) {
 		
-		let newId = (<api.Request> req.body).userId;
+		const newId = (<api.Request> req.body).userId;
 		
 		if (!idCheckFunc(newId)) {
 			res.status(ERR_SC.malformed).send('Given user id is malformed.');
@@ -38,7 +38,7 @@ export function isUserIdAvailable(idCheckFunc: ICheckId,
 		}
 		
 		try{
-			let isAvailable = await isIdAvailableFunc(newId);
+			const isAvailable = await isIdAvailableFunc(newId);
 			if (isAvailable) {
 				res.status(api.SC.ok).end();
 			} else {

@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2017 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -15,50 +15,40 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { IGenerateSession, Request as SessReq } from '../../resources/sessions';
+import { GenerateSession, Request as SessionReq, SessionParams }
+	from '../../resources/sessions';
 import { startSession as api, ERR_SC, ErrorReply }
 	from '../../../lib-common/service-api/mailer-id/login';
+import { checkAndTransformAddress }
+	from '../../../lib-common/canonical-address';
 
-export interface SessionParams {
-	userId: string;
-}
-
-export type Request = SessReq<SessionParams>;
-
-export interface ICheckAndTransformUserId {
-	/**
-	 * This function checks overall shape of a given user id, possibly
-	 * transforming it to some canonical form, used by the service.
-	 * @params initUserId is a an incoming string, that should be an id
-	 * @return if incoming id is ok, same, or transformed id is returned,
-	 * else, if incoming id is not ok, undefined is returned.
-	 */
-	(initUserId: string): string|undefined;
-}
-
-export interface IUserExists {
-	(userId: string): Promise<boolean>;
-}
-
-export interface IRedirect {
-	(userId: string): Promise<string>;
-}
+export type Request = SessionReq<SessionParams>;
 
 /**
+ * This function checks overall shape of a given user id, possibly
+ * transforming it to some canonical form, used by the service.
+ * If incoming id is ok, function returns it in a canonical form.
+ * Else, if incoming id is not ok, undefined is returned.
+ * @params initUserId is a an incoming string, that should be an id
+ */
+export type CheckAndTransformUserId = (initUserId: string) => string|undefined;
+
+export type UserExists = (userId: string) => Promise<boolean>;
+
+export type Redirect = (userId: string) => Promise<string>;
+
+/**
+ * This returns route handler that creates sessions for a given userId, with
+ * potential redirect for a named user.
  * @param checkIdFunc
  * @param allowUserFunc
  * @param sessionGenFunc
  * @param redirectFunc (optional)
- * @return route handler that creates sessions for a given userId, with
- * potential redirect for a named user.
  */
 export function startSession(
-		checkIdFunc: ICheckAndTransformUserId,
-		userExistsFunc: IUserExists,
-		sessionGenFunc: IGenerateSession<any>,
-		redirectFunc?: IRedirect): RequestHandler {
-	if ('function' !== typeof checkIdFunc) { throw new TypeError(
-			"Given argument 'checkIdFunc' must be function, but is not."); }
+		userExistsFunc: UserExists,
+		sessionGenFunc: GenerateSession<any>,
+		redirectFunc?: Redirect): RequestHandler {
 	if ('function' !== typeof userExistsFunc) { throw new TypeError(
 			"Given argument 'userExistsFunc' must be function, but is not."); }
 	if ('function' !== typeof sessionGenFunc) { throw new TypeError(
@@ -67,15 +57,31 @@ export function startSession(
 			('function' !== typeof redirectFunc)) { throw new TypeError(
 			"Given argument 'redirectFunc' must either be function, " +
 			"or be undefined, but it is neither."); }
+		
+	async function serveRequestHere(userId: string, res: Response):
+			Promise<void> {
+		const userExists = await userExistsFunc(userId);
+		if (userExists) {
+			const session = await sessionGenFunc();
+			(<SessionParams> session.params).userId = userId;
+			res.status(api.SC.ok).json( <api.Reply> {
+				sessionId: session.id,
+			});
+		} else {
+			res.status(api.SC.unknownUser).json( <ErrorReply> {
+				error: `User ${userId} is unknown.`
+			});
+		}
+	}
 	
 	return async function(req: Request, res: Response, next: NextFunction) {
 		
-		let session = req.session;
-		let userId = checkIdFunc((<api.Request> req.body).userId);
+		const session = req.session;
+		const userId = checkAndTransformAddress((req.body as api.Request).userId);
 		
 		if (!userId) {
 			res.status(ERR_SC.malformed).json( <ErrorReply> {
-				error: "User id is missing."
+				error: "User id is either malformed, or missing."
 			});
 			return;
 		}
@@ -89,33 +95,18 @@ export function startSession(
 			return;
 		}
 		
-		async function serveRequestHere() {
-			let userExists = await userExistsFunc(userId!);
-			if (userExists) {
-				let session = await sessionGenFunc();
-				(<SessionParams> session.params).userId = userId!;
-				res.status(api.SC.ok).json( <api.Reply> {
-					sessionId: session.id,
-				});
-			} else {
-				res.status(api.SC.unknownUser).json( <ErrorReply> {
-					error: "User "+userId+" is unknown."
-				});
-			}
-		}
-		
 		try {
 			if (redirectFunc) {
-				let redirectTo = await redirectFunc(userId);
+				const redirectTo = await redirectFunc(userId);
 				if (redirectTo) {
 					res.status(api.SC.redirect).json( <api.RedirectReply> {
 						redirect: redirectTo
 					});
 				} else {
-					await serveRequestHere();
+					await serveRequestHere(userId, res);
 				}
 			} else {
-				await serveRequestHere();
+				await serveRequestHere(userId, res);
 			}
 		} catch (err) {
 			next(err);

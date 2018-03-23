@@ -23,19 +23,18 @@ import { DNSMock, DnsTxtRecords } from './dns';
 import { mkdir, rmDirWithContent } from '../lib-common/async-fs-node';
 import { FileException } from '../lib-common/exceptions/file';
 import * as https from "https";
-import * as express from 'express';
-import { startService, stopService } from '../lib-server/async-server';
 import { sslOpts } from './tls-options';
+import { AppWithWSs } from '../lib-server/web-sockets/app';
 
 const SERVER_MOCK_CHANNEL = 'server-mock';
 
-let parent = commToParent(SERVER_MOCK_CHANNEL);
+const parent = commToParent(SERVER_MOCK_CHANNEL);
 
 const DEFAULT_SERVICE_PORT = 8088;
 const DEFAULT_DATA_FOLDER = __dirname+'/../../mock-data';
 
 let dnsMock: DNSMock;
-let server: https.Server;
+let app: AppWithWSs|undefined;
 
 parent.addHandler('set-dns-mock', setDnsMock);
 async function setDnsMock(env: RequestEnvelope<DnsTxtRecords>) {
@@ -69,10 +68,10 @@ async function start(env: RequestEnvelope<MockConfAtStart>):
 		Promise<ServiceUrls> {
 	
 	// get configurations to start services
-	let servicePort = (env.req.port ? env.req.port : DEFAULT_SERVICE_PORT);
-	let dataFolder = (env.req.dataFolder ?
+	const servicePort = (env.req.port ? env.req.port : DEFAULT_SERVICE_PORT);
+	const dataFolder = (env.req.dataFolder ?
 		env.req.dataFolder : DEFAULT_DATA_FOLDER);
-	let conf: Configurations = {
+	const conf: Configurations = {
 		rootFolder: dataFolder+'/users',
 		domain: env.req.midServiceDomain,
 		signup: {
@@ -93,20 +92,19 @@ async function start(env: RequestEnvelope<MockConfAtStart>):
 	await mkdir(dataFolder);
 	await mkdir(conf.rootFolder);
 
-	// setup servers
-	let app = express();
+	// setup app
+	app = new AppWithWSs();
 	app.use(makeAdminApp(conf));
 	app.use(makeServicesApp(conf));
 
-	// start server
-	server = https.createServer(sslOpts, app);
-	await startService(server, servicePort);
+	// start app
+	await app.start(sslOpts, servicePort);
 
 	// set client https to trust the cert (MailerId checks need this)
 	(<any> https.globalAgent).options.ca = sslOpts.cert;
 
 	// return services' urls
-	let urls: ServiceUrls = {
+	const urls: ServiceUrls = {
 		mailerId: `${conf.domain}:${servicePort}/mailerid/`,
 		asmail: `${conf.domain}:${servicePort}/asmail/`,
 		storage: `${conf.domain}:${servicePort}/3nstorage/`,
@@ -118,8 +116,8 @@ async function start(env: RequestEnvelope<MockConfAtStart>):
 
 parent.addHandler('stop', stop);
 async function stop(env: RequestEnvelope<void>): Promise<void> {
-	if (!server) { return; }
-	await stopService(server);
-	server = (undefined as any);
+	if (!app) { return; }
+	await app.stop();
+	app = undefined;
 	await cleanDataFolder();
 }

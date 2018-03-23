@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2017 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -22,13 +22,13 @@
 import * as express from 'express';
 
 // Internal libs
-import { allowCrossDomain } from '../lib-server/middleware/allow-cross-domain';
+import { AppWithWSs } from '../lib-server/web-sockets/app';
 
 // Resource/Data modules
-import { makeSingleProcFactory }
-	from '../lib-server/resources/mem-backed-sessions-factory';
+import { DeliverySessions } from './resources/delivery-sessions';
+import { makeSessionFactory } from './resources/sessions';
 import { makeFactory as makeUsersFactory } from './resources/recipients';
-import { IMidAuthorizer } from '../lib-server/routes/sessions/mid-auth';
+import { MidAuthorizer } from '../lib-server/routes/sessions/mid-auth';
 import { makeErrHandler } from '../lib-server/middleware/error-handler';
 
 // ASMail inner parts
@@ -36,7 +36,7 @@ import { makeApp as makeConfApp } from './config';
 import { makeApp as makeDeliveryApp } from './delivery';
 import { makeApp as makeRetrievalApp } from './retrieval';
 
-let PATHS = {
+const PATHS = {
 	delivery: '/delivery/',
 	retrieval: '/retrieval/',
 	config: '/config/'
@@ -45,15 +45,12 @@ let PATHS = {
 function setupStaticEntryRoute(app: express.Express): void {
 	
 	app.route('/')
-	.all(allowCrossDomain(
-			[ "Content-Type" ],
-			[ 'GET' ]))
 	.get((req: express.Request, res: express.Response) => {
 		let path = req.originalUrl;
 		if (path[path.length-1] !== '/') {
 			path = path+'/';
 		}
-		let json = {
+		const json = {
 			"delivery": path+PATHS.delivery.substring(1),
 			"retrieval": path+PATHS.retrieval.substring(1),
 			"config": path+PATHS.config.substring(1)
@@ -65,26 +62,26 @@ function setupStaticEntryRoute(app: express.Express): void {
 }
 
 export function makeApp(rootFolder: string, domain: string,
-		midAuthorizer: IMidAuthorizer): express.Express {
+		midAuthorizer: MidAuthorizer): AppWithWSs {
 	
-	let app = express();
-	let mailDeliverySessions = makeSingleProcFactory(5*60);
-	let recipientsSessions = makeSingleProcFactory(10*60);
-	let userSettingSessions = makeSingleProcFactory(10*60);
-	let recipients = makeUsersFactory(rootFolder);
+	const app = new AppWithWSs();
+	const mailDeliverySessions = DeliverySessions.make(5*60);
+	const recipientsSessions = makeSessionFactory(10*60);
+	const userSettingSessions = makeSessionFactory(10*60);
+	const recipients = makeUsersFactory(rootFolder);
 	
-	setupStaticEntryRoute(app);
+	setupStaticEntryRoute(app.http);
 	
-	app.use(PATHS.delivery, makeDeliveryApp(domain,
+	app.http.use(PATHS.delivery, makeDeliveryApp(domain,
 			mailDeliverySessions, recipients, midAuthorizer));
 	
 	app.use(PATHS.retrieval, makeRetrievalApp(domain,
+		recipientsSessions, recipients, midAuthorizer));
+	
+	app.http.use(PATHS.config, makeConfApp(domain,
 			recipientsSessions, recipients, midAuthorizer));
 	
-	app.use(PATHS.config, makeConfApp(domain,
-			recipientsSessions, recipients, midAuthorizer));
-	
-	app.use(makeErrHandler((err: any, req: any): void => {
+	app.http.use(makeErrHandler((err: any, req: any): void => {
 		if (typeof err.status !== 'number') {
 			console.error(`\n --- Error occured in asmail, when handling ${req.method} request to ${req.originalUrl}`);
 			console.error(err);
@@ -93,4 +90,5 @@ export function makeApp(rootFolder: string, domain: string,
 	
 	return app;
 }
+
 Object.freeze(exports);

@@ -24,9 +24,9 @@ import { readFileSync, writeFileSync } from 'fs';
 import { FileException, Code as excCode }
 	from '../../lib-common/exceptions/file';
 
-export let ROOT_CERT_VALIDITY = 365*24*60*60;
-export let PROVIDER_CERT_VALIDITY = 10*24*60*60;
-export let MAX_USER_CERT_VALIDITY = 24*60*60;
+export const ROOT_CERT_VALIDITY = 365*24*60*60;
+export const PROVIDER_CERT_VALIDITY = 10*24*60*60;
+export const MAX_USER_CERT_VALIDITY = 24*60*60;
 
 export interface RootCerts {
 	current: SignedLoad;
@@ -50,16 +50,16 @@ function loadOrGenerateRootCert(domain: string, path: string):
 			throw err;
 		}
 	}
-	let certDomain = getKeyCert(certsAndKey.certs.current).issuer;
+	const certDomain = getKeyCert(certsAndKey.certs.current).issuer;
 	if (certDomain !== domain) {
 		throw new Error('Give domain '+domain+
 			' does not equal domain in certificates file: '+certDomain);
 	}
 	try {
-		let pkeyBytes = signing.extract_pkey(keyFromJson(
+		const pkeyBytes = signing.extract_pkey(keyFromJson(
 			certsAndKey.skey, KEY_USE.ROOT, signing.JWK_ALG_NAME,
 			signing.SECRET_KEY_LENGTH).k);
-		let rootPKey = {
+		const rootPKey = {
 			k: pkeyBytes,
 			kid: certsAndKey.skey.kid,
 			alg: certsAndKey.skey.alg,
@@ -76,9 +76,9 @@ function loadOrGenerateRootCert(domain: string, path: string):
 function createFirstCert(domain: string, path: string, log?: LogFn):
 		{ certs: RootCerts; skey: JsonKey; } {
 	if (log) { log("\nMailerId service: Creating and saving new root certificate."); } 
-	let root = midIdP.generateRootKey(
+	const root = midIdP.generateRootKey(
 		domain, ROOT_CERT_VALIDITY, random.bytes);
-	let toSave = {
+	const toSave = {
 		skey: root.skey,
 		certs: {
 			current: root.cert,
@@ -93,9 +93,9 @@ function createFirstCert(domain: string, path: string, log?: LogFn):
 function updateCert(domain: string, path: string, certs: RootCerts,
 		log?: LogFn): { certs: RootCerts; skey: JsonKey; } {
 	if (log) { log("\nMailerId service: Updating root certificate."); }
-	let root = midIdP.generateRootKey(
+	const root = midIdP.generateRootKey(
 		domain, ROOT_CERT_VALIDITY, random.bytes);
-	let toSave = {
+	const toSave = {
 		skey: root.skey,
 		certs: {
 			current: root.cert,
@@ -117,7 +117,7 @@ export interface Certifier {
 	getPrevCerts(): SignedLoad[];
 }
 
-let UPDATE_PERIOD = 8*60*60;
+const UPDATE_PERIOD = 8*60*60;
 
 if (UPDATE_PERIOD >= PROVIDER_CERT_VALIDITY) {
 	throw new Error('Either provider certificate validity is to too short, '+
@@ -141,7 +141,7 @@ export function makeSingleProcCertifier(domain: string, certsPath: string):
 		let certsAndKey = loadOrGenerateRootCert(domain, certsPath);
 		rootCerts = certsAndKey.certs;
 		
-		let provider = midIdP.generateProviderKey(
+		const provider = midIdP.generateProviderKey(
 				domain, PROVIDER_CERT_VALIDITY, certsAndKey.skey, random.bytes);
 		certsAndKey = (undefined as any);
 		
@@ -155,11 +155,11 @@ export function makeSingleProcCertifier(domain: string, certsPath: string):
 	}
 	
 	updateCertifier();
-	let timer: NodeJS.Timer = <any> setInterval(
+	const timer: NodeJS.Timer = <any> setInterval(
 		updateCertifier, UPDATE_PERIOD*1000);
 	timer.unref();
 	
-	let fact: Certifier = {
+	const fact: Certifier = {
 		certify: (userPKey: JsonKey, address: string, validFor?: number) => {
 			return {
 				userCert: certifier.certify(userPKey, address, validFor),

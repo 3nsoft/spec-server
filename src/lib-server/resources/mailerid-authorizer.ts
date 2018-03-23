@@ -20,7 +20,7 @@ import { SignedLoad, getKeyCert, getPrincipalAddress }
 	from '../../lib-common/jwkeys';
 import * as mid from '../../lib-common/mid-sigs-NaCl-Ed';
 import { get3NWebRecords } from './dns';
-import { IMidAuthorizer } from '../routes/sessions/mid-auth';
+import { MidAuthorizer } from '../routes/sessions/mid-auth';
 
 /**
  * @param serviceURL
@@ -29,7 +29,7 @@ import { IMidAuthorizer } from '../routes/sessions/mid-auth';
  */
 function getRootCert(serviceURL: string): Promise<SignedLoad> {
 	return new Promise<SignedLoad>((resolve, reject) => {
-		let req = https.request('https://'+serviceURL, (res) => {
+		const req = https.request('https://'+serviceURL, (res) => {
 			if (res.statusCode === 200) {
 				res.setEncoding('utf8');
 				let collectedString = '';
@@ -37,8 +37,8 @@ function getRootCert(serviceURL: string): Promise<SignedLoad> {
 					collectedString += chunk;
 				});
 				res.on('end', () => {
-					let infoObj = JSON.parse(collectedString);
-					let cert = infoObj['current-cert'];
+					const infoObj = JSON.parse(collectedString);
+					const cert = infoObj['current-cert'];
 					if (cert) {
 						resolve(cert);
 					} else {
@@ -64,7 +64,7 @@ function getRootCert(serviceURL: string): Promise<SignedLoad> {
 // TODO need to add caching of certs using domain->(kid->cert)
 //		(this will speed things up)
 
-export function validator(): IMidAuthorizer {
+export function validator(): MidAuthorizer {
 	return (rpDomain: string, sessionId: string, userId: string,
 			assertion: SignedLoad, userCert: SignedLoad, provCert: SignedLoad):
 			Promise<boolean> => {
@@ -77,22 +77,22 @@ async function validate(rpDomain: string, sessionId: string,
 		userId: string, assertion: SignedLoad, userCert: SignedLoad,
 		provCert: SignedLoad):
 		Promise<boolean> {
-	let validAt = Date.now() / 1000;
+	const validAt = Date.now() / 1000;
 	try{
 		// check that certificate is for the user
-		let addressInCert = getPrincipalAddress(userCert);
+		const addressInCert = getPrincipalAddress(userCert);
 		if (userId !== addressInCert) { return false; }
 		
 		// check that issuer is the one that provides MailerId service for
 		// user's domain
-		let issuer = getKeyCert(provCert).issuer;
-		let serviceURL = await get3NWebRecords(addressInCert, 'mailerid');
-		let domainInRecord = serviceURL.split('/')[0].split(':')[0];
+		const issuer = getKeyCert(provCert).issuer;
+		const serviceURL = await get3NWebRecords(addressInCert, 'mailerid');
+		const domainInRecord = serviceURL.split('/')[0].split(':')[0];
 		if (issuer !== domainInRecord) { return false; }
 		
 		// get root certificate and check the whole chain
-		let rootCert = await getRootCert(serviceURL);
-		let assertInfo = mid.relyingParty.verifyAssertion(assertion,
+		const rootCert = await getRootCert(serviceURL);
+		const assertInfo = mid.relyingParty.verifyAssertion(assertion,
 			{ user: userCert, prov: provCert, root: rootCert },
 			issuer, validAt);
 		if ((assertInfo.relyingPartyDomain === rpDomain) &&

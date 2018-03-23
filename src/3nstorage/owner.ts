@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2017 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -24,125 +24,135 @@ import * as express from 'express';
 // Internal libs
 import { json as parseJSON, emptyBody }
 	from '../lib-server/middleware/body-parsers';
-import { allowCrossDomain } from '../lib-server/middleware/allow-cross-domain';
-import { checkAndTransformAddress } from '../lib-common/canonical-address';
+import { UserSockets, AppWithWSs } from '../lib-server/web-sockets/app';
+import { ServerEvents } from '../lib-server/web-sockets/server-events';
 
 // Resource/Data modules
-import { Factory as sessionsFactory } from '../lib-server/resources/sessions';
+import { SessionsFactory } from './resources/sessions';
 import { Factory as usersFactory } from './resources/users';
 
 // routes
-import { IMidAuthorizer, midLogin }
+import { MidAuthorizer, midLogin }
 	from '../lib-server/routes/sessions/mid-auth';
 import { startSession } from '../lib-server/routes/sessions/start';
 import { closeSession } from '../lib-server/routes/sessions/close';
 import { sessionParams } from './routes/owner/session-params';
-import { startTransaction } from './routes/owner/start-trans';
-import { closeTransaction } from './routes/owner/close-trans';
-import { getObjSegments } from './routes/owner/get-segs';
-import { saveObjSegments } from './routes/owner/put-segs';
-import { getObjHeader } from './routes/owner/get-header';
-import { saveObjHeader } from './routes/owner/put-header';
+import { getParam } from './routes/owner/param-getter';
+import { setParam } from './routes/owner/param-setter';
+import { cancelTransaction } from './routes/owner/cancel-trans';
+import { saveCurrentObj } from './routes/owner/put-current-obj';
+import { getCurrentObj } from './routes/owner/get-current-obj';
+import { getArchivedObjVersion } from './routes/owner/get-archived-obj-ver';
 import { deleteObj } from './routes/owner/delete-obj';
 import { archiveCurrentObjVersion } from './routes/owner/archive-obj-version';
 import { listObjArchive } from './routes/owner/list-obj-archive';
 
 import * as api from '../lib-common/service-api/3nstorage/owner';
 
-let MAX_CHUNK_SIZE = '0.5mb';
+export function makeApp(domain: string, sessions: SessionsFactory,
+		users: usersFactory, midAuthorizer: MidAuthorizer): AppWithWSs {
+	
+	const app = new AppWithWSs();
+	
+	setHttpPart(app, domain, sessions, users, midAuthorizer);
+	setWSPart(app, sessions, users);
 
-export function makeApp(domain: string, sessions: sessionsFactory,
-		users: usersFactory, midAuthorizer: IMidAuthorizer): express.Express {
+	return app;
+}
+
+function setWSPart(app: AppWithWSs, sessions: SessionsFactory,
+		users: usersFactory): void {
+	const sockets = new UserSockets(
+		sessions.ensureAuthorizedSessionForSocketStart());
 	
-	let app = express();
-	app.disable('etag');
+	const storageEvents = new ServerEvents(undefined,
+		[ api.objChanged.EVENT_NAME,
+			api.objRemoved.EVENT_NAME ],
+		sockets.socketGetter);
 	
-	app.use(allowCrossDomain(
-			[ "Content-Type", "X-Session-Id", "X-Version",
-				"X-Obj-Segments-Length" ],
-			[ 'GET', 'POST', 'PUT', 'DELETE' ]));
+	// give events ipc to both ends
+	sockets.addSocketIPC(storageEvents);
+	users.setStorageEventsSink(storageEvents.eventsSink);
+
+	app.addWS(api.wsEventChannel.URL_END, sockets);
+}
+
+const MAX_CHUNK_SIZE = '0.5mb';
+
+function setHttpPart(app: AppWithWSs, domain: string,
+		sessions: SessionsFactory, users: usersFactory,
+		midAuthorizer: MidAuthorizer): void {
+	
+	app.http.disable('etag');
 	
 	// Login
-	app.post('/'+api.midLogin.START_URL_END,
+	app.http.post('/'+api.midLogin.START_URL_END,
 			sessions.checkSession(),
 			parseJSON('1kb'),
-			startSession(checkAndTransformAddress,
-				users.exists, sessions.generate));
-	app.post('/'+api.midLogin.AUTH_URL_END,
+			startSession(users.exists, sessions.generate));
+	app.http.post('/'+api.midLogin.AUTH_URL_END,
 			sessions.ensureOpenedSession(),
 			parseJSON('4kb'),
 			midLogin(domain, midAuthorizer));
 	
 	// *** Require authorized session for everything below ***
-	app.use(sessions.ensureAuthorizedSession());
+	app.http.use(sessions.ensureAuthorizedSession());
 
-	app.post('/'+api.closeSession.URL_END,
+	app.http.post('/'+api.closeSession.URL_END,
 			emptyBody(),
 			closeSession());
 	
 	// Session params
-	app.get('/'+api.sessionParams.URL_END,
-			sessionParams(users.getKeyDerivParams, MAX_CHUNK_SIZE));
+	app.http.get('/'+api.sessionParams.URL_END,
+			sessionParams(MAX_CHUNK_SIZE));
 	
-	// Starting and ending transactions
-	app.post('/'+api.startTransaction.EXPRESS_URL_END,
-			parseJSON('1kb'),
-			startTransaction(false, users.startTransaction));
-	app.post('/'+api.startRootTransaction.URL_END,
-			parseJSON('1kb'),
-			startTransaction(true, users.startTransaction));
-	app.post('/'+api.finalizeTransaction.EXPRESS_URL_END,
-			emptyBody(),
-			closeTransaction(false, true, users.finalizeTransaction));
-	app.post('/'+api.cancelTransaction.EXPRESS_URL_END,
-			emptyBody(),
-			closeTransaction(false, false, users.cancelTransaction));
-	app.post('/'+api.finalizeRootTransaction.EXPRESS_URL_END,
-			emptyBody(),
-			closeTransaction(true, true, users.finalizeTransaction));
-	app.post('/'+api.cancelRootTransaction.EXPRESS_URL_END,
-			emptyBody(),
-			closeTransaction(true, false, users.cancelTransaction));
+	// Key derivation params
+	app.http.route('/'+api.keyDerivParams.URL_END)
+	.get(getParam(users.getKeyDerivParams))
+	.put(parseJSON('1kb'),
+		setParam(users.setKeyDerivParams));
 	
-	// Getting and saving root object
-	app.route('/'+api.rootHeader.EXPRESS_URL_END)
-	.get(getObjHeader(true, users.getRootHeader))
-	.put(saveObjHeader(true, users.getRootObjHeaderSizeInTransaction,
-		users.saveRootHeader));
-	app.route('/'+api.rootSegs.EXPRESS_URL_END)
-	.get(getObjSegments(true, users.getRootSegments))
-	.put(saveObjSegments(true, users.saveRootSegments, MAX_CHUNK_SIZE));
+	// Transaction canceling
+	app.http.post('/'+api.cancelTransaction.EXPRESS_URL_END,
+			emptyBody(),
+			cancelTransaction(false, users.cancelTransaction));
+	app.http.post('/'+api.cancelRootTransaction.EXPRESS_URL_END,
+			emptyBody(),
+			cancelTransaction(true, users.cancelTransaction));
 	
-	// Getting and saving non-root objects
-	app.route('/'+api.objHeader.EXPRESS_URL_END)
-	.get(getObjHeader(false, users.getObjHeader))
-	.put(saveObjHeader(false, users.getObjHeaderSizeInTransaction,
-		users.saveObjHeader));
-	app.route('/'+api.objSegs.EXPRESS_URL_END)
-	.get(getObjSegments(false, users.getObjSegments))
-	.put(saveObjSegments(false, users.saveObjSegments, MAX_CHUNK_SIZE));
+	// Getting current root object
+	app.http.route('/'+api.currentRootObj.EXPRESS_URL_END)
+	.get(getCurrentObj(true, users.getCurrentRootObj))
+	.put(saveCurrentObj(true, users.saveNewRootVersion, MAX_CHUNK_SIZE));
+	
+	// Getting current non-root objects
+	app.http.route('/'+api.currentObj.EXPRESS_URL_END)
+	.get(getCurrentObj(false, users.getCurrentObj))
+	.delete(deleteObj(false, true, users.deleteObj))
+	.put(saveCurrentObj(false, users.saveNewObjVersion, MAX_CHUNK_SIZE));
 
-	// Root object archive
-	app.route('/'+api.rootArchive.URL_END)
+	// Archive root's current version
+	app.http.route('/'+api.archiveRoot.URL_END)
 	.get(listObjArchive(true, users.listObjArchive))
-	.put(archiveCurrentObjVersion(true, users.archiveObjVersion));
+	.put(emptyBody(),
+		archiveCurrentObjVersion(true, users.archiveObjVersion));
 
-	// Non-root object archive
-	app.route('/'+api.rootArchive.URL_END)
+	// Archive non-root object's current version
+	app.http.route('/'+api.archiveObj.EXPRESS_URL_END)
 	.get(listObjArchive(false, users.listObjArchive))
-	.put(archiveCurrentObjVersion(false, users.archiveObjVersion));
+	.put(emptyBody(),
+		archiveCurrentObjVersion(false, users.archiveObjVersion));
 
-	// Removing archived versions of root object 
-	app.delete('/'+api.deleteArchivedRootVersion.EXPRESS_URL_END,
-			deleteObj(true, false, users.deleteObj));
+	// Archived root versions
+	app.http.route('/'+api.archivedRootVersion.EXPRESS_URL_END)
+	.get(getArchivedObjVersion(true, users.getArchivedRootVersion))
+	.delete(deleteObj(true, false, users.deleteObj));
 
 	// Removing archived and current versions of non-root object 
-	app.delete('/'+api.deleteArchivedObjVersion.EXPRESS_URL_END,
-			deleteObj(false, false, users.deleteObj));
-	app.delete('/'+api.deleteObj.EXPRESS_URL_END,
-			deleteObj(false, true, users.deleteObj));
+	app.http.route('/'+api.archivedObjVersion.EXPRESS_URL_END)
+	.get(getArchivedObjVersion(true, users.getArchivedObjVersion))
+	.delete(deleteObj(false, false, users.deleteObj));
 	
-	return app;
 }
 
 Object.freeze(exports);

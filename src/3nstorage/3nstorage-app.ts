@@ -22,12 +22,11 @@
 import * as express from 'express';
 
 // Internal libs
-import { makeSingleProcFactory } from 
-	'../lib-server/resources/mem-backed-sessions-factory';
 import { makeFactory as makeUsersFactory } from './resources/users';
-import { allowCrossDomain } from '../lib-server/middleware/allow-cross-domain';
-import { IMidAuthorizer } from '../lib-server/routes/sessions/mid-auth';
+import { makeSessionFactory } from './resources/sessions';
+import { MidAuthorizer } from '../lib-server/routes/sessions/mid-auth';
 import { makeErrHandler } from '../lib-server/middleware/error-handler';
+import { AppWithWSs } from '../lib-server/web-sockets/app';
 
 // 3NStorage inner parts
 import * as owners from './owner';
@@ -41,15 +40,12 @@ const PATHS = {
 function setupStaticEntryRoute(app: express.Express): void {
 	
 	app.route('/')
-	.all(allowCrossDomain(
-			[ "Content-Type" ],
-			[ 'GET' ]))
 	.get((req: express.Request, res: express.Response) => {
 		let path = req.originalUrl;
 		if (path[path.length-1] !== '/') {
 			path = path+'/';
 		}
-		let json = {
+		const json = {
 			"owner": path+PATHS.owner.substring(1),
 			"shared": path+PATHS.shared.substring(1)
 		};
@@ -60,23 +56,23 @@ function setupStaticEntryRoute(app: express.Express): void {
 }
 
 export function makeApp(dataFolder: string, domain: string,
-		midAuthorizer: IMidAuthorizer): express.Express {
+		midAuthorizer: MidAuthorizer): AppWithWSs {
 	
-	let app = express();
-	let ownersSessions = makeSingleProcFactory(20*60);
-	let sharingSessions = makeSingleProcFactory(20*60);
-	let userSettingSessions = makeSingleProcFactory(20*60);
-	let users = makeUsersFactory(dataFolder);
+	const app = new AppWithWSs();
+	const ownersSessions = makeSessionFactory(20*60);
+	const sharingSessions = makeSessionFactory(20*60);
+	const userSettingSessions = makeSessionFactory(20*60);
+	const users = makeUsersFactory(dataFolder);
 	
-	setupStaticEntryRoute(app);
+	setupStaticEntryRoute(app.http);
 	
 	app.use(PATHS.owner,
 		owners.makeApp(domain, ownersSessions, users, midAuthorizer));
 	
-	app.use(PATHS.shared,
+	app.http.use(PATHS.shared,
 		sharing.makeApp(sharingSessions, users));
 	
-	app.use(makeErrHandler((err: any, req: any): void => {
+	app.http.use(makeErrHandler((err: any, req: any): void => {
 		if (typeof err.status !== 'number') {
 			console.error(`\n --- Error occured in storage, when handling ${req.method} request to ${req.originalUrl}`);
 			console.error(err);

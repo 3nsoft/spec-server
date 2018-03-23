@@ -22,19 +22,19 @@ import { readFile, FileException } from '../../lib-common/async-fs-node';
 import { base64urlSafe, utf8 } from '../../lib-common/buffer-utils';
 import { box } from 'ecma-nacl';
 import { JsonKey, keyFromJson } from '../../lib-common/jwkeys';
-import { IGetUserPKeyAndKeyGenParams, UserPKeyAndKeyGenParams } from 
+import { GetUserPKeyAndKeyGenParams, UserPKeyAndKeyGenParams } from 
 	'../../lib-server/routes/pub-key-login/start-exchange';
 import { UserMidParams } from '../../lib-common/admin-api/signup';
 
 export interface Factory {
-	getUserParamsAndKey: IGetUserPKeyAndKeyGenParams;
+	getUserParamsAndKey: GetUserPKeyAndKeyGenParams;
 }
 
 async function getUser(rootFolder: string, userId: string):
 		Promise<UserMidParams|undefined> {
 	try {
-		let path = `${ rootFolder }/${ base64urlSafe.pack(utf8.pack(userId)) }/info/mid-params`;
-		let str = await readFile(path, { encoding: 'utf8' });
+		const path = `${ rootFolder }/${ base64urlSafe.pack(utf8.pack(userId)) }/info/mid-params`;
+		const str = await readFile(path, { encoding: 'utf8' });
 		return JSON.parse(str) as UserMidParams;
 	} catch (exc) {
 		if ((<FileException> exc).notFound) {
@@ -53,14 +53,14 @@ function extractPKeyBytes(pkey: JsonKey): Uint8Array {
 
 export function makeFactory(rootFolder: string): Factory {
 	
-	let factory: Factory = {
+	const factory: Factory = {
 		getUserParamsAndKey: async (userId: string, kid: string|undefined):
 				Promise<UserPKeyAndKeyGenParams|undefined> => {
-			let userInfo = await getUser(rootFolder, userId);
+			const userInfo = await getUser(rootFolder, userId);
 			if (!userInfo) { return; }
 			let params: UserPKeyAndKeyGenParams;
 			if (typeof kid === 'string') {
-				let pkey = userInfo.otherPKeys.find((pkey) => {
+				const pkey = userInfo.otherPKeys.find((pkey) => {
 					return (pkey.kid === kid);
 				});
 				if (!pkey) { return; }

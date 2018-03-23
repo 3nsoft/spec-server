@@ -36,17 +36,17 @@ export async function expectNonAcceptanceOfBadJsonRequest(opts: RequestOpts,
 		maxBodyLen: number, badJSONs: any[]): Promise<void> {
 	
 	// bad json
-	for (let badReq of badJSONs) {
-		let rep = await doJsonRequest<void>(opts, badReq);
-		expect(rep.status).toBe(MALFORMED_BODY_STATUS, 'status code for malformed request'+JSON.stringify(badReq));
+	for (const badReq of badJSONs) {
+		const rep = await doJsonRequest<void>(opts, badReq);
+		expect(rep.status).toBe(MALFORMED_BODY_STATUS, `status code for malformed request: ${JSON.stringify(badReq)}`);
 	}
 	
 	// bad non-json bodies
-	let badBodies = [ new Buffer(0), randomBytes(Math.floor(maxBodyLen/2)) ];
-	for (let bytes of badBodies) {
-		let req = request<void>('application/json', opts);
+	const badBodies = [ new Buffer(0), randomBytes(Math.floor(maxBodyLen/2)) ];
+	for (const bytes of badBodies) {
+		const req = request<void>('application/json', opts);
 		req.xhr.send(bytes);
-		let rep = await req.promise;
+		const rep = await req.promise;
 		expect(rep.status).toBe(MALFORMED_BODY_STATUS, 'status code for malformed request');
 	}
 	
@@ -67,30 +67,30 @@ const bodyTypes = [ 'application/octet-stream',
 
 export async function expectNonAcceptanceOfBadType(opts: RequestOpts,
 		correctType: BodyType, body: Uint8Array): Promise<void> {
-	for (let bt of bodyTypes) {
+	for (const bt of bodyTypes) {
 		if (correctType === bt) { continue; }
-		let req = request<void>(bt, opts);
+		const req = request<void>(bt, opts);
 		req.xhr.send(body);
-		let rep = await req.promise;
+		const rep = await req.promise;
 		expect(rep.status).toBe(WRONG_CONTENT_TYPE_STATUS, 'status code for wrong content type request');
 	}
 }
 
 export async function expectNonAcceptanceOfLongBody(opts: RequestOpts,
 		bodyType: BodyType, maxBodyLen: number): Promise<void> {
-	let badReq = randomBytes(maxBodyLen+1);
-	let req = request<void>(bodyType, opts);
+	const badReq = randomBytes(maxBodyLen+1);
+	const req = request<void>(bodyType, opts);
 	req.xhr.send(badReq);
-	let rep = await req.promise;
+	const rep = await req.promise;
 	expect(rep.status).toBe(LONG_BODY_STATUS, 'status code for long request');
 }
 
 export async function expectNonAcceptanceOfNonEmptyBody(opts: RequestOpts):
 		Promise<void> {
-	let badReq = randomBytes(1);
-	let req = request<void>(undefined, opts);
+	const badReq = randomBytes(1);
+	const req = request<void>(undefined, opts);
 	req.xhr.send(badReq);
-	let rep = await req.promise;
+	const rep = await req.promise;
 	expect(rep.status).toBe(LONG_BODY_STATUS, 'status code for long request');
 }
 

@@ -117,20 +117,39 @@ export async function startMsgDelivery(deliveryUrl: string,
 }
 
 export async function sendMsgObj(deliveryUrl: string, sessionId: string,
-		obj: Obj): Promise<void> {
+		obj: Obj, chunkLimit: number|undefined): Promise<void> {
 	if (!obj.objId) { throw new Error(`Message object doesn't have an id`); }
-	let reqOpts: RequestOpts = {
-		url: resolveUrl(deliveryUrl, deliveryApi.msgObjHeader.genUrlEnd(
-			obj.objId, { total: obj.header.length, ofs: 0 })),
-		method: 'PUT',
-		sessionId: sessionId
-	};
-	let rep = await doBinaryRequest<void>(reqOpts, obj.header);
-	expect(rep.status).toBe(deliveryApi.msgObjHeader.SC.ok);
-	reqOpts.url = resolveUrl(deliveryUrl, deliveryApi.msgObjSegs.genUrlEnd(
-		obj.objId, { total: obj.segs.length, ofs: 0 }));
-	rep = await doBinaryRequest<void>(reqOpts, obj.segs);
-	expect(rep.status).toBe(deliveryApi.msgObjSegs.SC.ok);
+	if (!chunkLimit) {
+		chunkLimit = 512*1024;
+	}
+	
+	let offset = 0;
+	const segsLen = obj.segs.length;
+	while (offset < segsLen) {
+		const reqOpts: RequestOpts = { url: '', method: 'PUT', sessionId };
+		let bytesToSend: Uint8Array | Uint8Array[];
+		let offsetDelta: number;
+		
+		if (offset === 0) {
+			// first request starts with header
+			const headerLen = obj.header.length;
+			const chunk = obj.segs.subarray(0, chunkLimit - headerLen);
+			bytesToSend = [ obj.header, chunk ];
+			reqOpts.url = resolveUrl(deliveryUrl,
+				deliveryApi.msgObj.firstPutReqUrlEnd(
+					obj.objId,
+					{ header: headerLen, segs: segsLen }));
+		} else {
+			// second request(s) send bytes
+			reqOpts.url = resolveUrl(deliveryUrl,
+				deliveryApi.msgObj.secondPutReqUrlEnd(obj.objId, { ofs: offset }));
+			bytesToSend = obj.segs.subarray(offset, offset+chunkLimit);
+		}
+		const rep = await doBinaryRequest<void>(reqOpts, bytesToSend);
+		expect(rep.status).toBe(deliveryApi.msgObj.SC.ok);
+		offset += (Array.isArray(bytesToSend) ?
+			bytesToSend[1].length : bytesToSend.length);
+	}
 }
 
 export interface Msg {
@@ -150,7 +169,8 @@ export async function sendMsg(deliveryUrl: string, recipient: string,
 	}
 	let sessInfo = await startMsgDelivery(deliveryUrl, { recipient }, meta);
 	for (let msgObj of msg.msgObjs) {
-		await sendMsgObj(deliveryUrl, sessInfo.sessionId, msgObj);
+		await sendMsgObj(deliveryUrl, sessInfo.sessionId, msgObj,
+			sessInfo.maxChunkSize);
 	}
 	let reqOpts: RequestOpts = {
 		url: resolveUrl(deliveryUrl, deliveryApi.completion.URL_END),

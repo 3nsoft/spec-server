@@ -15,20 +15,20 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { SC as recipSC, IGetMsgMeta } from '../../resources/recipients';
+import { SC as recipSC, GetMsgMeta } from '../../resources/recipients';
 import { msgMetadata as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/asmail/retrieval';
-import { Request } from '../../../lib-server/routes/sessions/start';
+import { Request } from '../../resources/sessions';
 
-export function getMsgMeta(getMsgMetaFunc: IGetMsgMeta): RequestHandler {
+export function getMsgMeta(getMsgMetaFunc: GetMsgMeta): RequestHandler {
 	if ('function' !== typeof getMsgMetaFunc) { throw new TypeError(
 			"Given argument 'getMsgMetaFunc' must be function, but is not."); }
 
 	return async function(req: Request, res: Response, next: NextFunction) {
-		let userId = req.session.params.userId;
-		let msgId: string = req.params.msgId;
+		const userId = req.session.params.userId;
+		const msgId: string = req.params.msgId;
 		
 		try {
-			let meta = await getMsgMetaFunc(userId, msgId);
+			const meta = await getMsgMetaFunc(userId, msgId);
 			res.status(api.SC.ok).json(meta);
 		} catch (err) {
 			if ("string" !== typeof err) {

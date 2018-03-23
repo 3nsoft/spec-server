@@ -15,23 +15,23 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { IListObjArchive, SC as storeSC } from '../../resources/users';
-import { objArchive as api }
+import { ListObjArchive, SC as storeSC } from '../../resources/users';
+import { archiveObj as api }
 	from '../../../lib-common/service-api/3nstorage/owner';
-import { Request } from '../../../lib-server/routes/sessions/start';
+import { Request } from '../../resources/sessions';
 
 export function listObjArchive(root: boolean,
-		listObjArchiveFunc: IListObjArchive): RequestHandler {
+		listObjArchiveFunc: ListObjArchive): RequestHandler {
 	if ('function' !== typeof listObjArchiveFunc) { throw new TypeError(
 			"Given argument 'listObjArchiveFunc' must be function, but is not."); }
 
 	return async function(req: Request, res: Response, next: NextFunction) {
 
-	throw 'Not implemented, yet.';
+		next(new Error('Not implemented, yet.'));
 
-		// let userId = req.session.params.userId;
-		// let objId: string = (root ? null : req.params.objId);
-		// let version: number = (delCurrent ? null : req.params.version);
+		// const userId = req.session.params.userId;
+		// const objId: string = (root ? null : req.params.objId);
+		// const version: number = (delCurrent ? null : req.params.version);
 		
 		// try {
 		// 	await deleteObjFunc(userId, objId, version);

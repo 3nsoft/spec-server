@@ -45,13 +45,13 @@ interface DnsError extends Error {
  */
 function extractPair(txtRecords: string[][], serviceLabel: string):
 		string|undefined {
-	for (let txtRecord of txtRecords) {
-		let txt = txtRecord.join(' ');
-		let eqPos = txt.indexOf('=');
+	for (const txtRecord of txtRecords) {
+		const txt = txtRecord.join(' ');
+		const eqPos = txt.indexOf('=');
 		if (eqPos < 0) { continue; }
-		let name = txt.substring(0, eqPos).trim();
+		const name = txt.substring(0, eqPos).trim();
 		if (name === serviceLabel) {
-			let value = txt.substring(eqPos+1).trim();
+			const value = txt.substring(eqPos+1).trim();
 			return value;
 		}
 	}
@@ -62,11 +62,14 @@ export type ServiceLabel = 'asmail' | 'mailerid' | '3nstorage';
 
 function resolveTxt(domain: string): Promise<string[][]> {
 	return new Promise<string[][]>((resolve, reject) => {
+		// As of March 2017, docs for node say that texts given in a callback
+		// are string[][], and node works this way, but definition is incorrect.
+		// Therefore, need to insert "as any" into resolve function.
 		dns.resolveTxt(domain, (err, texts) => {
 			if (err) {
 				reject(err);
 			} else {
-				resolve(texts);
+				resolve(texts as any);
 			}
 		});
 	});
@@ -78,17 +81,17 @@ function resolveTxt(domain: string): Promise<string[][]> {
  */
 function domainOfAddress(address: string): string {
 	address = address.trim();
-	let indOfAt = address.lastIndexOf('@');
-	let domain = ((indOfAt < 0) ? address : address.substring(indOfAt+1));
+	const indOfAt = address.lastIndexOf('@');
+	const domain = ((indOfAt < 0) ? address : address.substring(indOfAt+1));
 	return domain;
 }
 
 export async function get3NWebRecords(address: string,
 		serviceLabel: ServiceLabel): Promise<string> {
 	try {
-		let domain = domainOfAddress(address);
-		let txtRecords = await resolveTxt(domain);
-		let recValue = extractPair(txtRecords, serviceLabel);
+		const domain = domainOfAddress(address);
+		const txtRecords = await resolveTxt(domain);
+		const recValue = extractPair(txtRecords, serviceLabel);
 		if (!recValue) { throw SC.RECORDS_MISSING; }
 		return recValue;
 	} catch (err) {

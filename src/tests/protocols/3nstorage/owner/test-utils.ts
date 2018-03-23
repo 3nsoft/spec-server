@@ -20,14 +20,10 @@ import * as api from '../../../../lib-common/service-api/3nstorage/owner';
 import { StorageComponent }
 	from '../../../libs-for-tests/server-components/3nstorage';
 import { GenericSpecDescribe } from '../../../libs-for-tests/spec-assembly';
-import { Obj, startTransaction, getSessionParams }
-	from '../../../libs-for-tests/3nstorage';
 
 export { User } from '../../../libs-for-tests/mailerid';
 export { StorageComponent }
 	from '../../../libs-for-tests/server-components/3nstorage';
-export { writeObjBytes }
-	from '../../../libs-for-tests/3nstorage';
 
 export interface TestSetup {
 	user: User;

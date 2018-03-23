@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 3NSoft Inc.
+ Copyright (C) 2016 - 2017 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -25,6 +25,7 @@ import { Msg } from '../asmail';
 import * as retrievalApi
 	from '../../../lib-common/service-api/asmail/retrieval';
 import { bytesEqual } from '../bytes-equal';
+import { parseOpenObjFile } from '../../../lib-common/obj-file';
 
 export class ASMailComponent extends Component {
 	
@@ -91,28 +92,54 @@ export class ASMailComponent extends Component {
 			else { throw exc; }
 		}
 		let extMeta = meta.extMeta;
-		if (deliveryComplete && msg) {
-			if (msg.cryptoMeta.pid) {
-				expect(extMeta.pid).toBe(msg.cryptoMeta.pid, 'correct key-pair id in meta');
-			}
-			if (msg.cryptoMeta.recipientKid) {
-				expect(extMeta.recipientKid).toBe(msg.cryptoMeta.recipientKid, 'correct recipient key id in meta');
-			}
-			if (msg.cryptoMeta.senderPKey) {
-				expect(extMeta.senderPKey).toBe(msg.cryptoMeta.senderPKey, 'correct sender\'s public key');
-			}
-			expect(extMeta.objIds.length).toBe(msg.msgObjs.length, 'correct number of message objects in meta');
-			expect(Object.keys(meta.objSizes).length).toBe(msg.msgObjs.length, 'correct noumber of message object sizes in meta');
-			for (let i=0; i < msg.msgObjs.length; i+=1) {
-				let obj = msg.msgObjs[i];
-				let objId = obj.objId!;
-				expect(extMeta.objIds[i]).toBe(objId);
-				expect(meta.objSizes![objId].header).toBe(obj.header.length, 'header length of a message object');
-				expect(meta.objSizes![objId].segments).toBe(obj.segs.length, 'segments length of a message object');
-				let bytes = await fs.readFile(`${msgFolder}/${objId}.hxsp`);
+		if (!deliveryComplete || ! msg) { return true; }
+
+		// check meta
+		if (msg.cryptoMeta.pid) {
+			expect(extMeta.pid).toBe(msg.cryptoMeta.pid, 'correct key-pair id in meta');
+		}
+		if (msg.cryptoMeta.recipientKid) {
+			expect(extMeta.recipientKid).toBe(msg.cryptoMeta.recipientKid, 'correct recipient key id in meta');
+		}
+		if (msg.cryptoMeta.senderPKey) {
+			expect(extMeta.senderPKey).toBe(msg.cryptoMeta.senderPKey, 'correct sender\'s public key');
+		}
+		expect(extMeta.objIds.length).toBe(msg.msgObjs.length, 'correct number of message objects in meta');
+		expect(Object.keys(meta.objs).length).toBe(msg.msgObjs.length, 'correct number of message object sizes in meta');
+		
+		for (let i=0; i < msg.msgObjs.length; i+=1) {
+			// check meta info for each object
+			let obj = msg.msgObjs[i];
+			let objId = obj.objId!;
+			expect(extMeta.objIds[i]).toBe(objId);
+			expect(meta.objs[objId].size.header).toBe(obj.header.length, 'header length of a message object');
+			expect(meta.objs[objId].size.segments).toBe(obj.segs.length, 'segments length of a message object');
+			expect(meta.objs[objId].completed).toBe(true, 'completness flag of a message object');
+
+			// check object file
+			let fd = await fs.open(`${msgFolder}/${objId}`, 'r')
+			.catch((exc: fs.FileException) => {
+				if (exc.notFound) {
+					fail(`missing file for object ${objId} in message ${msgId}`);
+					return undefined;
+				}
+				throw exc;
+			});
+			if (fd === undefined) { return false; }
+			try {
+				// parse file
+				const { headerOffset, segsOffset, diff, fileSize } =
+					await parseOpenObjFile(fd);
+				// check header
+				let bytes = new Buffer(segsOffset - headerOffset);
+				await fs.read(fd, headerOffset, bytes);
 				expect(bytesEqual(bytes, obj.header)).toBeTruthy('header bytes must match');
-				bytes = await fs.readFile(`${msgFolder}/${objId}.sxsp`);
+				// check segments
+				bytes = new Buffer(fileSize - segsOffset);
+				await fs.read(fd, segsOffset, bytes);
 				expect(bytesEqual(bytes, obj.segs)).toBeTruthy('segments bytes must match');
+			} finally {
+				await fs.close(fd);
 			}
 		}
 		return true;

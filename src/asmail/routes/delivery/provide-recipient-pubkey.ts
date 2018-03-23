@@ -15,27 +15,27 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { SC as recipSC, IGetPubKey } from '../../resources/recipients';
+import { SC as recipSC, GetPubKey } from '../../resources/recipients';
 import { initPubKey as api, ERR_SC }
 	from '../../../lib-common/service-api/asmail/delivery';
-import { Request } from './start-session';
+import { Request } from '../../resources/delivery-sessions';
 
 /**
  * This creates a get-init-pub-key route handler.
  * @param pkeyProvidingFunc is a function that provides recipient's public key
  * for use in this communication. 
  */
-export function getRecipientPubKey(pkeyProvidingFunc: IGetPubKey):
+export function getRecipientPubKey(pkeyProvidingFunc: GetPubKey):
 		RequestHandler {
 	if ('function' !== typeof pkeyProvidingFunc) { throw new TypeError(
 			"Given argument 'pkeyProvidingFunc' must be function, but is not."); }
 	
 	return async function(req: Request, res: Response, next: NextFunction) {
 		
-		let session = req.session;
+		const session = req.session;
 		
 		try{
-			let certs = await pkeyProvidingFunc(session.params.recipient);
+			const certs = await pkeyProvidingFunc(session.params.recipient);
 			if (certs) {
 				res.status(api.SC.ok).json(certs);
 			} else {

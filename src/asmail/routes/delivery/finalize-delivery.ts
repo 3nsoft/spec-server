@@ -15,23 +15,23 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { SC as recipSC, IFinalizeDelivery } from '../../resources/recipients';
-import { Request } from './start-session';
+import { SC as recipSC, FinalizeDelivery } from '../../resources/recipients';
+import { Request } from '../../resources/delivery-sessions';
 import { completion as api, ERR_SC }
 	from '../../../lib-common/service-api/asmail/delivery';
 
-export function finalizeDelivery(finDelivFunc: IFinalizeDelivery):
+export function finalizeDelivery(finDelivFunc: FinalizeDelivery):
 		RequestHandler {
 	if ('function' !== typeof finDelivFunc) { throw new TypeError(
 			"Given argument 'finDelivFunc' must be function, but is not."); }
 
 	return async function(req: Request, res: Response, next: NextFunction) {
-		let session = req.session;
-		let recipient = session.params.recipient;
-		let msgId = session.params.msgId;
+		const session = req.session;
+		const recipient = session.params.recipient;
+		const msgId = session.params.msgId;
 		
 		try {
-			let resFlag = await finDelivFunc(recipient, msgId);
+			await finDelivFunc(recipient, msgId);
 			session.close();
 			res.status(api.SC.ok).end();
 		} catch (err) {

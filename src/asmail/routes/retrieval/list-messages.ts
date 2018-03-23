@@ -15,20 +15,20 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { SC as recipSC, IGetMsgIds } from '../../resources/recipients';
+import { SC as recipSC, GetMsgIds } from '../../resources/recipients';
 import { listMsgs as api, ERR_SC }
 	from '../../../lib-common/service-api/asmail/retrieval';
-import { Request } from '../../../lib-server/routes/sessions/start';
+import { Request } from '../../resources/sessions';
 
-export function listMsgIds(listMsgIdsFunc: IGetMsgIds): RequestHandler {
+export function listMsgIds(listMsgIdsFunc: GetMsgIds): RequestHandler {
 	if ('function' !== typeof listMsgIdsFunc) { throw new TypeError(
 			"Given argument 'listMsgIdsFunc' must be function, but is not."); }
 
 	return async function(req: Request, res: Response, next: NextFunction) {
-		let userId = req.session.params.userId;
+		const userId = req.session.params.userId;
 		
 		try {
-			let msgIds = await listMsgIdsFunc(userId);
+			const msgIds = await listMsgIdsFunc(userId);
 			res.status(api.SC.ok).json(msgIds);
 		} catch (err) {
 			if ("string" !== typeof err) {

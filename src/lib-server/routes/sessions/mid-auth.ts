@@ -27,11 +27,9 @@ import { authSession as api, ERR_SC }
  * Autherization failure may be due to either, invalid MailerId credentials, or
  * due to other service's restriction(s) on users.
  */
-export interface IMidAuthorizer {
-	(rpDomain: string, sessionId: string, userId: string,
-		mailerIdAssertion: SignedLoad, userCert: SignedLoad,
-		provCert: SignedLoad): Promise<boolean>;
-}
+export type MidAuthorizer = (rpDomain: string, sessionId: string,
+	userId: string, mailerIdAssertion: SignedLoad, userCert: SignedLoad,
+	provCert: SignedLoad) => Promise<boolean>;
 
 /**
  * @param relyingPartyDomain is a domain of service, for which this assertion
@@ -40,7 +38,7 @@ export interface IMidAuthorizer {
  * This creates an authorize-sender route handler.
  */
 export function midLogin(relyingPartyDomain: string,
-		midAuthorizingFunc: IMidAuthorizer): RequestHandler {
+		midAuthorizingFunc: MidAuthorizer): RequestHandler {
 	if ('function' !== typeof midAuthorizingFunc) { throw new TypeError(
 			"Given argument 'midAuthorizingFunc' must be function, but is not."); }
 	
@@ -52,8 +50,8 @@ export function midLogin(relyingPartyDomain: string,
 			return;
 		}
 		
-		let rb: api.Request = req.body;
-		let sessionId = req.session.id;
+		const rb: api.Request = req.body;
+		const sessionId = req.session.id;
 		
 		if (!isLikeSignedMailerIdAssertion(rb.assertion) ||
 				!isLikeSignedKeyCert(rb.userCert) ||
@@ -64,7 +62,7 @@ export function midLogin(relyingPartyDomain: string,
 		}
 		
 		try {
-			let certsVerified = await midAuthorizingFunc(relyingPartyDomain,
+			const certsVerified = await midAuthorizingFunc(relyingPartyDomain,
 				sessionId, req.session.params.userId,
 				rb.assertion, rb.userCert, rb.provCert);
 			if (certsVerified) {

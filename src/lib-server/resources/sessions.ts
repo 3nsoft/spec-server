@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2017 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -14,76 +14,97 @@
  You should have received a copy of the GNU General Public License along with
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
-/**
- * This module produces session factory constructor.
- * Current implementation is test-grade, and one must improve this for production.
- * Keep in mind, that delivery protocol is not allowed to have long-lived sessions.
- */
-
 import * as express from 'express';
+import * as http from 'http';
 import { bind } from '../../lib-common/binding';
 
 // Constant custom header
-export let SESSION_ID_HEADER = "X-Session-Id";
+export const SESSION_ID_HEADER = "X-Session-Id";
+const LOW_CASED_SESSION_ID_HEADER = SESSION_ID_HEADER.toLowerCase();
 
-export interface Request<TSessionParam> extends express.Request {
-	session: Session<TSessionParam>;
+export interface SessionParams {
+	userId: string;
 }
 
-export interface IdGenerator {
-	(): Promise<string>;
+export interface Session<T> {
+	params: T;
+	isAuthorized: boolean;
+	id: string;
+	lastAccessedAt: number;
+	addCleanUp(func: { (): void; }): void;
+	putIdIntoResponse(res: express.Response): void;
+	close(): void;
 }
 
-export interface IGenerateSession<TSessionParam> {
-	(): Promise<Session<TSessionParam>>;
+export interface Request<T> extends express.Request {
+	session: Session<T>;
 }
 
-export interface SessionsContainer {
-	add(s: Session<any>): Promise<void>;
-	remove(s: Session<any>): Promise<void>;
-	get(sId: string): Promise<Session<any>>;
+export interface BaseRequest<T> extends http.IncomingMessage {
+	session: Session<T>;
 }
 
-export interface Factory {
-	generate: IGenerateSession<any>;
+export type CheckSession<T> = (req: BaseRequest<T>) => Promise<boolean>;
+
+export type GenerateSession<T> = () => Promise<Session<T>>;
+
+export interface Factory<T> {
+	generate: GenerateSession<T>;
 	ensureAuthorizedSession(): express.RequestHandler;
 	ensureOpenedSession(): express.RequestHandler;
 	checkSession(): express.RequestHandler;
+	ensureAuthorizedSessionForSocketStart(): CheckSession<T>;
 }
 
-export function makeSessionFactory(idGenerator: IdGenerator,
-		container: SessionsContainer): Factory {
-	let fact = new SessionFactory(idGenerator, container);
-	let wrap: Factory = {
-		generate: bind(fact, fact.generate),
-		ensureAuthorizedSession: bind(fact, fact.ensureAuthorizedSession),
-		ensureOpenedSession: bind(fact, fact.ensureOpenedSession),
-		checkSession: bind(fact, fact.checkSession)
-	}
-	Object.freeze(wrap);
-	return wrap;
-}
+export abstract class BaseSessionFactory<T> implements Factory<T> {
+	
+	abstract generate(): Promise<Session<T>>;
 
-class SessionFactory implements Factory {
-	
-	private idGenerator: IdGenerator;
-	
-	sessions: SessionsContainer;
-	
-	constructor(idGenerator: IdGenerator, container: SessionsContainer) {
-		this.sessions = container;
-		this.idGenerator = idGenerator;
-		Object.freeze(this);
-	}
-	
-	async generate() {
-		let newId = await this.idGenerator();
-		let s = makeSession(newId, this);
-		await this.sessions.add(s);
-		return s;
+	protected abstract get(sId: string): Promise<Session<T>|undefined>;
+
+	protected abstract add(s: Session<any>): Promise<void>;
+
+	protected abstract remove(s: Session<T>): Promise<void>;
+
+	protected async makeSession(id: string, params: T): Promise<Session<T>> {
+		const cleanUpFuncs: ({ (): void; }|undefined)[] = [];
+		const session: Session<T> = {
+			params,
+			isAuthorized: false,
+			id: id,
+			lastAccessedAt: Date.now(),
+			addCleanUp: (func: { (): void; }): void => {
+				if ('function' !== typeof func) { throw new Error(
+						"Given argument func must be function."); } 
+				cleanUpFuncs.push(func);
+			},
+			close: (): void => {
+				this.remove(session);
+				for (let i=0; i<cleanUpFuncs.length; i+=1) {
+					const func = cleanUpFuncs[i];
+					cleanUpFuncs[i] = undefined;
+					try {
+						if (typeof func === 'function') { func(); }
+					} catch (err) {
+						// where to log error(s)?
+					}
+				}
+			},
+			putIdIntoResponse: (res: express.Response): void => {
+				const header = {};
+				header[SESSION_ID_HEADER] = session.id;
+				res.set(header);
+			}
+		};
+		Object.seal(session);
+		await this.add(session);
+		return session;
 	}
 
 	/**
+	 * This returns middleware function, that adds to request object a 'session'
+	 * field with existing valid session object, or, if no session found, and
+	 * it is configured so, responds with 401.
 	 * @param factory to which resulting middleware is bound.
 	 * @param send401WhenMissingSession is a flag, which, when true, makes
 	 * middleware function to send 401 reply, when valid session object cannot
@@ -91,24 +112,19 @@ class SessionFactory implements Factory {
 	 * @param sessionMustBeAuthorized is a flag, which, when true,, makes
 	 * middleware function to send 401 reply, when session needs to go through
 	 * sender authorization step.
-	 * @returns Function middleware, which adds to request object a 'session'
-	 * field with existing valid session object, or, if no session found, and
-	 * it is configured so, responds with 401.
 	 */
 	private makeSessionMiddleware(send401WhenMissingSession: boolean,
 			sessionMustBeAuthorized: boolean): express.RequestHandler {
-		let thisFact = this;
-		return async function(req: Request<any>, res: express.Response,
-				next: express.NextFunction) {
+		return async (req: Request<T>, res: express.Response,
+				next: express.NextFunction) => {
 			if ('OPTIONS' == req.method) {
 				next();
 				return;
 			}
 			
-			let sessionId = req.get(SESSION_ID_HEADER);
-			
-			// case of missing session id
-			if ('string' !== typeof sessionId) {
+			// get session id header
+			const sessionId = req.get(SESSION_ID_HEADER);
+			if (typeof sessionId !== 'string') {
 				if (send401WhenMissingSession) {
 					res.status(401).send("Required to start new session.");
 				} else {
@@ -117,12 +133,14 @@ class SessionFactory implements Factory {
 				return;
 			}
 			
-			// get promise with session, and attach action to its resolution
-			let session = await thisFact.sessions.get(sessionId);
-			if (('object' === typeof session) && (null !== session)) {
+			// get session, and attach it to request
+			const session = await this.get(sessionId);
+			if (session) {
 				req.session = session;
 				session.lastAccessedAt = Date.now();
 			}
+
+			// send error status or continue, depending on session and flags
 			if (send401WhenMissingSession) {
 				if (!req.session) {
 					res.status(401).send("Required to start new session.");
@@ -139,63 +157,73 @@ class SessionFactory implements Factory {
 		};
 	}
 	
+	/**
+	 * This returns middleware function, that adds to request object a 'session'
+	 * field with existing valid session object, or, if no session found, or if
+	 * it is not yet set as authorized, responds with 401.
+	 */
 	ensureAuthorizedSession(): express.RequestHandler {
 		return this.makeSessionMiddleware(true, true);
 	}
 	
+	/**
+	 * This returns middleware function, that adds to request object a 'session'
+	 * field with existing valid session object, even if session is not yet
+	 * authorized. If there is no session found, middleware responds with 401.
+	 */
 	ensureOpenedSession(): express.RequestHandler {
 		return this.makeSessionMiddleware(true, false);
 	}
 	
+	/**
+	 * This returns middleware function, that adds to request object a 'session'
+	 * field with existing valid session object, or creates a new not authorized,
+	 * yet, session.
+	 */
 	checkSession(): express.RequestHandler {
 		return this.makeSessionMiddleware(false, false);
 	}
+
+	/**
+	 * This returns a function that checks for an authorized session, attaching
+	 * it to request object, and resolving returned promise to true. Else, if
+	 * there is no session found, or if a session is not yet set as authorized,
+	 * returned promise resolves to false.
+	 * This function should be used for verification of incoming web-socket
+	 * connection requests.
+	 */
+	ensureAuthorizedSessionForSocketStart(): CheckSession<T> {
+		return async (req: BaseRequest<T>): Promise<boolean> => {
+			// get session id header
+			const sessionId = req.headers[LOW_CASED_SESSION_ID_HEADER];
+			if (typeof sessionId !== 'string') { return false; }
+			
+			// get session, and check it
+			const session = await this.get(sessionId);
+			if (!session) { return false; }
+			if (!session.isAuthorized) { return false; }
+			
+			// attach session to request
+			req.session = session;
+			session.lastAccessedAt = Date.now();
+			return true;
+		};
+	}
 	
 }
+Object.freeze(BaseSessionFactory.prototype);
+Object.freeze(BaseSessionFactory);
 
-export interface Session<T> {
-	params: T;
-	isAuthorized: boolean;
-	id: string;
-	lastAccessedAt: number;
-	addCleanUp(func: { (): void; }): void;
-	putIdIntoResponse(res: express.Response): void;
-	close(): void;
-}
-
-function makeSession(id: string, factory: SessionFactory): Session<any> {
-	let cleanUpFuncs: ({ (): void; }|undefined)[] = [];
-	let session: Session<any> = {
-		params: <any> {},
-		isAuthorized: false,
-		id: id,
-		lastAccessedAt: Date.now(),
-		addCleanUp: (func: { (): void; }): void => {
-			if ('function' !== typeof func) { throw new Error(
-					"Given argument func must be function."); } 
-			cleanUpFuncs.push(func);
-		},
-		close: (): void => {
-			factory.sessions.remove(session);
-			let func;
-			for (var i=0; i<cleanUpFuncs.length; i++) {
-				func = cleanUpFuncs[i];
-				cleanUpFuncs[i] = undefined;
-				try {
-					if ('function' === typeof func) { func(); }
-				} catch (err) {
-					// where to log error(s)?
-				}
-			}
-		},
-		putIdIntoResponse: (res: express.Response): void => {
-			let header = {};
-			header[SESSION_ID_HEADER] = session.id;
-			res.set(header);
-		}
+export function wrapFactory<T>(impl: Factory<T>): Factory<T> {
+	const wrap: Factory<T> = {
+		checkSession: bind(impl, impl.checkSession),
+		ensureAuthorizedSession: bind(impl, impl.ensureAuthorizedSession),
+		ensureOpenedSession: bind(impl, impl.ensureOpenedSession),
+		ensureAuthorizedSessionForSocketStart:
+			bind(impl, impl.ensureAuthorizedSessionForSocketStart),
+		generate: bind(impl, impl.generate)
 	};
-	Object.seal(session);
-	return session;
+	return wrap;
 }
 
 Object.freeze(exports);

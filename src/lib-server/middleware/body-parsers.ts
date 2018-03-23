@@ -33,7 +33,7 @@ const TYPES = {
 
 const EMPTY_BUFFER = new Buffer(0);
 
-let noop = {
+const noop = {
 	onData: (chunk: Buffer) => {},
 	onEnd: () => {}
 };
@@ -54,7 +54,7 @@ export function emptyBody(): express.RequestHandler {
 		attachByteDrainToRequest(req);
 		
 		// get and check Content-Length
-		let contentLength = parseInt(req.get(HTTP_HEADER.contentLength), 10);
+		const contentLength = parseInt(req.get(HTTP_HEADER.contentLength)!, 10);
 		if (isNaN(contentLength)) {
 			return next(makeErr(411,
 				"Content-Length header is required with proper number."));
@@ -84,7 +84,7 @@ export async function parseBinaryBodyWithExpectedSize(req: express.Request,
 		}
 
 		// check length declared in header
-		let contentLength = parseInt(req.get(HTTP_HEADER.contentLength), 10);
+		const contentLength = parseInt(req.get(HTTP_HEADER.contentLength)!, 10);
 		if (isNaN(contentLength)) {
 			throw makeErr(411,
 				"Content-Length header is required with proper number.");
@@ -98,8 +98,8 @@ export async function parseBinaryBodyWithExpectedSize(req: express.Request,
 		throw err;
 	}
 
-	let deffered = defer<Uint8Array>();
-	let bytes = new BytesFIFOBuffer();
+	const deffered = defer<Uint8Array>();
+	const bytes = new BytesFIFOBuffer();
 
 	// collect body bytes
 	let erred = false;
@@ -127,7 +127,7 @@ export async function parseBinaryBodyWithExpectedSize(req: express.Request,
 
 function byteCollector(maxSize: string|number, contentType: string,
 		parser?: express.RequestHandler): express.RequestHandler {
-	let maxSizeNum = stringToNumOfBytes(maxSize);
+	const maxSizeNum = stringToNumOfBytes(maxSize);
 	if ('string' !== typeof contentType) { throw new Error(
 			"Given 'contentType' argument must be a string."); }
 	return (req: express.Request, res: express.Response,
@@ -140,7 +140,7 @@ function byteCollector(maxSize: string|number, contentType: string,
 		}
 
 		// get and check Content-Length
-		let contentLength = parseInt(req.get(HTTP_HEADER.contentLength), 10);
+		const contentLength = parseInt(req.get(HTTP_HEADER.contentLength)!, 10);
 		if (isNaN(contentLength)) {
 			attachByteDrainToRequest(req);
 			return next(makeErr(411,
@@ -209,7 +209,7 @@ export function json(maxSize: string|number, allowNonObject?: boolean):
 		(req: express.Request, res: express.Response,
 				next: express.NextFunction) => {
 			try {
-				let bodyAsStr = req.body.toString('utf8');
+				const bodyAsStr = req.body.toString('utf8');
 				req.body = JSON.parse(bodyAsStr);
 			} catch (err) {
 				return next(makeErr(400,

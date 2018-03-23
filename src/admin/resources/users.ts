@@ -28,10 +28,10 @@ import { UserMidParams } from '../../lib-common/admin-api/signup';
 import { bind } from '../../lib-common/binding';
 import { checkAndTransformAddress, toCanonicalAddress }
 	from '../../lib-common/canonical-address';
+import * as asmailConf from '../../lib-common/service-api/asmail/config';
 
 export const SC = {
 	USER_ALREADY_EXIST: 'user-already-exist',
-	USER_UNKNOWN: 'user-unknown'
 };
 Object.freeze(SC);
 
@@ -42,7 +42,7 @@ export interface UserStorageParams {
 const MID_KEY_USE = 'login-pub-key';
 
 function checkDefaultMidKeyParams(params: UserMidParams): boolean {
-	let ok = ('object' === typeof params.defaultPKey) && !!params.defaultPKey &&
+	const ok = ('object' === typeof params.defaultPKey) && !!params.defaultPKey &&
 		jwk.isLikeJsonKey(params.defaultPKey.pkey) &&
 		(typeof params.defaultPKey.params === 'object') &&
 		!!params.defaultPKey.params;
@@ -57,11 +57,11 @@ function checkDefaultMidKeyParams(params: UserMidParams): boolean {
 }
 
 export function validateUserMidParams(params: UserMidParams): boolean {
-	let ok = ('object' === typeof params) && !!params &&
+	const ok = ('object' === typeof params) && !!params &&
 		checkDefaultMidKeyParams(params) && Array.isArray(params.otherPKeys) &&
 		(params.otherPKeys.length > 0);
 	if (!ok) { return false; }
-	for (let pkey of params.otherPKeys) {
+	for (const pkey of params.otherPKeys) {
 		try {
 			jwk.keyFromJson(pkey, MID_KEY_USE,
 				nacl.box.JWK_ALG_NAME, nacl.box.KEY_LENGTH);
@@ -166,7 +166,7 @@ function makeUserFolderPath(rootFolder: string,
  * a given user folder.
  */
 async function createMailFolder(userFolder: string): Promise<void> {
-	let mailFolder = userFolder+'/mail';
+	const mailFolder = userFolder+'/mail';
 	await fs.mkdir(mailFolder)
 	await Promise.all([
 		fs.mkdir(mailFolder+'/messages'),
@@ -180,7 +180,7 @@ async function createMailFolder(userFolder: string): Promise<void> {
  * a given user folder.
  */
 async function createStoreFolder(userFolder: string): Promise<void> {
-	let storeFolder = userFolder+'/store';
+	const storeFolder = userFolder+'/store';
 	await fs.mkdir(storeFolder);
 	await Promise.all([
 		fs.mkdir(storeFolder+'/objects'),
@@ -197,8 +197,8 @@ async function createStoreFolder(userFolder: string): Promise<void> {
  */
 async function createUserFolder(rootFolder: string, userId: string):
 		Promise<string> {
-	let canonicalAddress = toCanonicalAddress(userId);
-	let userFolder = makeUserFolderPath(rootFolder, canonicalAddress);
+	const canonicalAddress = toCanonicalAddress(userId);
+	const userFolder = makeUserFolderPath(rootFolder, canonicalAddress);
 	try{
 		await fs.mkdir(userFolder);
 	} catch (err) {
@@ -240,7 +240,7 @@ function writeJsonSync(path: string, json: any): void {
 
 function setGeneralDefaults(defaultsFolder: string): void {
 	mkdirSync(defaultsFolder+'/info');
-	let inf = defaultsFolder+'/info/';
+	const inf = defaultsFolder+'/info/';
 	writeJsonSync(inf+'quota', 100*1024*1024*1024);
 }
 
@@ -259,19 +259,21 @@ function setMailDefaults(defaultsFolder: string): void {
 	mp += '/';
 	writeJsonSync(mp+'pubkey', null);
 	mkdirSync(mp+'anonymous');
-	writeJsonSync(mp+'anonymous/policy', {
+	const anonPolicy: asmailConf.p.anonSenderPolicy.Policy = {
 		accept: true,
 		acceptWithInvitesOnly: false,
 		defaultMsgSize: 1024*1024
-	});
+	};
+	writeJsonSync(mp+'anonymous/policy', anonPolicy);
 	writeJsonSync(mp+'anonymous/invites', {});
 	mkdirSync(mp+'authenticated');
-	writeJsonSync(mp+'authenticated/policy', {
+	const authPolicy: asmailConf.p.authSenderPolicy.Policy = {
 		acceptWithInvitesOnly: false,
 		acceptFromWhiteListOnly: false,
 		applyBlackList: true,
-		defaultMsgSize: 100*1024*1024,
-	});
+		defaultMsgSize: 1024*1024
+	}
+	writeJsonSync(mp+'authenticated/policy', authPolicy);
 	writeJsonSync(mp+'authenticated/whitelist', {});
 	writeJsonSync(mp+'authenticated/blacklist', {});
 	writeJsonSync(mp+'authenticated/invites', {});
@@ -310,8 +312,8 @@ class Users {
 	
 	async add(userId: string, midParams: UserMidParams,
 			storeKeyDerivParams: any): Promise<void> {
-		let canonicalAddress = toCanonicalAddress(userId);
-		let userFolder = await createUserFolder(this.users, userId);
+		const canonicalAddress = toCanonicalAddress(userId);
+		const userFolder = await createUserFolder(this.users, userId);
 		try {
 			await fs.copyTree(this.defaults, userFolder);
 			await this.setMidParams(canonicalAddress, midParams);
@@ -341,9 +343,9 @@ class Users {
 	
 	isIdOK(userId: string): boolean {
 		if (!checkAndTransformAddress(userId)) { return false; }
-		let indOfAt = userId.lastIndexOf('@');
+		const indOfAt = userId.lastIndexOf('@');
 		if (!this.isNameOK(userId.substring(0, indOfAt))) { return false; }
-		let domainPart = userId.substring(indOfAt+1).toLowerCase();
+		const domainPart = userId.substring(indOfAt+1).toLowerCase();
 		for (var i=0; i < this.domains.length; i+=1) {
 			if (domainPart === this.domains[i]) { return true; }
 		}
@@ -354,7 +356,7 @@ class Users {
 		if (!this.isIdOK(id)) { throw new Error(
 			`Given illegal user id: ${id}`); }
 		id = toCanonicalAddress(id);
-		let path = makeUserFolderPath(this.users, id);
+		const path = makeUserFolderPath(this.users, id);
 		try{
 			await fs.readdir(path);
 			return false;
@@ -374,11 +376,11 @@ class Users {
 	async getAvailableAddresses(name: string): Promise<string[]> {
 		if (!this.isNameOK(name)) { throw new Error(
 			`Given illegal name: ${name}`); }
-		let availableIds: string[] = [];
-		let promises: Promise<void>[] = [];
-		for (let domain of this.domains) {
-			let userId = `${name}@${domain}`;
-			let promise = this.isIdAvailable(userId)
+		const availableIds: string[] = [];
+		const promises: Promise<void>[] = [];
+		for (const domain of this.domains) {
+			const userId = `${name}@${domain}`;
+			const promise = this.isIdAvailable(userId)
 			.then((userIdAvailable) => {
 				if (userIdAvailable) { availableIds.push(userId); }
 			});
@@ -389,7 +391,7 @@ class Users {
 	}
 	
 	wrap(): Factory {
-		let wrap: Factory = {
+		const wrap: Factory = {
 			isIdOK: bind(this, this.isIdOK),
 			isIdAvailable: bind(this, this.isIdAvailable),
 			isNameOK: bind(this, this.isNameOK),

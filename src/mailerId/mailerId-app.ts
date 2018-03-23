@@ -22,13 +22,11 @@
 import * as express from 'express';
 
 // Internal libs
-import { allowCrossDomain } from '../lib-server/middleware/allow-cross-domain';
 import { json as parseJSON, binary as parseBinary }
 	from '../lib-server/middleware/body-parsers';
-import { checkAndTransformAddress } from '../lib-common/canonical-address';
 
 // Modules for certificate provisioning part of MailerId protocol
-import { IComputeDHSharedKey, startPKLogin }
+import { ComputeDHSharedKey, startPKLogin }
 	from '../lib-server/routes/pub-key-login/start-exchange';
 import { completePKLogin }
 	from '../lib-server/routes/pub-key-login/complete-exchange';
@@ -36,9 +34,8 @@ import { certify } from './routes/certify';
 
 // resources
 import { Certifier } from './resources/certifier';
+import { makeSessionFactory, SessionsFactory } from './resources/sessions';
 import { Factory as sessFactory } from '../lib-server/resources/sessions';
-import { makeSingleProcFactory }
-	from '../lib-server/resources/mem-backed-sessions-factory';
 import { makeFactory as makeUserFactory, Factory as userFactory }
 	from './resources/users';
 import { makeSingleProcCertifier } from './resources/certifier';
@@ -48,21 +45,21 @@ import { makeErrHandler } from '../lib-server/middleware/error-handler';
 import * as api from '../lib-common/service-api/mailer-id/provisioning';
 
 // Constant url parts of MailerId provisioning requests
-let PROVISIONING_PATH = '/prov/';
+const PROVISIONING_PATH = '/prov/';
 
-function provisioningApp(sessions: sessFactory,
-		users: userFactory, certifier: Certifier,
-		computeDHSharedKey: IComputeDHSharedKey): express.Express {
+function provisioningApp(sessions: SessionsFactory, users: userFactory,
+		certifier: Certifier, computeDHSharedKey: ComputeDHSharedKey):
+		express.Express {
 	
-	let app = express();
+	const app = express();
 	app.disable('etag');
 	
 	// MailerId certificate provisioning routes
 	app.post('/' + api.pkl.START_URL_END,
 			sessions.checkSession(),
 			parseJSON('1kb'),
-			startPKLogin(checkAndTransformAddress,
-				users.getUserParamsAndKey, sessions.generate, computeDHSharedKey));
+			startPKLogin(users.getUserParamsAndKey,
+				sessions.generate, computeDHSharedKey));
 	app.post('/' + api.pkl.COMPL_URL_END,
 			sessions.ensureOpenedSession(),
 			parseBinary('1kb'),
@@ -78,32 +75,22 @@ function provisioningApp(sessions: sessFactory,
 export function makeApp(rootFolder: string, domain: string, certFile: string):
 		express.Express {
 	
-	let app = express();
-	let certProvisSessions = makeSingleProcFactory(2*60);
-	let users = makeUserFactory(rootFolder);
-	let certifier = makeSingleProcCertifier(domain, certFile);
-	
-	// Make certificate provisioning CORS-available
-	app.use(PROVISIONING_PATH, allowCrossDomain(
-			[ "Content-Type", "X-Session-Id" ],
-			[ 'POST' ]));
+	const app = express();
+	const certProvisSessions = makeSessionFactory(2*60);
+	const users = makeUserFactory(rootFolder);
+	const certifier = makeSingleProcCertifier(domain, certFile);
 	
 	app.use(PROVISIONING_PATH,
 			provisioningApp(certProvisSessions, users, certifier,
 				calcNaClBoxSharedKey));
 	
-	// Make display of service parameters CORS-available
-	app.use('/', allowCrossDomain(
-			[ "Content-Type" ],
-			[ 'GET' ]));
-
 	// MailerId display of service parameters, as per protocol
 	app.get('/', (req: express.Request, res: express.Response) => {
 		let path = req.originalUrl;
 		if (path[path.length-1] !== '/') {
 			path = path+'/';
 		}
-		let json = {
+		const json = {
 				"current-cert": certifier.getRootCert(),
 				"previous-certs": certifier.getPrevCerts(),
 				"provisioning": path+PROVISIONING_PATH.substring(1)

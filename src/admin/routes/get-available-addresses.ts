@@ -33,7 +33,7 @@ export function availableAddresses(nameCheckFunc: ICheckName,
 	
 	return async function (req: Request, res: Response, next: NextFunction) {
 		
-		let newName = (<api.Request> req.body).name;
+		const newName = (<api.Request> req.body).name;
 		
 		if ((typeof newName !== 'string') || !nameCheckFunc(newName)) {
 			res.status(ERR_SC.malformed).send('Given name is malformed.');
@@ -41,7 +41,7 @@ export function availableAddresses(nameCheckFunc: ICheckName,
 		}
 		
 		try {
-			let addresses = await availableAddressesFunc(newName);
+			const addresses = await availableAddressesFunc(newName);
 			res.status(api.SC.ok).json(addresses);
 		} catch (err) {
 			next(err);

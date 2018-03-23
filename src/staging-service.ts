@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2017 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -20,12 +20,10 @@
 
 import { Configurations, servicesApp as makeServiceApp,
 	adminApp as makeAdminApp } from './services';
-import * as http from "http";
-import * as express from 'express';
 import * as fs from 'fs';
 import { existsFolderSync } from './lib-common/async-fs-node';
 import { FileException, Code as excCode } from './lib-common/exceptions/file';
-import { startService } from './lib-server/async-server';
+import { AppWithWSs } from './lib-server/web-sockets/app';
 
 (async () => {
 	try {
@@ -42,10 +40,10 @@ import { startService } from './lib-server/async-server';
 		}
 		ensureFolderPresence(dataFolder, true);
 		dataFolder = fs.realpathSync(dataFolder);
-		let rootFolder = dataFolder+'/users';
+		const rootFolder = dataFolder+'/users';
 		ensureFolderPresence(rootFolder, true);
 		
-		let conf: Configurations = {
+		const conf: Configurations = {
 			enabledServices: {
 				asmail: true,
 				storage: true,
@@ -65,11 +63,11 @@ import { startService } from './lib-server/async-server';
 			}
 		}
 		
-		let app = express();
+		const app = new AppWithWSs();
 		app.use(makeServiceApp(conf));
 		app.use(makeAdminApp(conf));
 		
-		await startService(http.createServer(app), 8080)
+		await app.start(undefined, 8080);
 		console.log('\nStaged services are up on localhost:8080');
 	} catch (err) {
 		console.error(err);

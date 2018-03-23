@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 3NSoft Inc.
+ Copyright (C) 2016 - 2017 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -18,10 +18,26 @@ export interface ErrorWithCause extends Error {
 	cause: any;
 }
 
-export function errWithCause(cause: any, message?: string): ErrorWithCause {
-	var err = <ErrorWithCause> new Error(message);
+export function errWithCause(cause: any, message: string): ErrorWithCause {
+	const err = <ErrorWithCause> new Error(message);
 	err.cause = cause;
 	return err;
+}
+
+export function stringifyErr(err: any): string {
+	if ((err as web3n.RuntimeException).runtimeException || !err
+	|| (typeof err !== 'object')) {
+		return `${JSON.stringify(err, null, '  ')}
+`;
+	} else {
+		return `Error message: ${err.message}
+Error stack: ${err.stack}${
+	((err as ErrorWithCause).cause ? `
+Caused by:
+${stringifyErr((err as ErrorWithCause).cause)}` :
+	'')}
+`;
+	}
 }
 
 Object.freeze(exports);

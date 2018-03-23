@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 3NSoft Inc.
+ Copyright (C) 2015, 2017 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -71,9 +71,7 @@ export function finalizeAsync<T>(promise: Promise<T>, fin: () => Promise<void>):
  * later time. Scheduler needs a not-yet-started activity, as scheduler has
  * control action's start.
  */
-export interface Action<T> {
-	(): Promise<T>;
-}
+export type Action<T> = () => Promise<T>;
 
 /**
  * This is a container of processes, labeled by some ids. It allows to track if
@@ -143,9 +141,9 @@ export class NamedProcs {
 	 * @return a promise of a process' completion.
 	 */
 	startOrChain<T>(id: string, action: Action<T>): Promise<T> {
-		let promise = this.promises.get(id);
+		const promise = this.promises.get(id);
 		if (promise) {
-			let next = promise.then(() => { return action(); });
+			const next = promise.then(() => { return action(); });
 			return this.insertPromise(id, next);
 		} else {
 			return this.insertPromise(id, action());
@@ -197,7 +195,7 @@ export class SingleProc<T> {
 	
 	startOrChain(action: Action<T>): Promise<T> {
 		if (this.promise) {
-			let next = this.promise.then(() => { return action(); });
+			const next = this.promise.then(() => { return action(); });
 			return this.insertPromise(next);
 		} else {
 			return this.insertPromise(action());
@@ -227,13 +225,13 @@ function oneTimeCaller(f: () => void): () => void {
 export function makeLock(): () => Promise<() => void> {
 	
 	let isLocked = false;
-	let queue: ((unlock: () => void) => void)[] = [];
+	const queue: ((unlock: () => void) => void)[] = [];
 	
 	function unlock(): void {
 		if (queue.length === 0) {
 			isLocked = false;
 		} else {
-			let next = queue.shift();
+			const next = queue.shift();
 			if (!next) { return; }
 			next(oneTimeCaller(unlock));
 		}
@@ -292,7 +290,7 @@ export function makeReadWriteLock(): ReadWriteLock {
 	
 	let isLockedForWrite = false;
 	let isLockedForRead = false;
-	let queue: Queued[] = [];
+	const queue: Queued[] = [];
 	let readsInProgress = 0;
 	
 	async function lockForWrite(): Promise<() => void> {
@@ -314,7 +312,7 @@ export function makeReadWriteLock(): ReadWriteLock {
 			isLockedForWrite = false;
 			return;
 		}
-		let next = queue.shift();
+		const next = queue.shift();
 		if (!next) { return; }
 		if (next.isWrite) {
 			next.write!(oneTimeCaller(unlockAfterWrite));
@@ -322,7 +320,7 @@ export function makeReadWriteLock(): ReadWriteLock {
 			isLockedForWrite = false;
 			isLockedForRead = true;
 			readsInProgress = next.reads!.length;
-			for (let read of next.reads!) {
+			for (const read of next.reads!) {
 				read(oneTimeCaller(unlockAfterRead));
 			}
 		}
@@ -346,7 +344,7 @@ export function makeReadWriteLock(): ReadWriteLock {
 	}
 	
 	async function queueRead():  Promise<() => void> {
-		let last = queue[queue.length-1];
+		const last = queue[queue.length-1];
 		if (!last || last.isWrite) {
 			return await new Promise<() => void>((resolve) => {
 				queue.push({
@@ -368,7 +366,7 @@ export function makeReadWriteLock(): ReadWriteLock {
 			isLockedForRead = false;
 			return;
 		}
-		let next = queue.shift();
+		const next = queue.shift();
 		if (!next) { return; }
 		if (next.isWrite) {
 			isLockedForWrite = true;
@@ -389,7 +387,7 @@ export interface Deferred<T> {
 }
 
 export function defer<T>(): Deferred<T> {
-	let d = <Deferred<T>> {};
+	const d = <Deferred<T>> {};
 	d.promise = new Promise<T>((resolve, reject) => {
 		d.resolve = resolve;
 		d.reject = reject;

@@ -15,18 +15,18 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { SC as recipSC, IDeleteMsg } from '../../resources/recipients';
+import { SC as recipSC, DeleteMsg } from '../../resources/recipients';
 import { rmMsg as api, ERR_SC }
 	from '../../../lib-common/service-api/asmail/retrieval';
-import { Request } from '../../../lib-server/routes/sessions/start';
+import { Request } from '../../resources/sessions';
 
-export function deleteMsg(delMsgFunc: IDeleteMsg): RequestHandler {
+export function deleteMsg(delMsgFunc: DeleteMsg): RequestHandler {
 	if ('function' !== typeof delMsgFunc) { throw new TypeError(
 			"Given argument 'delMsgFunc' must be function, but is not."); }
 
 	return async function(req: Request, res: Response, next: NextFunction) {
-		let userId = req.session.params.userId;
-		let msgId: string = req.params.msgId;
+		const userId = req.session.params.userId;
+		const msgId: string = req.params.msgId;
 		
 		try {
 			await delMsgFunc(userId, msgId);

@@ -25,7 +25,7 @@ import { Obj } from '../3nstorage';
 import { bytesEqual } from '../bytes-equal';
 import { deepEqual } from '../json-equal';
 import { ObjStatusInfo } from '../../../3nstorage/resources/store';
-import { parseObjFile } from '../../../3nstorage/resources/obj-file';
+import { parseOpenObjFile } from '../../../lib-common/obj-file';
 
 async function rmFolderContent(folder: string): Promise<void> {
 	await fs.rmDirWithContent(folder);
@@ -109,8 +109,8 @@ export class StorageComponent extends Component {
 			this.storeFolder(userId)+'/transactions/'+objId, transactionId);
 	}
 	
-	private async checkObjPresence(objFolder: string, ver: number|undefined,
-			obj: Obj|undefined): Promise<boolean> {
+	private async checkCurrentObjPresence(objFolder: string,
+			ver: number|undefined, obj: Obj|undefined): Promise<boolean> {
 		let status: ObjStatusInfo;
 		try {
 			status = JSON.parse(await fs.readFile(
@@ -120,22 +120,22 @@ export class StorageComponent extends Component {
 			else { throw exc; }
 		}
 		if (status.state !== 'current') { return false; }
-		let currVer = status.currentVersion;
+		const currVer = status.currentVersion;
 		if ((ver !== undefined) && (currVer !== ver)) { return false; }
 		if (obj) {
-			let fd = await fs.open(`${objFolder}/${currVer}.`, 'r')
+			const fd = await fs.open(`${objFolder}/${currVer}.`, 'r')
 			.catch((exc: fs.FileException) => {
 				if (exc.notFound) { return undefined; }
 				throw exc;
 			});
 			if (fd === undefined) { return false; }
 			try {
-				let { headerOffset, segsOffset, diff } = await parseObjFile(fd);
+				const { headerOffset, segsOffset, diff, fileSize } =
+					await parseOpenObjFile(fd);
 				let bytes = new Buffer(segsOffset - headerOffset);
 				await fs.read(fd, headerOffset, bytes);
 				if (!bytesEqual(bytes, obj.header)) { return false; }
-				let fileStat = await fs.fstat(fd);
-				bytes = new Buffer(fileStat.size - segsOffset);
+				bytes = new Buffer(fileSize - segsOffset);
 				await fs.read(fd, segsOffset, bytes);
 				if (!bytesEqual(bytes, obj.segs)) { return false; }
 				if ((diff && !obj.diff) || (!diff && obj.diff)) { return false; }
@@ -147,15 +147,15 @@ export class StorageComponent extends Component {
 		return true;
 	}
 	
-	rootObjExists(userId: string, ver?: number, obj?: Obj):
+	currentRootObjExists(userId: string, ver?: number, obj?: Obj):
 			Promise<boolean> {
-		return this.checkObjPresence(
+		return this.checkCurrentObjPresence(
 			this.storeFolder(userId)+'/root', ver, obj);
 	}
 	
-	objExists(userId: string, objId: string, ver?: number, obj?: Obj):
+	currentObjExists(userId: string, objId: string, ver?: number, obj?: Obj):
 			Promise<boolean> {
-		return this.checkObjPresence(
+		return this.checkCurrentObjPresence(
 			this.storeFolder(userId)+'/objects/'+objId, ver, obj);
 	}
 

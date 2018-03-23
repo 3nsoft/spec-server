@@ -27,6 +27,11 @@ import * as api from '../../../lib-common/service-api/asmail/retrieval';
 import { bytes as randomBytes } from '../../../lib-common/random-node';
 import { Msg, sendMsg } from '../../libs-for-tests/asmail';
 import { bytesEqual } from '../../libs-for-tests/bytes-equal';
+import { addSpecsFrom } from '../../libs-for-tests/spec-assembly';
+import { resolve } from 'path';
+import { startSession } from './retrieval/test-utils';
+
+const SPECS_FOLDER = resolve(__dirname, './retrieval/specs');
 
 describe('ASMail retrieval service', () => {
 	
@@ -38,7 +43,7 @@ describe('ASMail retrieval service', () => {
 	let retrievalUrl: string;
 	let deliveryUrl: string;
 	
-	let msg: Msg = {
+	const msg: Msg = {
 		cryptoMeta: {
 			pid: 'ephemeral pair id'
 		},
@@ -71,216 +76,39 @@ describe('ASMail retrieval service', () => {
 		asmailServer = (undefined as any);
 	});
 	
-	describe('MailerId login', midLoginSpecs(
-		() => resolveUrl(retrievalUrl, api.midLogin.MID_URL_PART),
-		() => user1 ));
-	
-	async function startSession(user: User): Promise<string> {
-		return await doMailerIdLogin(
-			resolveUrl(retrievalUrl, api.midLogin.MID_URL_PART),
-			user);
-	}
-	
-	itAsync('closing session', async () => {
-		let sessionId = await startSession(user1);
+	describe('session', () => {
+
+		describe('MailerId login', midLoginSpecs(
+			() => resolveUrl(retrievalUrl, api.midLogin.MID_URL_PART),
+			() => user1 ));
 		
-		let reqOpts: RequestOpts = {
-			url: resolveUrl(retrievalUrl, api.closeSession.URL_END),
-			method: 'POST',
-			sessionId
-		};
-		
-		// normal closing of a session
-		let rep = await doBodylessRequest<void>(reqOpts);
-		expect(rep.status).toBe(200, 'status for successful closing of session');
-		
-		// repeated call should see invalid session response
-		rep = await doBodylessRequest<void>(reqOpts);
-		expect(rep.status).toBe(api.ERR_SC.needAuth);
-		
-		reqOpts.sessionId = await startSession(user1);
-		
-		await expectNonAcceptanceOfNonEmptyBody(reqOpts);
-		
-		await expectNonAcceptanceOfBadSessionId(reqOpts);
-		
+		itAsync('closing session', async () => {
+			const sessionId = await startSession(user1, retrievalUrl);
+			
+			const reqOpts: RequestOpts = {
+				url: resolveUrl(retrievalUrl, api.closeSession.URL_END),
+				method: 'POST',
+				sessionId
+			};
+			
+			// normal closing of a session
+			let rep = await doBodylessRequest<void>(reqOpts);
+			expect(rep.status).toBe(200, 'status for successful closing of session');
+			
+			// repeated call should see invalid session response
+			rep = await doBodylessRequest<void>(reqOpts);
+			expect(rep.status).toBe(api.ERR_SC.needAuth);
+			
+			reqOpts.sessionId = await startSession(user1, retrievalUrl);
+			
+			await expectNonAcceptanceOfNonEmptyBody(reqOpts);
+			
+			await expectNonAcceptanceOfBadSessionId(reqOpts);
+			
+		});
+
 	});
 	
-	itAsync('lists messages in inbox', async () => {
-		let sessionId = await startSession(user1);
-		
-		// TODO add to this route time limits for listing
-		
-		let reqOpts: RequestOpts = {
-			url: resolveUrl(retrievalUrl, api.listMsgs.URL_END),
-			method: 'GET',
-			responseType: 'json',
-			sessionId
-		};
-		
-		// there are no messages
-		let rep = await doBodylessRequest<api.listMsgs.Reply>(reqOpts);
-		expect(rep.status).toBe(api.listMsgs.SC.ok, 'normal status reply');
-		expect(Array.isArray(rep.data)).toBe(true);
-		expect(rep.data.length).toBe(0);
-		
-		// add one message, and see a change
-		let msgId = await sendMsg(deliveryUrl, user1.id, msg);
-		rep = await doBodylessRequest<api.listMsgs.Reply>(reqOpts);
-		expect(rep.status).toBe(api.listMsgs.SC.ok, 'normal status reply');
-		expect(Array.isArray(rep.data)).toBe(true);
-		expect(rep.data).toContain(msgId);
-		
-		await expectNonAcceptanceOfBadSessionId(reqOpts);
-		
-	});
-	
-	itAsync('removes messages from inbox', async () => {
-		let msgId = await sendMsg(deliveryUrl, user1.id, msg);
-		expect(await asmailServer.msgExists(user1.id, msgId, true)).toBeTruthy();
-		let sessionId = await startSession(user1);
-		
-		let reqOpts: RequestOpts = {
-			url: resolveUrl(retrievalUrl, api.rmMsg.genUrlEnd(msgId)),
-			method: 'DELETE',
-			sessionId
-		};
-		
-		let rep = await doBodylessRequest<void>(reqOpts);
-		expect(rep.status).toBe(api.rmMsg.SC.ok, 'status when message was found and removed');
-		expect(await asmailServer.msgExists(user1.id, msgId, true)).toBeFalsy('message should be removed from the server');
-		
-		// duplicate message, which means use of unknown message id
-		rep = await doBodylessRequest<void>(reqOpts);
-		expect(rep.status).toBe(api.rmMsg.SC.unknownMsg, 'status for unknown message');
-		
-		await expectNonAcceptanceOfBadSessionId(reqOpts);
-		
-	});
-	
-	itAsync('provides getting message metadata', async () => {
-		let msgId = await sendMsg(deliveryUrl, user1.id, msg);
-		let sessionId = await startSession(user1);
-		
-		let reqOpts: RequestOpts = {
-			url: resolveUrl(retrievalUrl, api.msgMetadata.genUrlEnd(msgId)),
-			method: 'GET',
-			responseType: 'json',
-			sessionId
-		};
-		
-		let rep = await doBodylessRequest<api.msgMetadata.Reply>(reqOpts);
-		expect(rep.status).toBe(api.msgMetadata.SC.ok, 'status for successfully found message');
-		expect(rep.data.authSender).toBeFalsy();
-		expect(typeof rep.data.deliveryStart).toBe('number');
-		expect(typeof rep.data.deliveryCompletion).toBe('number');
-		expect(rep.data.deliveryStart).not.toBeGreaterThan(
-			rep.data.deliveryCompletion!);
-		
-		// unknown message
-		reqOpts.url = resolveUrl(retrievalUrl, api.msgMetadata.genUrlEnd(
-			'unknown-message'));
-		rep = await doBodylessRequest<api.msgMetadata.Reply>(reqOpts);
-		expect(rep.status).toBe(api.msgMetadata.SC.unknownMsg, 'status for unknown message');
-		
-		await expectNonAcceptanceOfBadSessionId(reqOpts);
-		
-	});
-	
-	itAsync('provides getting message object header', async () => {
-		let msgId = await sendMsg(deliveryUrl, user1.id, msg);
-		let sessionId = await startSession(user1);
-		
-		let reqOpts: RequestOpts = {
-			url: resolveUrl(retrievalUrl, api.msgObjHeader.genUrlEnd(msgId,
-				msg.msgObjs[0].objId)),
-			method: 'GET',
-			responseType: 'arraybuffer',
-			sessionId
-		};
-		
-		// getting complete object header
-		let rep = await doBodylessRequest<Uint8Array>(reqOpts);
-		expect(rep.status).toBe(api.msgObjHeader.SC.ok, 'status when object is found');
-		expect(rep.data.length).toBe(msg.msgObjs[0].header.length, 'expected length of bytes');
-		expect(bytesEqual(rep.data, msg.msgObjs[0].header)).toBe(true, 'complete header bytes should be same, as those that were sent');
-		
-		// getting part of object header
-		reqOpts.url = resolveUrl(retrievalUrl, api.msgObjHeader.genUrlEnd(msgId,
-			msg.msgObjs[0].objId, { ofs: 0, len: 50 }));
-		rep = await doBodylessRequest<Uint8Array>(reqOpts);
-		expect(rep.status).toBe(api.msgObjHeader.SC.ok, 'status when object is found');
-		expect(rep.data.length).toBe(50, 'expected length of bytes');
-		expect(bytesEqual(rep.data, msg.msgObjs[0].header.subarray(0, 50))).toBe(true, 'partial header bytes should be same, as those that were sent');
-		reqOpts.url = resolveUrl(retrievalUrl, api.msgObjHeader.genUrlEnd(msgId,
-			msg.msgObjs[0].objId, { ofs: 50 }));
-		rep = await doBodylessRequest<Uint8Array>(reqOpts);
-		expect(rep.status).toBe(api.msgObjHeader.SC.ok, 'status when object is found');
-		expect(rep.data.length).toBe(msg.msgObjs[0].header.subarray(50).length, 'expected length of bytes');
-		expect(bytesEqual(rep.data, msg.msgObjs[0].header.subarray(50))).toBe(true, 'partial header bytes should be same, as those that were sent');
-		
-		// unknown message
-		reqOpts.url = resolveUrl(retrievalUrl, api.msgObjHeader.genUrlEnd(
-			'unknown-message', 'object-id'));
-		rep = await doBodylessRequest<Uint8Array>(reqOpts);
-		expect(rep.status).toBe(api.msgObjHeader.SC.unknownMsgOrObj, 'status for unknown message');
-		
-		// unknown message object
-		reqOpts.url = resolveUrl(retrievalUrl, api.msgObjHeader.genUrlEnd(msgId,
-			'unknown-object'));
-		rep = await doBodylessRequest<Uint8Array>(reqOpts);
-		expect(rep.status).toBe(api.msgObjHeader.SC.unknownMsgOrObj, 'status for unknown message');
-		
-		await expectNonAcceptanceOfBadSessionId(reqOpts);
-		
-	});
-	
-	itAsync('provides getting message object segments', async () => {
-		let msgId = await sendMsg(deliveryUrl, user1.id, msg);
-		let sessionId = await startSession(user1);
-		
-		let reqOpts: RequestOpts = {
-			url: resolveUrl(retrievalUrl, api.msgObjSegs.genUrlEnd(msgId,
-				msg.msgObjs[0].objId)),
-			method: 'GET',
-			responseType: 'arraybuffer',
-			sessionId
-		};
-		
-		// getting complete object segments
-		let rep = await doBodylessRequest<Uint8Array>(reqOpts);
-		expect(rep.status).toBe(api.msgObjSegs.SC.ok, 'status when object is found');
-		expect(rep.data.length).toBe(msg.msgObjs[0].segs.length, 'expected length of bytes');
-		expect(bytesEqual(rep.data, msg.msgObjs[0].segs)).toBe(true, 'complete segments bytes should be same, as those that were sent');
-		
-		// getting part of object segments
-		reqOpts.url = resolveUrl(retrievalUrl, api.msgObjSegs.genUrlEnd(msgId,
-			msg.msgObjs[1].objId, { ofs: 0, len: 1024 }));
-		rep = await doBodylessRequest<Uint8Array>(reqOpts);
-		expect(rep.status).toBe(api.msgObjSegs.SC.ok, 'status when object is found');
-		expect(rep.data.length).toBe(1024, 'expected length of bytes');
-		expect(bytesEqual(rep.data, msg.msgObjs[1].segs.subarray(0, 1024))).toBe(true, 'partial segments bytes should be same, as those that were sent');
-		reqOpts.url = resolveUrl(retrievalUrl, api.msgObjSegs.genUrlEnd(msgId,
-			msg.msgObjs[1].objId, { ofs: 1024 }));
-		rep = await doBodylessRequest<Uint8Array>(reqOpts);
-		expect(rep.status).toBe(api.msgObjSegs.SC.ok, 'status when object is found');
-		expect(rep.data.length).toBe(msg.msgObjs[1].segs.length - 1024, 'expected length of bytes');
-		expect(bytesEqual(rep.data, msg.msgObjs[1].segs.subarray(1024))).toBe(true, 'partial segments bytes should be same, as those that were sent');
-		
-		// unknown message
-		reqOpts.url = resolveUrl(retrievalUrl, api.msgObjSegs.genUrlEnd(
-			'unknown-message', 'object-id'));
-		rep = await doBodylessRequest<Uint8Array>(reqOpts);
-		expect(rep.status).toBe(api.msgObjSegs.SC.unknownMsgOrObj, 'status for unknown message');
-		
-		// unknown message object
-		reqOpts.url = resolveUrl(retrievalUrl, api.msgObjSegs.genUrlEnd(msgId,
-			'unknown-object'));
-		rep = await doBodylessRequest<Uint8Array>(reqOpts);
-		expect(rep.status).toBe(api.msgObjSegs.SC.unknownMsgOrObj, 'status for unknown message');
-		
-		await expectNonAcceptanceOfBadSessionId(reqOpts);
-		
-	});
+	addSpecsFrom(SPECS_FOLDER, () => ({ asmailServer, user1, user2 }));
 	
 });

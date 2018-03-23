@@ -33,7 +33,7 @@ export function addUser(idCheckFunc: ICheckId, addUserFunc: IAdd):
 	
 	return async function(req: Request, res: Response, next: NextFunction) {
 		
-		let userParams: api.Request = req.body;
+		const userParams: api.Request = req.body;
 		
 		if (('string' !== typeof userParams.userId) ||
 				!idCheckFunc(userParams.userId)) {

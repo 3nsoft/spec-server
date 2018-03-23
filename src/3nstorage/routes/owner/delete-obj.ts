@@ -15,25 +15,25 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { IDeleteObj, SC as storeSC } from '../../resources/users';
-import { deleteObj as api, ERR_SC }
+import { DeleteObj, SC as storeSC } from '../../resources/users';
+import { ERR_SC, currentObj as api }
 	from '../../../lib-common/service-api/3nstorage/owner';
-import { Request } from '../../../lib-server/routes/sessions/start';
+import { Request } from '../../resources/sessions';
 
 export function deleteObj(root: boolean, delCurrent: boolean,
-		deleteObjFunc: IDeleteObj): RequestHandler {
+		deleteObjFunc: DeleteObj): RequestHandler {
 	if ('function' !== typeof deleteObjFunc) { throw new TypeError(
 			"Given argument 'deleteObjFunc' must be function, but is not."); }
 
 	return async function(req: Request, res: Response, next: NextFunction) {
 		
-		let userId = req.session.params.userId;
-		let objId: string = (root ? null : req.params.objId);
-		let version: number = (delCurrent ? null : req.params.version);
+		const userId = req.session.params.userId;
+		const objId: string = (root ? null : req.params.objId);
+		const version: number = (delCurrent ? null : req.params.version);
 		
 		try {
 			await deleteObjFunc(userId, objId, version);
-			res.status(api.SC.ok).end();
+			res.status(api.SC.okDelete).end();
 		} catch (err) {
 			if ("string" !== typeof err) {
 				next(err);
@@ -41,12 +41,7 @@ export function deleteObj(root: boolean, delCurrent: boolean,
 				res.status(api.SC.concurrentTransaction).send(
 					`Object ${objId} is currently under a transaction.`);
 			} else if (err === storeSC.OBJ_UNKNOWN) {
-				res.status(api.SC.missing).send((version === null) ?
-					`Object ${objId} is unknown.` :
-					`Object ${objId} version ${version} is unknown.`);
-			} else if (err === storeSC.WRONG_OBJ_STATE) {
-				res.status(api.SC.incompatibleObjState).send(
-					`Object ${objId} is in a state, that does not allow to procede with this request.`);
+				res.status(api.SC.unknownObj).send(`Object ${objId} is unknown.`);
 			} else if (err === storeSC.USER_UNKNOWN) {
 				res.status(ERR_SC.server).send(
 					"Recipient disappeared from the system.");

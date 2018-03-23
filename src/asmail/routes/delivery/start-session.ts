@@ -15,27 +15,15 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { Request as SessReq, IGenerateSession }
-	from '../../../lib-server/resources/sessions';
-import { SC as recipSC, IAllowedMaxMsgSize } from '../../resources/recipients';
+import { GenerateSession, Request }
+	from '../../resources/delivery-sessions';
+import { SC as recipSC, AllowedMaxMsgSize } from '../../resources/recipients';
 import { sessionStart as api, ERR_SC, ErrorReply }
 	from '../../../lib-common/service-api/asmail/delivery';
 import { checkAndTransformAddress }
 	from '../../../lib-common/canonical-address';
 
-export interface IRedirect {
-	(userId: string): Promise<string>;
-}
-
-export interface SessionParams {
-	recipient: string;
-	sender?: string;
-	maxMsgLength: number;
-	currentMsgLength: number;
-	msgId: string;
-}
-
-export interface Request extends SessReq<SessionParams> {}
+export type Redirect = (userId: string) => Promise<string>;
 
 /**
  * This creates a start-session route handler.
@@ -51,25 +39,54 @@ export interface Request extends SessReq<SessionParams> {}
  * (1) string with URI for ASMail service, which is serving given recipient,
  * (2) undefined, if it is this server should service given recipient. 
  */
-export function startSession(allowedMsgSizeFunc: IAllowedMaxMsgSize,
-		sessionGenFunc: IGenerateSession<SessionParams>,
-		redirectFunc?: IRedirect): RequestHandler {
-	if ('function' !== typeof allowedMsgSizeFunc) { throw new TypeError(
-			"Given argument 'allowedMsgSizeFunc' must be function, but is not."); }
-	if ('function' !== typeof sessionGenFunc) { throw new TypeError(
-			"Given argument 'sessionGenFunc' must be function, but is not."); }
-	if (('undefined' !== typeof redirectFunc) &&
-			('function' !== typeof redirectFunc)) { throw new TypeError(
-			"Given argument 'redirectFunc' must either be function, " +
-			"or be undefined, but it is neither."); }
+export function startSession(allowedMsgSizeFunc: AllowedMaxMsgSize,
+		sessionGenFunc: GenerateSession, redirectFunc?: Redirect):
+		RequestHandler {
+	if (typeof allowedMsgSizeFunc !== 'function') { throw new TypeError(
+		`Given argument 'allowedMsgSizeFunc' must be function, but is not.`); }
+	if (typeof sessionGenFunc !== 'function') { throw new TypeError(
+		`Given argument 'sessionGenFunc' must be function, but is not.`); }
+	if ((redirectFunc !== undefined) && (typeof redirectFunc !== 'function')) {
+		throw new TypeError(`Given argument 'redirectFunc' must either be function, or be undefined, but it is neither.`); }
+
+	async function serveRequestHere(recipient: string, sender: string|undefined,
+			invitation: string|undefined, res: Response): Promise<void> {
+		const msgSize = await allowedMsgSizeFunc(recipient, sender, invitation);
+		if (msgSize > 0) {
+			const session = await sessionGenFunc();
+			session.params.recipient = recipient;
+			session.params.sender = sender;
+			session.params.invite = invitation;
+			session.params.maxMsgLength = msgSize;
+			if (!sender) {
+				// message delivery is allowed for anonymous
+				// sender, thus, we set isAuthorized flag here
+				session.isAuthorized = true;
+			}
+			res.status(api.SC.ok).json( <api.Reply> {
+				sessionId: session.id,
+				maxMsgLength: msgSize
+			});
+		} else if (msgSize === 0) {
+			res.status(api.SC.senderNotAllowed).json( <ErrorReply> {
+				error: `${sender ? sender : "Anonymous sender "} is not allowed to leave mail for ${recipient}`
+			});
+		} else if (msgSize === -1) {
+			res.status(api.SC.inboxFull).json( <ErrorReply> {
+				error: `Mail box for ${recipient} is full.`
+			});
+		} else {
+			throw new Error(`Unrecognized code ${msgSize} for message size limits.`);
+		}
+	}
 	
 	return async function(req: Request, res: Response, next: NextFunction) {
 		
-		let rb: api.Request = req.body;
-		let recipient = checkAndTransformAddress(rb.recipient);
-		let sender = (rb.sender ? rb.sender : undefined);
-		let invitation = (rb.invitation ? rb.invitation : undefined);
-		let session = req.session;
+		const rb: api.Request = req.body;
+		const recipient = checkAndTransformAddress(rb.recipient);
+		let sender = rb.sender;
+		const invitation = rb.invitation;
+		const session = req.session;
 		
 		// already existing session indicates repeated call, which should be bounced off
 		if (session) {
@@ -92,61 +109,38 @@ export function startSession(allowedMsgSizeFunc: IAllowedMaxMsgSize,
 			sender = checkAndTransformAddress(sender);
 			if (!sender) {
 				res.status(ERR_SC.malformed).json( <ErrorReply> {
-					error: "Sender is is malformed"
+					error: "Sender field is malformed"
 				});
 				return;
 			}
 		}
-		
-		async function serveRequestHere() {
-			let msgSize = await allowedMsgSizeFunc(recipient!, sender, invitation);
-			if (msgSize > 0) {
-				let session = await sessionGenFunc();
-				session.params.recipient = recipient!;
-				session.params.sender = sender;
-				session.params.maxMsgLength = msgSize;
-				if (!sender) {
-					// message delivery is allowed for anonymous
-					// sender, thus, we set isAuthorized flag here
-					session.isAuthorized = true;
-				}
-				res.status(api.SC.ok).json( <api.Reply> {
-					sessionId: session.id,
-					maxMsgLength: msgSize
-				});
-			} else if (msgSize === 0) {
-				res.status(api.SC.senderNotAllowed).json( <ErrorReply> {
-					error: (!!sender ? sender : "Anonymous sender ")+
-					" is not allowed to leave mail for "+recipient
-				});
-			} else if (msgSize === -1) {
-				res.status(api.SC.inboxFull).json( <ErrorReply> {
-					error: "Mail box for "+recipient+" is full."
-				});
-			} else {
-				throw new Error("Unrecognized code "+msgSize+
-						" for message size limits.");
-			}
+
+		// check invitation field
+		if ((invitation !== undefined) && (typeof invitation !== 'string')) {
+			res.status(ERR_SC.malformed).json( <ErrorReply> {
+				error: "Inviation field is malformed"
+			});
+			return;
 		}
 		
 		try {
 			if (redirectFunc) {
-				let redirectTo = await redirectFunc(recipient)
+				const redirectTo = await redirectFunc(recipient)
 				if (redirectTo) {
 					res.status(api.SC.redirect).json(
 						<api.RedirectReply> {
 							redirect: redirectTo
 						});
 				} else {
-					await serveRequestHere();
+					await serveRequestHere(recipient, sender, invitation, res);
 				}
 			} else {
-				await serveRequestHere();
+				await serveRequestHere(recipient, sender, invitation, res);
 			}
 		} catch (err) {
 			if (err === recipSC.USER_UNKNOWN) {
 				res.status(api.SC.unknownRecipient).json( <ErrorReply> {
-					error: "Recipient "+recipient+" is unknown."
+					error: `Recipient ${recipient} is unknown.`
 				});
 			} else {
 				next(err);

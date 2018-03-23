@@ -28,7 +28,7 @@ import { complete as api, ERR_SC, ErrorReply }
 export function completePKLogin(): RequestHandler {
 	return (req: Request, res: Response, next: NextFunction) => {
 		
-		let session = req.session;
+		const session = req.session;
 		
 		// bounce off already authorized session
 		if (session.isAuthorized) {
@@ -39,9 +39,9 @@ export function completePKLogin(): RequestHandler {
 		}
 
 		try {
-			let c = new Uint8Array(req.body);
-			let decryptedKey = session.params.encryptor.open(c);
-			let key = session.params.sessionKey;
+			const c = new Uint8Array(req.body);
+			const decryptedKey = session.params.encryptor.open(c);
+			const key = session.params.sessionKey;
 			if (!compareVectors(decryptedKey, key)) { throw new Error(); }
 			session.isAuthorized = true;
 			res.status(api.SC.ok).send(new Buffer(

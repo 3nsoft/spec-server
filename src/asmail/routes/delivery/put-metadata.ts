@@ -15,11 +15,11 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { SC as recipSC, ISetMsgStorage } from '../../resources/recipients';
+import { SC as recipSC, SetMsgStorage } from '../../resources/recipients';
 import { msgMeta as api, ERR_SC, ErrorReply }
 	from '../../../lib-common/service-api/asmail/delivery';
 import * as confUtil from '../../../lib-server/conf-util';
-import { Request } from './start-session';
+import { Request } from '../../resources/delivery-sessions';
 
 function findProblemWithObjIds(ids: string[]): ErrorReply|undefined {
 	if (!Array.isArray(ids)) {
@@ -27,10 +27,9 @@ function findProblemWithObjIds(ids: string[]): ErrorReply|undefined {
 			error: "Object ids are missing."
 		};
 	}
-	let objIdsInLowerCase = new Set<string>();
-	let objId;
-	for (var i=0; i < ids.length; i+=1) {
-		objId = ids[i].toLowerCase();
+	const objIdsInLowerCase = new Set<string>();
+	for (let i=0; i<ids.length; i+=1) {
+		const objId = ids[i].toLowerCase();
 		if (objIdsInLowerCase.has(objId)) {
 			return {
 				error: "Duplication of object ids."
@@ -41,19 +40,18 @@ function findProblemWithObjIds(ids: string[]): ErrorReply|undefined {
 	return;
 }
 
-export function saveMetadata(setMsgStorageFunc: ISetMsgStorage,
+export function saveMetadata(setMsgStorageFunc: SetMsgStorage,
 		maxChunk: string|number): RequestHandler {
 	if ('function' !== typeof setMsgStorageFunc) { throw new TypeError(
 			"Given argument 'setMsgStorageFunc' must "+
 			"be function, but is not."); }
-	let maxChunkSize = confUtil.stringToNumOfBytes(maxChunk);
+	const maxChunkSize = confUtil.stringToNumOfBytes(maxChunk);
 
 	return async function(req: Request, res: Response, next: NextFunction) {
-		let session = req.session;
-		let msgMeta: api.Request = req.body;
-		let recipient = session.params.recipient;
-		let sender = session.params.sender;
-		let objIds = msgMeta.objIds;
+		const session = req.session;
+		const msgMeta: api.Request = req.body;
+		const recipient = session.params.recipient;
+		const objIds = msgMeta.objIds;
 		
 		if (session.params.msgId) {
 			res.status(ERR_SC.duplicateReq).json( <ErrorReply> {
@@ -68,11 +66,13 @@ export function saveMetadata(setMsgStorageFunc: ISetMsgStorage,
 		}
 		
 		try {
-			let msgId = await setMsgStorageFunc(recipient, msgMeta, sender);
+			const msgId = await setMsgStorageFunc(recipient, msgMeta,
+				session.params.sender, session.params.invite,
+				session.params.maxMsgLength);
 			session.params.msgId = msgId;
 			res.status(api.SC.ok).json( <api.Reply> {
-				msgId: msgId,
-				maxChunkSize: maxChunkSize
+				msgId,
+				maxChunkSize
 			});
 		} catch (err) {
 			if ("string" !== typeof err) {

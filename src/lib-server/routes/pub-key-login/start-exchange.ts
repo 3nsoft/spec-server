@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2017 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -23,21 +23,22 @@ import { RequestHandler, Response, NextFunction } from 'express';
 import { secret_box as sbox, arrays, nonce as nonceMod } from 'ecma-nacl';
 import { base64 } from '../../../lib-common/buffer-utils';
 import { bytes as randomBytes } from '../../../lib-common/random-node';
-import { IGenerateSession, Request as SessReq, Session }
-	from '../../resources/sessions';
+import { GenerateSession, Request as SessReq, Session,
+	SessionParams as UserParams } from '../../resources/sessions';
 import { SessionEncryptor, makeSessionEncryptor }
 	from '../../../lib-common/session-encryptor';
 import { start as api, ERR_SC, ErrorReply }
 	from '../../../lib-common/service-api/pub-key-login';
+import { checkAndTransformAddress }
+	from '../../../lib-common/canonical-address';
 
 const boxWN = sbox.formatWN;
 const NONCE_LENGTH = sbox.NONCE_LENGTH;
 const KEY_LENGTH = sbox.KEY_LENGTH;
 const POLY_LENGTH = sbox.POLY_LENGTH;
 
-export interface SessionParams {
+export interface SessionParams extends UserParams {
 	encryptor: SessionEncryptor;
-	userId: string;
 	sessionKey: Uint8Array;
 	serverVerificationBytes: Uint8Array;
 }
@@ -46,7 +47,7 @@ export type Request = SessReq<SessionParams>;
 
 function addEncryptorToSession(session: Session<SessionParams>,
 		sessionKey: Uint8Array, nonce: Uint8Array) {
-	let encryptor = makeSessionEncryptor(sessionKey, nonce);
+	const encryptor = makeSessionEncryptor(sessionKey, nonce);
 	session.params.encryptor = encryptor;
 	session.addCleanUp(() => {
 		encryptor.destroy();
@@ -61,41 +62,33 @@ export interface UserPKeyAndKeyGenParams {
 	params?: any;
 }
 
-export interface ICheckAndTransformUserId {
-	/**
-	 * This function checks overall shape of a given user id, possibly
-	 * transforming it to some canonical form, used by the service.
-	 * @params initUserId is a an incoming string, that should be an id
-	 * @return if incoming id is ok, same, or transformed id is returned,
-	 * else, if incoming id is not ok, undefined is returned.
-	 */
-	(initUserId: string): string|undefined;
-}
+/**
+ * This function checks overall shape of a given user id, possibly
+ * transforming it to some canonical form, used by the service.
+ * If incoming id is ok, function returns it in a canonical form.
+ * Else, if incoming id is not ok, undefined is returned.
+ * @params initUserId is a an incoming string, that should be an id
+ */
+export type CheckAndTransformUserId = (initUserId: string) => string|undefined;
 
-export interface IGetUserPKeyAndKeyGenParams {
-	/**
-	 * This returns a promise of user public key and related parameters.
-	 * @param userId
-	 * @param kid is a key id that should be used at login. Undefined value
-	 * indicates that default key should be used.
-	 */
-	(userId: string, kid: string|undefined): Promise<UserPKeyAndKeyGenParams>;
-}
+/**
+ * This returns a promise of user public key and related parameters.
+ * If user is not found, undefined is returned.
+ * @param userId
+ * @param kid is a key id that should be used at login. Undefined value
+ * indicates that default key should be used.
+ */
+export type GetUserPKeyAndKeyGenParams =
+	(userId: string, kid: string|undefined) =>
+		Promise<UserPKeyAndKeyGenParams|undefined>;
 
-export interface IComputeDHSharedKey {
-	(userKey: Uint8Array): {
-		dhsharedKey: Uint8Array;
-		serverPubKey: Uint8Array;
-	};
-}
+export type ComputeDHSharedKey = (userKey: Uint8Array) =>
+	{ dhsharedKey: Uint8Array; serverPubKey: Uint8Array; };
 
 export function startPKLogin(
-		checkIdFunc: ICheckAndTransformUserId,
-		findUserParamsAndKeyFunc: IGetUserPKeyAndKeyGenParams,
-		sessionGenFunc: IGenerateSession<SessionParams>,
-		computeDHSharedKeyFunc: IComputeDHSharedKey): RequestHandler {
-	if ('function' !== typeof checkIdFunc) { throw new TypeError(
-			"Given argument 'checkIdFunc' must be function, but is not."); }
+		findUserParamsAndKeyFunc: GetUserPKeyAndKeyGenParams,
+		sessionGenFunc: GenerateSession<SessionParams>,
+		computeDHSharedKeyFunc: ComputeDHSharedKey): RequestHandler {
 	if ('function' !== typeof findUserParamsAndKeyFunc) { throw new TypeError(
 			"Given argument 'findUserParamsAndKeyFunc' must be function, but is not."); }
 	if ('function' !== typeof sessionGenFunc) { throw new TypeError(
@@ -105,14 +98,14 @@ export function startPKLogin(
 
 	return async function(req: Request, res: Response, next: NextFunction) {
 
-		let userId = checkIdFunc((req.body as api.Request).userId);
-		let kid = (req.body as api.Request).kid;
+		const userId = checkAndTransformAddress((req.body as api.Request).userId);
+		const kid = (req.body as api.Request).kid;
 		let session = req.session;
 		
 		// missing userId makes a bad request
-		if ('string' !== typeof userId) {
+		if (!userId) {
 			res.status(ERR_SC.malformed).json( <ErrorReply> {
-				error: "User id is missing in the request."
+				error: "User id is either malformed, or missing."
 			});
 			return;
 		}
@@ -134,7 +127,7 @@ export function startPKLogin(
 
 		try {
 			// find user info
-			let userParamsAndKey = await findUserParamsAndKeyFunc(userId, kid);
+			const userParamsAndKey = await findUserParamsAndKeyFunc(userId, kid);
 			if (!userParamsAndKey) {
 				res.status(api.SC.unknownUser).json( <ErrorReply> {
 					error: `User ${userId} ${kid ? `and/or key ${kid} are` : 'is'} unknown.`
@@ -149,19 +142,19 @@ export function startPKLogin(
 			}
 			
 			// get random bytes for session key and nonce
-			let nonce = randomBytes(NONCE_LENGTH);
-			let sessionKey = randomBytes(KEY_LENGTH);
+			const nonce = randomBytes(NONCE_LENGTH);
+			const sessionKey = randomBytes(KEY_LENGTH);
 			
 			// compute DH-shared key for encrypting a challenge
-			let compRes = computeDHSharedKeyFunc(userParamsAndKey.pkey)
-			let dhsharedKey = compRes.dhsharedKey
-			let serverPubKey = compRes.serverPubKey
+			const compRes = computeDHSharedKeyFunc(userParamsAndKey.pkey)
+			const dhsharedKey = compRes.dhsharedKey
+			const serverPubKey = compRes.serverPubKey
 			// make challenge with session key, removing and saving poly part
 			// for sending it later as a server verification at the end
-			let encryptedSessionKey = boxWN.pack(sessionKey, nonce, dhsharedKey)
-			let serverVerificationBytes = encryptedSessionKey.subarray(
+			const encryptedSessionKey = boxWN.pack(sessionKey, nonce, dhsharedKey)
+			const serverVerificationBytes = encryptedSessionKey.subarray(
 					NONCE_LENGTH, NONCE_LENGTH + POLY_LENGTH)
-			let challengeWithSessionKey = new Uint8Array(NONCE_LENGTH + KEY_LENGTH);
+			const challengeWithSessionKey = new Uint8Array(NONCE_LENGTH + KEY_LENGTH);
 			challengeWithSessionKey.set(
 					encryptedSessionKey.subarray(0, NONCE_LENGTH));
 			challengeWithSessionKey.set(

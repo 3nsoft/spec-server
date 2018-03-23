@@ -18,7 +18,7 @@
  * This module defines json form of keys and signed objects.
  */
 
-import { base64, utf8 } from './buffer-utils';
+import { utf8, base64 } from "./buffer-utils";
 
 export interface JsonKeyShort {
 	/**
@@ -70,11 +70,11 @@ export interface Key {
 	/**
 	 * This is key's bytes.
 	 */
-	use: string;
+	k: Uint8Array;
 	/**
 	 * This is key's id.
 	 */
-	k: Uint8Array;
+	kid: string;
 	/**
 	 * This field is indicates application's use of this key, for example,
 	 * "private-mail-key". Notice that it has noting to do with crypto 
@@ -83,7 +83,7 @@ export interface Key {
 	 *  miss-use of key material. Such strictness makes key reuse (bad security
 	 *  design) difficult. 
 	 */
-	alg: string;
+	use: string;
 	/**
 	 * This field indicates which crypto-box high level function should be used
 	 * with this key, for example, "NaCl-xsp-box". Notice that, unlike initial
@@ -98,7 +98,7 @@ export interface Key {
 	 * incomplete libs with mere crypto primitives, which hurt, when assembled
 	 * incorrectly.
 	 */
-	kid: string;
+	alg: string;
 }
 
 export interface SignedLoad {
@@ -165,7 +165,7 @@ export function keyFromJson(key: JsonKey,
 		use: string, alg: string, klen: number): Key {
 	if (key.use === use) {
 		if (key.alg === alg) {
-			let bytes = base64.open(key.k);
+			const bytes = base64.open(key.k);
 			if (bytes.length !== klen) { throw new Error(
 					"Key "+key.kid+" has a wrong number of bytes"); }
 			return {
@@ -208,7 +208,7 @@ export function getPrincipalAddress(signedCert: SignedLoad): string {
 
 export module use {
 	
-	export let MID_PKLOGIN = 'login-pub-key';
+	export const MID_PKLOGIN = 'login-pub-key';
 	
 }
 Object.freeze(use);

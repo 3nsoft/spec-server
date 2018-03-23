@@ -23,26 +23,21 @@ import * as express from 'express';
 
 // Internal libs
 import { json as parseJSON } from '../lib-server/middleware/body-parsers'
-import { allowCrossDomain } from '../lib-server/middleware/allow-cross-domain';
 
 // Resource/Data modules
-import { Factory as sessionsFactory } from '../lib-server/resources/sessions';
 import { Factory as usersFactory } from './resources/users';
+import { SessionsFactory } from './resources/sessions';
 
 // routes
 
 
 //import * as api from '../../lib-common/service-api/3nstorage/shared';
 
-export function makeApp(sessions: sessionsFactory, users: usersFactory):
+export function makeApp(sessions: SessionsFactory, users: usersFactory):
 		express.Express {
 	
-	let app = express();
+	const app = express();
 	app.disable('etag');
-	
-	app.use(allowCrossDomain(
-			[ "Content-Type", "X-Session-Id" ],
-			[ 'GET', 'POST', 'PUT', 'DELETE' ]));
 	
 	// TODO add sharing routes with proper session creation for authorities/capabilities
 	// If capacity needs only PKL entry, then manipulations can be done anonymously.

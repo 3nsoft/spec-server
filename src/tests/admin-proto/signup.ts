@@ -55,9 +55,9 @@ describe('Home server Admin', () => {
 			
 			const REQ_SIZE_LIMIT = 1024;
 			
-			let name = 'Bob Marley ';
+			const name = 'Bob Marley ';
 			
-			let reqOpts: RequestOpts= {
+			const reqOpts: RequestOpts= {
 				url: admin.signupUrl + signup.availableAddressesForName.URL_END,
 				method: 'POST',
 				responseType: 'json'
@@ -65,21 +65,21 @@ describe('Home server Admin', () => {
 			
 			// request with ok name
 			let req: signup.availableAddressesForName.Request = { name };
-			let rep = await doJsonRequest<string[]>(reqOpts, req);
+			const rep = await doJsonRequest<string[]>(reqOpts, req);
 			expect(rep.status).toBe(signup.availableAddressesForName.SC.ok, 'status code for OK reply');
 			expect(Array.isArray(rep.data)).toBe(true, 'OK reply is an array');
 			expect(rep.data.length).toBe(signupDomains.length, 'with no users, all domains should used as options for available addresses');
-			for (let domain of signupDomains) {
+			for (const domain of signupDomains) {
 				expect(rep.data).toContain(name+'@'+domain);
 			}
 			
 			// requests with bad names and with bad json's
-			let badNames = [ name+'@something',	// char is '@' not allowed
+			const badNames = [ name+'@something',	// char is '@' not allowed
 				'', ' ', '\t', '\n',	// these are all equivalent to empty string
 				5, null, undefined, {} ];	// non-strings
-			let badJSONs: any[] = [ name, 5, null, undefined, [ name ],
+			const badJSONs: any[] = [ name, 5, null, undefined, [ name ],
 				{ a: 1 } ];
-			for (let badName of badNames) {
+			for (const badName of badNames) {
 				req = { name: <string> badName };
 				badJSONs.push(req);
 			}
@@ -92,14 +92,14 @@ describe('Home server Admin', () => {
 			
 			const REQ_SIZE_LIMIT = 1024;
 			
-			let name = 'Bob Marley ';
+			const name = 'Bob Marley ';
 			
-			let reqOpts: RequestOpts= {
+			const reqOpts: RequestOpts= {
 				url: admin.signupUrl + signup.isAvailable.URL_END,
 				method: 'POST'
 			};
 							
-			let userId = name+'@'+signupDomains[0];
+			const userId = name+'@'+signupDomains[0];
 			
 			// request with ok user id (address)
 			let req: signup.isAvailable.Request = { userId };
@@ -112,13 +112,13 @@ describe('Home server Admin', () => {
 			expect(rep.status).toBe(signup.isAvailable.SC.userAlreadyExists, 'status code for an already existing user id');
 			
 			// requests with bad user ids and with bad json's
-			let badIds = [ name+'@something',	// not in service's domains
+			const badIds = [ name+'@something',	// not in service's domains
 				'bad domain str',
 				'', ' ', '\t', '\n',	// these are all equivalent to empty string
 				5, null, undefined, {} ];	// non-strings
-			let badJSONs: any[] = [ name, 5, null, undefined, [ name ],
+			const badJSONs: any[] = [ name, 5, null, undefined, [ name ],
 				{ a: 1 } ];
-			for (let id of badIds) {
+			for (const id of badIds) {
 				req = { userId: <string> id };
 				badJSONs.push(req);
 			}
@@ -128,13 +128,13 @@ describe('Home server Admin', () => {
 		});
 		
 		async function getAvailableAddressesFor(name: string): Promise<string[]> {
-			let reqOpts: RequestOpts= {
+			const reqOpts: RequestOpts= {
 				url: admin.signupUrl + signup.availableAddressesForName.URL_END,
 				method: 'POST',
 				responseType: 'json'
 			};
-			let req: signup.availableAddressesForName.Request = { name };
-			let rep = await doJsonRequest<string[]>(reqOpts, req);
+			const req: signup.availableAddressesForName.Request = { name };
+			const rep = await doJsonRequest<string[]>(reqOpts, req);
 			expect(rep.status).toBe(signup.availableAddressesForName.SC.ok);
 			return rep.data;
 		} 
@@ -166,15 +166,15 @@ describe('Home server Admin', () => {
 		}
 		
 		function makeBadAddUserReq(goodId: string): any[] {
-			let name = 'Bob Marley';
-			let badJSONs: any[] = [ name, 5, null, undefined, [ name ],
+			const name = 'Bob Marley';
+			const badJSONs: any[] = [ name, 5, null, undefined, [ name ],
 				{ a: 1 } ];
-			let badIds = [ name+'@something',	// not in service's domains
+			const badIds = [ name+'@something',	// not in service's domains
 				'bad domain str',
 				'', ' ', '\t', '\n',	// these are all equivalent to empty string
 				5, null, undefined, {} ];	// non-strings
-			for (let id of badIds) {
-				let req = makeAddUserReq(<string> id);
+			for (const id of badIds) {
+				const req = makeAddUserReq(<string> id);
 				badJSONs.push(req);
 			}
 			let req = makeAddUserReq(goodId);
@@ -229,11 +229,11 @@ describe('Home server Admin', () => {
 		}
 		
 		async function addNewUser(userId: string): Promise<void> {
-			let reqOpts: RequestOpts= {
+			const reqOpts: RequestOpts= {
 				url: admin.signupUrl + signup.addUser.URL_END,
 				method: 'POST'
 			};
-			let req = makeAddUserReq(userId);
+			const req = makeAddUserReq(userId);
 			let rep = await doJsonRequest<string[]>(reqOpts, req);
 			expect(rep.status).toBe(signup.addUser.SC.ok, 'status when user is added');
 			rep = await doJsonRequest<string[]>(reqOpts, req);
@@ -244,23 +244,23 @@ describe('Home server Admin', () => {
 			
 			const REQ_SIZE_LIMIT = 4*1024;
 			
-			let reqOpts: RequestOpts= {
+			const reqOpts: RequestOpts= {
 				url: admin.signupUrl + signup.addUser.URL_END,
 				method: 'POST'
 			};
 			
-			let name = 'Bob Marley ';
+			const name = 'Bob Marley ';
 			let addresses = await getAvailableAddressesFor(name);
 			let numOfAvailableAddresses = addresses.length;
 			expect(numOfAvailableAddresses).toBe(signupDomains.length);
 			
 			// requests with bad json's
-			let badJSONs = makeBadAddUserReq(addresses[0]);
+			const badJSONs = makeBadAddUserReq(addresses[0]);
 			await expectNonAcceptanceOfBadJsonRequest(reqOpts,
 				REQ_SIZE_LIMIT, badJSONs);
 			
 			// normal adding users
-			for (let userId of addresses) {
+			for (const userId of addresses) {
 				expect(addresses).toContain(userId);
 				await addNewUser(userId);
 				numOfAvailableAddresses -= 1;

@@ -17,11 +17,11 @@
 import { ServerRunner } from '../server-runner';
 import { mkdir, rmDirWithContent } from '../../../lib-common/async-fs-node';
 import { FileException } from '../../../lib-common/exceptions/file';
-import * as express from 'express';
 import { adminApp as makeAdminApp, Configurations,
 	servicesApp as makeServicesApp } from '../../../services';
 import { DNSMock } from '../../../mock/dns';
 import * as dns from 'dns';
+import { AppWithWSs } from '../../../lib-server/web-sockets/app';
 
 const DEFAULT_SERVICE_PORT = 8088;
 const DEFAULT_DATA_FOLDER = __dirname+'/../../../test-data';
@@ -42,25 +42,25 @@ export abstract class Component extends ServerRunner {
 			this.conf.mailerId.certs = this.dataFolder + (certs ?
 				certs : '/mid-certs.json');
 		}
-		let urlWithoutProto = this.url.substring(this.url.indexOf('://'+3))
+		let urlWithoutProto = this.url.substring(this.url.indexOf('://')+3);
 		this.dns = new DNSMock(urlWithoutProto+'mailerid/');
 	}
 	
-	async prepToRun(): Promise<express.Express> {
+	async prepToRun(): Promise<AppWithWSs> {
 		
 		// prepare data folders
 		try {
 			await mkdir(this.dataFolder);
 			await mkdir(this.conf.rootFolder);
 		} catch (exc) {
-			if (!(<FileException> exc).alreadyExists) { throw exc; }
+			if (!(exc as FileException).alreadyExists) { throw exc; }
 		}
 		
 		// inject dns mock
 		(dns as any).resolveTxt = this.dns.resolveTxt;
 
 		// setup servers
-		let app = express();
+		let app = new AppWithWSs();
 		app.use(makeAdminApp(this.conf));
 		app.use(makeServicesApp(this.conf));
 		

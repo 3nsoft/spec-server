@@ -21,7 +21,6 @@
 import * as express from 'express';
 
 // Internal libs
-import { allowCrossDomain } from '../lib-server/middleware/allow-cross-domain';
 import { json as parseJSON } from '../lib-server/middleware/body-parsers';
 import { makeErrHandler } from '../lib-server/middleware/error-handler';
 
@@ -38,12 +37,8 @@ import { availableAddresses } from './routes/get-available-addresses';
 import * as signupApi from '../lib-common/admin-api/signup';
 
 function apiPart(users: usersFactory): express.Express {
-	let app = express();
+	const app = express();
 	app.disable('etag');
-	
-	app.use(allowCrossDomain(
-		[ "Content-Type" ],
-		[ 'POST' ]))
 	
 	app.post('/'+signupApi.isAvailable.URL_END,
 		parseJSON('1kb'),
@@ -59,11 +54,12 @@ function apiPart(users: usersFactory): express.Express {
 }
 
 export function makeApp(domains: string[], rootFolder: string): express.Express {
-	let app = express();
-	let users = makeUserFactory(domains, rootFolder);
+	const app = express();
+	const users = makeUserFactory(domains, rootFolder);
 	
 	app.use('/signup', apiPart(users));
-	app.use(express.static(__dirname + '/public-content'));
+	// TODO add static, only when it will be created
+	// app.use(express.static(__dirname + '/public-content'));
 	app.use(makeErrHandler());
 	
 	return app;

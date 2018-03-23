@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2017 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -20,10 +20,9 @@
  */
 
 import * as https from "https";
-import * as fs from 'fs';
 import * as express from 'express';
-import { FileException, Code as excCode } from './lib-common/exceptions/file';
 import { validator } from './lib-server/resources/mailerid-authorizer';
+import { AppWithWSs } from './lib-server/web-sockets/app';
 
 import { makeApp as makeMailerIdApp } from './mailerId/mailerId-app';
 import { makeApp as makeMailApp } from './asmail/asmail-app';
@@ -56,32 +55,34 @@ export interface Configurations {
 	};
 }
 
-export function servicesApp(conf: Configurations): express.Express {
-	let serviceApp = express();
-	let rootFolder = conf.rootFolder+'/users';
+export function servicesApp(conf: Configurations): AppWithWSs {
+
+	const rootFolder = `${conf.rootFolder}/users`;
 	if (!conf.enabledServices || (typeof conf.enabledServices !== 'object')) {
 		throw new Error('Missing enabled-services sections in confs.');
 	}
-	let midAuthorizer = validator();	// share, allowing for caching of certs
+
+	const app = new AppWithWSs();
+	const midAuthorizer = validator();	// share, allowing for caching of certs
+
 	if (conf.enabledServices.mailerId) {
-		serviceApp.use('/mailerid', makeMailerIdApp(
+		app.http.use('/mailerid', makeMailerIdApp(
 			rootFolder, conf.domain, conf.mailerId!.certs));
 	}
+
 	if (conf.enabledServices.asmail) {
-		serviceApp.use('/asmail',
-			makeMailApp(rootFolder, conf.domain, midAuthorizer));
+		app.use('/asmail', makeMailApp(rootFolder, conf.domain, midAuthorizer));
 	}
+
 	if (conf.enabledServices.storage) {
-		serviceApp.use('/3nstorage',
+		app.use('/3nstorage',
 			makeStoreApp(rootFolder, conf.domain, midAuthorizer));
 	}
-	return serviceApp;
+	return app;
 }
 
-export function adminApp(conf: Configurations): express.Express {
-	let adminApp = makeAdminApp(conf.signup.domains, conf.rootFolder);
-	return adminApp;
+export function adminApp(conf: Configurations): AppWithWSs {
+	return new AppWithWSs(makeAdminApp(conf.signup.domains, conf.rootFolder));
 }
-
 
 Object.freeze(exports);

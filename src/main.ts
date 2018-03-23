@@ -18,42 +18,33 @@
  * This script starts server, according to settings, given in config file.
  */
 
-import * as https from "https";
-import * as http from "http";
 import * as fs from 'fs';
 import { Configurations, servicesApp as makeServiceApp,
 	adminApp as makeAdminApp } from './services';
-import { startService } from './lib-server/async-server';
 
-let confFile = process.argv[2];
+const confFile = process.argv[2];
 if (!confFile) {
 	console.error('Configuration file is not given. '+
 		'It should be the first script argument.');
 }
-let conf: Configurations =
+const conf: Configurations =
 	JSON.parse(fs.readFileSync(confFile, 'utf8'));
 
-let serviceApp = makeServiceApp(conf);
-let serviceServer = (conf.servicesConnect!.sslOts ?
-	https.createServer(conf.servicesConnect!.sslOts!, serviceApp) :
-	http.createServer(serviceApp));
-
-let adminApp = makeAdminApp(conf);
-let adminServer = (conf.adminConnect!.sslOts ?
-	https.createServer(conf.adminConnect!.sslOts!, adminApp) :
-	http.createServer(adminApp));
+const serviceApp = makeServiceApp(conf);
+const adminApp = makeAdminApp(conf);
 
 (async () => {
 	try {
-		await startService(serviceServer,
-			conf.servicesConnect!.port,
-			conf.servicesConnect!.hostname)
-		console.log('\nServices are up and running.');
-		// TODO start administrative interface
-		// await startService(adminServer,
-		// 	conf.adminConnect.port,
-		// 	conf.adminConnect.hostname)
-		// console.log('\Administration interface is up and running.');
+		if (conf.servicesConnect) {
+			const conn = conf.servicesConnect;
+			await serviceApp.start(conn.sslOts, conn.port, conn.hostname);
+			console.log('\nServices are up and running.');
+		}
+		if (conf.adminConnect) {
+			const conn = conf.adminConnect;
+			await adminApp.start(conn.sslOts, conn.port, conn.hostname);
+			console.log('\Administration interface is up and running.');
+		}
 	} catch (err) {
 		console.error(err);
 		process.exit(-500);
