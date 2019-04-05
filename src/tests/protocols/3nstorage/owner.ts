@@ -28,11 +28,11 @@ import { expectNonAcceptanceOfBadSessionId, expectNonAcceptanceOfNonEmptyBody,
 	expectNonAcceptanceOfBadJsonRequest }
 	from '../../shared-checks/requests';
 import { startSession } from './owner/test-utils';
-import { resolve } from 'path';
+import { join as joinPaths } from 'path';
 import { addSpecsFrom } from '../../libs-for-tests/spec-assembly';
 import { deepEqual }  from '../../libs-for-tests/json-equal';
 
-const SPECS_FOLDER = resolve(__dirname, './owner/specs');
+const SPECS_FOLDER = joinPaths(__dirname, './owner/specs');
 
 describe('3NStorage owner service', () => {
 	

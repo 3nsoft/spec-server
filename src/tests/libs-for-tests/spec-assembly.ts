@@ -14,7 +14,7 @@
  You should have received a copy of the GNU General Public License along with
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
-import { resolve } from 'path';
+import { join as joinPaths } from 'path';
 import { readdirSync } from 'fs';
 
 export interface GenericSpecDescribe<TSetup> {
@@ -39,7 +39,7 @@ function setupSpecs<TSetup>(specs: GenericSpecDescribe<TSetup>,
 export function addSpecsFrom<TSetup>(specsFolder: string,
 		setup: () => TSetup): void {
 	for (let fName of readdirSync(specsFolder)) {
-		let modPath = resolve(specsFolder, fName);
+		let modPath = joinPaths(specsFolder, fName);
 		let specs: ExportedSpecs<TSetup> = require(modPath).specs;
 		if (!specs) {
 			console.error(`Module ${fName} is not exposing specs objects with tests`);

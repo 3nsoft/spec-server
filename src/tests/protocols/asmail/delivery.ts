@@ -22,10 +22,10 @@ import { User } from '../../libs-for-tests/mailerid';
 import { p } from '../../../lib-common/service-api/asmail/config';
 import { setInboxParams, generateInitPubKey }
 	from '../../libs-for-tests/asmail';
-import { resolve } from 'path';
+import { join as joinPaths } from 'path';
 import { addSpecsFrom } from '../../libs-for-tests/spec-assembly';
 
-const SPECS_FOLDER = resolve(__dirname, './delivery/specs');
+const SPECS_FOLDER = joinPaths(__dirname, './delivery/specs');
 
 describe('ASMail delivery service', () => {
 	

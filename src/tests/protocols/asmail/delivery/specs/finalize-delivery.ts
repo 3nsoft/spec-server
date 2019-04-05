@@ -56,7 +56,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 	
 	itAsync(`marks message as completely delivered`, async () => {
 		expect(await asmailServer.msgExists(user2.id, sessInfo.msgId, false)).toBeTruthy('message is known to be in delivery');
-		
+
 		let rep = await doBodylessRequest<void>(reqOpts);
 		expect(rep.status).toBe(api.SC.ok, 'normal end of message delivering session');
 		expect(await asmailServer.msgExists(user2.id, sessInfo.msgId, true, msg)).toBeTruthy('message must now be delivered');

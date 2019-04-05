@@ -28,10 +28,10 @@ import { bytes as randomBytes } from '../../../lib-common/random-node';
 import { Msg, sendMsg } from '../../libs-for-tests/asmail';
 import { bytesEqual } from '../../libs-for-tests/bytes-equal';
 import { addSpecsFrom } from '../../libs-for-tests/spec-assembly';
-import { resolve } from 'path';
+import { join as joinPaths } from 'path';
 import { startSession } from './retrieval/test-utils';
 
-const SPECS_FOLDER = resolve(__dirname, './retrieval/specs');
+const SPECS_FOLDER = joinPaths(__dirname, './retrieval/specs');
 
 describe('ASMail retrieval service', () => {
 	

@@ -109,7 +109,7 @@ async function start(env: RequestEnvelope<MockConfAtStart>):
 		asmail: `${conf.domain}:${servicePort}/asmail/`,
 		storage: `${conf.domain}:${servicePort}/3nstorage/`,
 		signup: `${conf.domain}:${servicePort}/signup/`,
-		tlsCert: sslOpts.cert
+		tlsCert: sslOpts.cert as string
 	};
 	return urls;
 }
