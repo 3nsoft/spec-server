@@ -19,6 +19,7 @@ import { stringToNumOfBytes } from '../conf-util';
 import { makeErr } from './error-handler';
 import { defer } from '../../lib-common/processes';
 import { BytesFIFOBuffer } from '../../lib-common/byte-streaming/common';
+import { EMPTY_BUFFER } from '../../lib-common/buffer-utils';
 
 const HTTP_HEADER = {
 	contentType: 'Content-Type',
@@ -30,8 +31,6 @@ const TYPES = {
 	json: 'application/json',
 	bin: 'application/octet-stream'
 }
-
-const EMPTY_BUFFER = new Buffer(0);
 
 const noop = {
 	onData: (chunk: Buffer) => {},

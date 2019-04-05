@@ -171,7 +171,7 @@ Object.freeze(SpaceTracker);
 
 const spaceTracker = new SpaceTracker();
 
-const SINGLE_BYTE_BUF = new Buffer(1);
+const SINGLE_BYTE_BUF = Buffer.alloc(1);
 SINGLE_BYTE_BUF[0] = 0;
 
 function getFstAndLastSections(sections: number[][], offset: number,

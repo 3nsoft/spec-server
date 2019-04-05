@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015, 2017 3NSoft Inc.
+ Copyright (C) 2015, 2017, 2019 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -14,9 +14,11 @@
  You should have received a copy of the GNU General Public License along with
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
+import { errWithCause } from "./exceptions/error";
+
 export function sleep(millis: number): Promise<void> {
 	return new Promise<void>((resolve) => {
-		setTimeout(resolve, millis);
+		setTimeout(resolve, millis).unref();
 	});
 }
 
@@ -161,15 +163,15 @@ Object.freeze(NamedProcs);
  * Common use of such class is to reuse getting of some expensive resource, or
  * do ning something as an exclusive process.
  */
-export class SingleProc<T> {
+export class SingleProc {
 	
-	private promise: Promise<T>|undefined = undefined;
+	private promise: Promise<any>|undefined = undefined;
 	
 	constructor() {
 		Object.seal(this);
 	}
 	
-	private insertPromise(promise: Promise<T>): Promise<T> {
+	private insertPromise<T>(promise: Promise<T>): Promise<T> {
 		promise = finalize(promise, () => {
 			if (this.promise === promise) {
 				this.promise = undefined;
@@ -179,21 +181,21 @@ export class SingleProc<T> {
 		return promise;
 	}
 	
-	getP(): Promise<T>|undefined {
+	getP<T>(): Promise<T>|undefined {
 		return this.promise;
 	}
 	
-	addStarted(promise: Promise<T>): Promise<T> {
+	addStarted<T>(promise: Promise<T>): Promise<T> {
 		if (this.promise) { throw new Error('Process is already in progress.'); }
 		return this.insertPromise(promise);
 	}
 	
-	start(action: Action<T>): Promise<T> {
+	start<T>(action: Action<T>): Promise<T> {
 		if (this.promise) { throw new Error('Process is already in progress.'); }
 		return this.insertPromise(action());
 	}
 	
-	startOrChain(action: Action<T>): Promise<T> {
+	startOrChain<T>(action: Action<T>): Promise<T> {
 		if (this.promise) {
 			const next = this.promise.then(() => { return action(); });
 			return this.insertPromise(next);
@@ -205,6 +207,72 @@ export class SingleProc<T> {
 }
 Object.freeze(SingleProc.prototype);
 Object.freeze(SingleProc);
+
+/**
+ * This wraps given function/method into syncing wrap.
+ */
+export function makeSyncedFunc<T extends Function>(
+		syncProc: SingleProc, thisArg: any, func: T): T {
+	return ((...args) => syncProc.startOrChain(() => func.apply(thisArg, args))) as any as T;
+}
+
+/**
+ * This is a cycling process, that ensures single execution.
+ * It cycles while given "while" predicate returns true. When predicate returns
+ * false, process goes to idle. Pushing this process into action is done via
+ * startIfIdle() method.
+ */
+export class SingleCyclicProc {
+
+	private proc: Promise<void>|undefined = undefined;
+	
+	/**
+	 * @param cycleWhile is a "while" predicate. When it returns true, process
+	 * continues to cycle, and when it returns false, process goes to idle.
+	 * @param action is an async cycle body to run at each iteration.
+	 */
+	constructor(
+			private cycleWhile: () => boolean,
+			private action: () => Promise<void>) {
+		Object.seal(this);
+	}
+
+	/**
+	 * This starts process, if it is idle.
+	 */
+	startIfIdle(): void {
+		if (this.proc) { return; }
+		this.proc = this.action();
+		this.proc.then(this.cycleOrIdle);
+	}
+
+	private cycleOrIdle = () => {
+		if (this.cycleWhile()) {
+			this.proc = this.action();
+		} else {
+			this.proc = undefined;
+		}
+	};
+
+	isRunning(): boolean {
+		return !!this.proc;
+	}
+
+	/**
+	 * This makes process unusable and unstartable. Waiting on a return promise,
+	 * awaits the completion of the last iteration this process is in (if any).
+	 */
+	async close(): Promise<void> {
+		this.cycleWhile = () => false;
+		this.action = () => {
+			throw new Error('This cyclic process has already been closed');
+		};
+		await this.proc;
+	}
+
+}
+Object.freeze(SingleCyclicProc.prototype);
+Object.freeze(SingleCyclicProc);
 
 function oneTimeCaller(f: () => void): () => void {
 	let hasBeenCalled = false;
@@ -395,5 +463,38 @@ export function defer<T>(): Deferred<T> {
 	Object.freeze(d);
 	return d;
 }
+
+export class PressureValve {
+
+	private stopper: Deferred<void>|undefined = undefined;
+
+	constructor() {
+		Object.seal(this);
+	}
+
+	toggle(flag: boolean): void {
+		if (flag) {
+			if (this.stopper) { return; }
+			this.stopper = defer();
+		} else {
+			if (!this.stopper) { return; }
+			this.stopper.resolve();
+			this.stopper = undefined;
+		}
+	}
+
+	pressWithError(err: any): void {
+		this.toggle(true);
+		this.stopper!.reject(errWithCause(err, `Backpressure error`));
+	}
+
+	readonly pressure = async (): Promise<void> => {
+		if (!this.stopper) { return; }
+		await this.stopper.promise;
+	}
+
+}
+Object.freeze(PressureValve.prototype);
+Object.freeze(PressureValve);
 
 Object.freeze(exports);

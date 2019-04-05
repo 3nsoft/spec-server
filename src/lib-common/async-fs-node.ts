@@ -407,7 +407,7 @@ export async function streamToExistingFile(filePath: string, pos: number,
 	if ((typeof bufSize !== 'number') || (bufSize < 1024)) { throw new Error(
 		'Illegal buffer size given: '+bufSize); }
 		
-	const writeProc = new SingleProc<void>();
+	const writeProc = new SingleProc();
 	let bytesWritten = 0;
 	let bytesRead = 0;
 	const buf = new BytesFIFOBuffer();

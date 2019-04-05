@@ -14,9 +14,9 @@ To use this repo, you need [Node.js](https://nodejs.org/) with [Typescript](http
 
 When in the project's folder, run
 ```
-npm install
+npm ci
 ```
-to pull in all necessary dependencies.
+to pull in all necessary dependencies. Note that option `ci` brings exact versions, mentioned in `package-lock.json`, while option `i` (`install`) may get other versions, based on ranges in `package.json`.
 
 After that, run npm scripts:
 ```

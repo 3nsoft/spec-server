@@ -21,8 +21,7 @@ import { GetObjQueryOpts, ERR_SC, msgObj as api, HTTP_HEADER }
 	from '../../../lib-common/service-api/asmail/retrieval';
 import { Request } from '../../resources/sessions';
 import { errWithCause } from '../../../lib-common/exceptions/error';
-
-const EMPTY_BUFFER = new Buffer(0);
+import { EMPTY_BUFFER } from '../../../lib-common/buffer-utils';
 
 function extractQueryOptions(req: Request): undefined |
 		{ header: boolean; limit: number|undefined; ofs: number; } {

@@ -20,7 +20,6 @@
  */
 
 import * as https from "https";
-import * as express from 'express';
 import { validator } from './lib-server/resources/mailerid-authorizer';
 import { AppWithWSs } from './lib-server/web-sockets/app';
 

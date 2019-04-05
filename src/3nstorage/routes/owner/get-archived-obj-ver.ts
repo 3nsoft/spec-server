@@ -22,8 +22,7 @@ import { GetObjQueryOpts, ERR_SC, HTTP_HEADER, BIN_TYPE,
 	from '../../../lib-common/service-api/3nstorage/owner';
 import { Request } from '../../resources/sessions';
 import { errWithCause } from '../../../lib-common/exceptions/error';
-
-const EMPTY_BUFFER = new Buffer(0);
+import { EMPTY_BUFFER } from '../../../lib-common/buffer-utils';
 
 function extractQueryOptions(req: Request): undefined |
 		{ header: boolean; limit: number|undefined; ofs: number; ver: number } {

@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 3NSoft Inc.
+ Copyright (C) 2016, 2018 - 2019 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -14,7 +14,7 @@
  You should have received a copy of the GNU General Public License along with
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
-const EMPTY_BUFFER = new Buffer(0);
+export const EMPTY_BUFFER = Buffer.alloc(0);
 
 /**
  * Buffer and Uint8Array are intimately linked in Node, starting with some
@@ -89,5 +89,19 @@ export namespace utf8 {
 	
 }
 Object.freeze(utf8);
+
+export function joinByteArrs(arrs: Uint8Array[]): Uint8Array {
+	let totalLen = 0;
+	for (const arr of arrs) {
+		totalLen += arr.length;
+	}
+	const allBytes = Buffer.allocUnsafe(totalLen);
+	let ofs = 0;
+	for (const arr of arrs) {
+		allBytes.set(arr, ofs);
+		ofs += arr.length;
+	}
+	return allBytes;
+}
 
 Object.freeze(exports);

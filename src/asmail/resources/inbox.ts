@@ -103,7 +103,7 @@ async function genMsgIdAndMakeFolder(delivPath: string, msgsFolder: string):
 export class Inbox extends UserFiles {
 
 	private cachedMetas = new TimeWindowCache<string, MsgMeta>(5*60*1000);
-	private metaSavingProc = new SingleProc<void>();
+	private metaSavingProc = new SingleProc();
 	private mailEventsSink: MailEventsSink;
 	
 	constructor(userId: string, path: string, mailEventsSink: MailEventsSink,

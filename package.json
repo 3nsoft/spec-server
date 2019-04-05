@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.1.2",
   "description": "3NWeb spec server.",
-  "main": "build/for-now-missing-server.js",
+  "main": "build/run.js",
   "scripts": {
     "test": "tsc && node build/tests/jasmine.js",
     "build": "tsc"
