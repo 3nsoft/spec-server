@@ -35,7 +35,7 @@ import { decryptSessionParamsForCurve25519, startPKLSession, doPubKeyLogin,
 	User } from '../libs-for-tests/pkl';
 import { user as midUser, relyingParty }
 	from '../../lib-common/mid-sigs-NaCl-Ed';
-import { bytes as randomBytes } from '../../lib-common/random-node';
+import { bytesSync as randomBytes } from '../../lib-common/random-node';
 import { toCanonicalAddress } from '../../lib-common/canonical-address';
 import { deepEqual } from '../libs-for-tests/json-equal';
 import { JsonKey } from '../../lib-common/jwkeys';

@@ -16,8 +16,7 @@
 
 import { RequestHandler, Response, NextFunction } from 'express';
 import { SC as storeSC } from '../../resources/users';
-import { PARAM_SC, ERR_SC }
-	from '../../../lib-common/service-api/3nstorage/owner';
+import { PARAM_SC, ERR_SC } from '../../../lib-common/service-api/3nstorage/owner';
 import { Request } from '../../resources/sessions';
 
 export function setParam<T>(

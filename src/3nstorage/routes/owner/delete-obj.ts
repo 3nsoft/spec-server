@@ -16,8 +16,7 @@
 
 import { RequestHandler, Response, NextFunction } from 'express';
 import { DeleteObj, SC as storeSC } from '../../resources/users';
-import { ERR_SC, currentObj as api }
-	from '../../../lib-common/service-api/3nstorage/owner';
+import { ERR_SC, currentObj as api } from '../../../lib-common/service-api/3nstorage/owner';
 import { Request } from '../../resources/sessions';
 
 export function deleteObj(root: boolean, delCurrent: boolean,

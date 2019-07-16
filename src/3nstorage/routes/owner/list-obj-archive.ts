@@ -16,8 +16,7 @@
 
 import { RequestHandler, Response, NextFunction } from 'express';
 import { ListObjArchive, SC as storeSC } from '../../resources/users';
-import { archiveObj as api }
-	from '../../../lib-common/service-api/3nstorage/owner';
+import { archiveObj as api } from '../../../lib-common/service-api/3nstorage/owner';
 import { Request } from '../../resources/sessions';
 
 export function listObjArchive(root: boolean,

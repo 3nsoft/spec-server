@@ -15,11 +15,8 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Request, Response, NextFunction } from 'express';
-import { box } from 'ecma-nacl';
 import { addUser as api, ERR_SC } from '../../lib-common/admin-api/signup';
-import { ICheckId, IAdd, SC as userSC, validateUserMidParams,
-	validateUserStorageParams } from '../resources/users';
-import { isLikeJsonKey } from '../../lib-common/jwkeys';
+import { ICheckId, IAdd, SC as userSC, validateUserMidParams, validateUserStorageParams } from '../resources/users';
 
 /**
  * @return route handler that reserves new user ids.
@@ -53,7 +50,7 @@ export function addUser(idCheckFunc: ICheckId, addUserFunc: IAdd):
 		
 		try {
 			await addUserFunc(userParams.userId,
-				userParams.mailerId, userParams.storage.params);
+				userParams.mailerId, userParams.storage.kdParams);
 			res.status(api.SC.ok).end();
 		} catch (err) {
 			if (err === userSC.USER_ALREADY_EXIST) {

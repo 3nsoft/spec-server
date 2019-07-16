@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 - 2017 3NSoft Inc.
+ Copyright (C) 2016 - 2017, 2019 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -53,8 +53,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		maxChunkSize = sessInfo.maxChunkSize!;
 		fstReqOpts = {
 			url: resolveUrl(deliveryUrl, api.firstPutReqUrlEnd(
-				obj1.objId,
-				{ header: obj1.header.length, segs: obj1.segs.length })),
+				obj1.objId, { header: obj1.header.length })),
 			method: 'PUT',
 			sessionId: sessInfo.sessionId
 		};
@@ -70,7 +69,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		const opts = copy(fstReqOpts);
 		opts.url = resolveUrl(deliveryUrl, api.firstPutReqUrlEnd(
 			'unknown-obj',
-			{ header: obj1.header.length, segs: obj1.segs.length }));
+			{ header: obj1.header.length, last: true }));
 		const rep = await doBinaryRequest<any>(opts, [ obj1.header, obj1.segs ]);
 		expect(rep.status).toBe(api.SC.unknownObj, 'status for unknown object');
 	});
@@ -78,7 +77,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 	itAsync('fails for unknown object, in secondary put request', async () => {
 		const opts = copy(sndReqOpts);
 		opts.url = resolveUrl(deliveryUrl, api.secondPutReqUrlEnd(
-			'unknown-obj', { ofs: 0 }));
+			'unknown-obj', { ofs: 0, last: true }));
 		const rep = await doBinaryRequest<any>(opts, obj1.segs);
 		expect(rep.status).toBe(api.SC.unknownObj, 'status for unknown object');
 	});
@@ -91,7 +90,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 	itAsync('first request is limited by session parameter', async () => {
 		const opts = copy(fstReqOpts);
 		opts.url = resolveUrl(deliveryUrl, api.firstPutReqUrlEnd(
-			obj1.objId, { header: 100, segs: maxChunkSize }));
+			obj1.objId, { header: 100, last: true }));
 		await expectNonAcceptanceOfLongBody(opts, 'application/octet-stream',
 			maxChunkSize+100);
 	});
@@ -99,63 +98,43 @@ specs.definition = (setup: () => TestSetup) => (() => {
 	itAsync('second request is limited by session parameter', async () => {
 		const opts = copy(fstReqOpts);
 		opts.url = resolveUrl(deliveryUrl, api.firstPutReqUrlEnd(obj1.objId,
-			{ header: obj1.header.length, segs: maxChunkSize+1 }));
+			{ header: obj1.header.length }));
 		const rep = await doBinaryRequest<void>(opts, obj1.header);
 		opts.url = resolveUrl(deliveryUrl, api.secondPutReqUrlEnd(
 			obj1.objId, { ofs: 0 }));
 		await expectNonAcceptanceOfLongBody(opts, 'application/octet-stream',
-			maxChunkSize);
+			maxChunkSize+100);
 	});
 	
 	itAsync(`writes whole object in one request`, async () => {
 		const opts = copy(fstReqOpts);
 		opts.url = resolveUrl(deliveryUrl, api.firstPutReqUrlEnd(obj1.objId,
-			{ header: obj1.header.length, segs: obj1.segs.length }));
+			{ header: obj1.header.length, last: true }));
 		let rep = await doBinaryRequest<void>(opts, [ obj1.header, obj1.segs ]);
 		expect(rep.status).toBe(api.SC.ok, 'status for successful writing of segments bytes');
 	});
 
-	itAsync(`writes object in several non-appending requests`, async () => {
-		// first request, to start non-appending transmission
+	itAsync(`writes object in several requests`, async () => {
+		// first request, to start transmission
 		const opts = copy(fstReqOpts);
 		opts.url = resolveUrl(deliveryUrl, api.firstPutReqUrlEnd(
-			obj2.objId,
-			{ header: obj2.header.length, segs: obj2.segs.length }));
+			obj2.objId, { header: obj2.header.length }));
 		// we send only header here, but we may send some segment bytes as well
 		const rep = await doBinaryRequest<void>(opts, obj2.header);
 		expect(rep.status).toBe(api.SC.ok, 'status for successful writing of segments bytes');
 
 		// following requests
-		for (let offset=0; offset<obj2.segs.length; offset+=512) {
-			opts.url = resolveUrl(deliveryUrl, api.secondPutReqUrlEnd(obj2.objId,
-				{ ofs: offset }));
-			const chunk = obj2.segs.subarray(offset, offset + 512);
+		for (let ofs=0; ofs<obj2.segs.length; ofs+=512) {
+			const chunk = obj2.segs.subarray(ofs, ofs + 512);
+			const last = ((ofs + chunk.length) === obj2.segs.length);
+			opts.url = resolveUrl(deliveryUrl,
+				api.secondPutReqUrlEnd(obj2.objId, { ofs, last }));
 			const rep = await doBinaryRequest<void>(opts, chunk);
 			expect(rep.status).toBe(api.SC.ok, 'status for successful writing of segments bytes');
 		}
 
 	});
 
-	itAsync(`writes object in several appending requests`, async () => {
-		// first request, to start appending transmission
-		const opts = copy(fstReqOpts);
-		opts.url = resolveUrl(deliveryUrl, api.firstPutReqUrlEnd(obj2.objId,
-			{ header: obj2.header.length, append: true }));
-		// we send only header here, but we may send some segment bytes as well
-		let rep = await doBinaryRequest<void>(opts, obj2.header);
-		expect(rep.status).toBe(api.SC.ok, 'status for successful writing of segments bytes');
-
-		// following requests
-		for (let offset=0; offset<obj2.segs.length; offset+=512) {
-			const last = ((offset + 512) >= obj2.segs.length);
-			opts.url = resolveUrl(deliveryUrl, api.secondPutReqUrlEnd(obj2.objId,
-				{ append: true }));
-			const chunk = obj2.segs.subarray(offset, offset + 512);
-			const rep = await doBinaryRequest<void>(opts, chunk);
-		}
-
-	});
-	
 	itAsync(`should not work, if metadata hasn't been sent, yet`, async () => {
 		const opts = copy(fstReqOpts);
 		opts.sessionId = (await startMsgDeliverySession(

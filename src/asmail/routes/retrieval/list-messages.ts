@@ -16,8 +16,7 @@
 
 import { RequestHandler, Response, NextFunction } from 'express';
 import { SC as recipSC, GetMsgIds } from '../../resources/recipients';
-import { listMsgs as api, ERR_SC }
-	from '../../../lib-common/service-api/asmail/retrieval';
+import { listMsgs as api, ERR_SC } from '../../../lib-common/service-api/asmail/retrieval';
 import { Request } from '../../resources/sessions';
 
 export function listMsgIds(listMsgIdsFunc: GetMsgIds): RequestHandler {

@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 3NSoft Inc.
+ Copyright (C) 2016, 2019 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,7 @@ import { JsonKey } from '../../lib-common/jwkeys';
 import { box } from 'ecma-nacl';
 import * as deliveryApi from '../../lib-common/service-api/asmail/delivery';
 import { BaseObj as Obj } from './3nstorage';
+import { assert } from './assert';
 
 export { BaseObj as Obj } from './3nstorage';
 
@@ -64,12 +65,12 @@ export const PUBLIC_KEY_USE = 'asmail-pub-key';
 export async function generateInitPubKey(midUrl: string, user: User):
 		Promise<p.initPubKey.Certs> {
 	let midSigner = await provisionMidSigner(midUrl, user);
-	let skeyBytes = random.bytes(box.KEY_LENGTH);
+	let skeyBytes = await random.bytes(box.KEY_LENGTH);
 	let pkeyBytes = box.generate_pubkey(skeyBytes);
 	let pkey: JsonKey = {
 		use: PUBLIC_KEY_USE,
 		alg: box.JWK_ALG_NAME,
-		kid: random.stringOfB64Chars(10),
+		kid: await random.stringOfB64Chars(10),
 		k: base64.pack(pkeyBytes)
 	};
 	let pkeyCert = midSigner.certifyPublicKey(pkey, 30*24*60*60);
@@ -123,32 +124,31 @@ export async function sendMsgObj(deliveryUrl: string, sessionId: string,
 		chunkLimit = 512*1024;
 	}
 	
-	let offset = 0;
+	let ofs = 0;
 	const segsLen = obj.segs.length;
-	while (offset < segsLen) {
+	while (ofs < segsLen) {
 		const reqOpts: RequestOpts = { url: '', method: 'PUT', sessionId };
 		let bytesToSend: Uint8Array | Uint8Array[];
-		let offsetDelta: number;
 		
-		if (offset === 0) {
+		if (ofs === 0) {
 			// first request starts with header
-			const headerLen = obj.header.length;
-			const chunk = obj.segs.subarray(0, chunkLimit - headerLen);
-			bytesToSend = [ obj.header, chunk ];
+			const header = obj.header.length;
+			const segsChunk = obj.segs.subarray(0, chunkLimit - header);
+			const last = (segsChunk.length === obj.segs.length);
+			bytesToSend = [ obj.header, segsChunk ];
 			reqOpts.url = resolveUrl(deliveryUrl,
-				deliveryApi.msgObj.firstPutReqUrlEnd(
-					obj.objId,
-					{ header: headerLen, segs: segsLen }));
+				deliveryApi.msgObj.firstPutReqUrlEnd(obj.objId, { header, last }));
+			ofs += segsChunk.length;
 		} else {
 			// second request(s) send bytes
+			bytesToSend = obj.segs.subarray(ofs, ofs+chunkLimit);
+			const last = ((ofs + bytesToSend.length) === obj.segs.length);
 			reqOpts.url = resolveUrl(deliveryUrl,
-				deliveryApi.msgObj.secondPutReqUrlEnd(obj.objId, { ofs: offset }));
-			bytesToSend = obj.segs.subarray(offset, offset+chunkLimit);
+				deliveryApi.msgObj.secondPutReqUrlEnd(obj.objId, { ofs, last }));
+			ofs += bytesToSend.length;
 		}
 		const rep = await doBinaryRequest<void>(reqOpts, bytesToSend);
-		expect(rep.status).toBe(deliveryApi.msgObj.SC.ok);
-		offset += (Array.isArray(bytesToSend) ?
-			bytesToSend[1].length : bytesToSend.length);
+		assert(rep.status === deliveryApi.msgObj.SC.ok, `Msg obj isn't saved: server status ${rep.status} instead of expected ${deliveryApi.msgObj.SC.ok}`);
 	}
 }
 

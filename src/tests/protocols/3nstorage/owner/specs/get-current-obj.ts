@@ -25,7 +25,7 @@ import { RequestOpts, doBodylessRequest, Reply }
 import { Obj, saveObj }	from '../../../../libs-for-tests/3nstorage';
 import { expectNonAcceptanceOfBadSessionId }
 	from '../../../../shared-checks/requests';
-import { bytes as randomBytes } from '../../../../../lib-common/random-node';
+import { bytesSync as randomBytes } from '../../../../../lib-common/random-node';
 import { resolve as resolveUrl } from 'url';
 import { copy } from '../../../../libs-for-tests/json-copy';
 import { bytesEqual } from '../../../../libs-for-tests/bytes-equal';
@@ -214,7 +214,7 @@ const diffVer: Obj = {
 
 function combineDiffSegs(baseSegs: Uint8Array, diffObj: Obj): Uint8Array {
 	if (!diffObj.diff) { throw new Error(`object has no diff`); }
-	const combined = new Buffer(diffObj.diff.segsSize);
+	const combined = Buffer.alloc(diffObj.diff.segsSize);
 	let offset = 0;
 	for (const s of diffObj.diff.sections) {
 		const src = ((s[0] === 0) ? baseSegs : diffObj.segs);

@@ -15,10 +15,8 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { SC as recipSC, GetObj, BIN_TYPE }
-	from '../../resources/recipients';
-import { GetObjQueryOpts, ERR_SC, msgObj as api, HTTP_HEADER }
-	from '../../../lib-common/service-api/asmail/retrieval';
+import { SC as recipSC, GetObj, BIN_TYPE } from '../../resources/recipients';
+import { GetObjQueryOpts, ERR_SC, msgObj as api, HTTP_HEADER } from '../../../lib-common/service-api/asmail/retrieval';
 import { Request } from '../../resources/sessions';
 import { errWithCause } from '../../../lib-common/exceptions/error';
 import { EMPTY_BUFFER } from '../../../lib-common/buffer-utils';

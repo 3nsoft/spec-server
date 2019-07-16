@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 3NSoft Inc.
+ Copyright (C) 2015, 2019 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -18,8 +18,8 @@
  * This defines request interfaces for MailerId certificate provisioning.
  */
 
-import * as jwk from '../../jwkeys';
 import * as pklApi from '../pub-key-login';
+import { JsonKey, SignedLoad } from '../../jwkeys';
 
 export namespace pkl {
 	
@@ -27,19 +27,20 @@ export namespace pkl {
 	export const COMPL_URL_END = pklApi.complete.URL_END;
 	
 }
+Object.freeze(pkl);
 
 export namespace certify {
 	
 	export const URL_END = 'certify';
 	
 	export interface Request {
-		pkey: jwk.JsonKey;
+		pkey: JsonKey;
 		duration: number;
 	}
 
 	export interface Reply {
-		userCert: jwk.SignedLoad;
-		provCert: jwk.SignedLoad;
+		userCert: SignedLoad;
+		provCert: SignedLoad;
 	}
 
 	export const SC = {
@@ -50,5 +51,22 @@ export namespace certify {
 	Object.freeze(SC);
 	
 }
+Object.freeze(certify);
+
+export namespace serviceRoot {
+
+	export interface Reply {
+		"current-cert": SignedLoad;
+		"previous-certs": SignedLoad[];
+		provisioning: string;
+	}
+
+	export const SC = {
+		ok: 200
+	};
+	Object.freeze(SC);
+
+}
+Object.freeze(serviceRoot);
 
 Object.freeze(exports);

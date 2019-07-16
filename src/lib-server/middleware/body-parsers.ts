@@ -157,7 +157,7 @@ function byteCollector(maxSize: string|number, contentType: string,
 
 		// set body to be buffer for all expected incoming bytes
 		req.body = (contentLength > 0) ?
-			new Buffer(contentLength) : EMPTY_BUFFER;
+			Buffer.alloc(contentLength) : EMPTY_BUFFER;
 
 		// collect incoming bytes into body array
 		let bytesRead = 0;

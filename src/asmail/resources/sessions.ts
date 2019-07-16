@@ -14,10 +14,8 @@
  You should have received a copy of the GNU General Public License along with
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
-import { InMemorySessions }
-	from '../../lib-server/resources/mem-backed-sessions-factory';
-import { Request as Req, SessionParams, Factory }
-	from '../../lib-server/resources/sessions';
+import { InMemorySessions } from '../../lib-server/resources/mem-backed-sessions-factory';
+import { Request as Req, SessionParams, Factory } from '../../lib-server/resources/sessions';
 
 export type SessionsFactory = Factory<SessionParams>;
 export type Request = Req<SessionParams>;

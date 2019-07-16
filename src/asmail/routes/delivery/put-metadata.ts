@@ -16,10 +16,10 @@
 
 import { RequestHandler, Response, NextFunction } from 'express';
 import { SC as recipSC, SetMsgStorage } from '../../resources/recipients';
-import { msgMeta as api, ERR_SC, ErrorReply }
-	from '../../../lib-common/service-api/asmail/delivery';
+import { msgMeta as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/asmail/delivery';
 import * as confUtil from '../../../lib-server/conf-util';
 import { Request } from '../../resources/delivery-sessions';
+import { base64urlSafe } from '../../../lib-common/buffer-utils';
 
 function findProblemWithObjIds(ids: string[]): ErrorReply|undefined {
 	if (!Array.isArray(ids)) {
@@ -27,21 +27,26 @@ function findProblemWithObjIds(ids: string[]): ErrorReply|undefined {
 			error: "Object ids are missing."
 		};
 	}
-	const objIdsInLowerCase = new Set<string>();
-	for (let i=0; i<ids.length; i+=1) {
-		const objId = ids[i].toLowerCase();
-		if (objIdsInLowerCase.has(objId)) {
+	const checkedIds = new Set<string>();
+	for (const objId of ids) {
+		if (checkedIds.has(objId)) {
 			return {
 				error: "Duplication of object ids."
 			};
 		}
-		objIdsInLowerCase.add(objId);
+		if (!base64urlSafe.allCharsFromAlphabet(objId!)) {
+			return {
+				error: "Object id is invalid."
+			};
+		}
+		checkedIds.add(objId);
 	}
 	return;
 }
 
-export function saveMetadata(setMsgStorageFunc: SetMsgStorage,
-		maxChunk: string|number): RequestHandler {
+export function saveMetadata(
+	setMsgStorageFunc: SetMsgStorage, maxChunk: string|number
+): RequestHandler {
 	if ('function' !== typeof setMsgStorageFunc) { throw new TypeError(
 			"Given argument 'setMsgStorageFunc' must "+
 			"be function, but is not."); }

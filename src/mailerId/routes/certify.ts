@@ -15,12 +15,10 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { utf8 } from '../../lib-common/buffer-utils';
+import { utf8, toBuffer } from '../../lib-common/buffer-utils';
 import { ICertify } from '../resources/certifier';
 import { Request } from '../resources/sessions';
-import * as jwk from '../../lib-common/jwkeys';
-import { certify as api }
-	from '../../lib-common/service-api/mailer-id/provisioning';
+import { certify as api } from '../../lib-common/service-api/mailer-id/provisioning';
 
 export function certify(certifyingFunc: ICertify): RequestHandler {
 	if ('function' !== typeof certifyingFunc) { throw new TypeError(
@@ -59,8 +57,8 @@ export function certify(certifyingFunc: ICertify): RequestHandler {
 			return;
 		}
 		
-		res.status(api.SC.ok).send(new Buffer(
-				encryptor.pack(utf8.pack(JSON.stringify(signedCerts)))));
+		res.status(api.SC.ok).send(
+			toBuffer(encryptor.pack(utf8.pack(JSON.stringify(signedCerts)))));
 		session.close();
 		
 	};

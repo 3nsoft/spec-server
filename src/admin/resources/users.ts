@@ -24,10 +24,9 @@ import { mkdirSync, writeFileSync } from 'fs';
 import { base64urlSafe, utf8 } from '../../lib-common/buffer-utils';
 import * as jwk from '../../lib-common/jwkeys';
 import * as nacl from 'ecma-nacl';
-import { UserMidParams } from '../../lib-common/admin-api/signup';
+import { UserMidParams, UserStorageParams } from '../../lib-common/admin-api/signup';
 import { bind } from '../../lib-common/binding';
-import { checkAndTransformAddress, toCanonicalAddress }
-	from '../../lib-common/canonical-address';
+import { checkAndTransformAddress, toCanonicalAddress } from '../../lib-common/canonical-address';
 import * as asmailConf from '../../lib-common/service-api/asmail/config';
 
 export const SC = {
@@ -35,17 +34,13 @@ export const SC = {
 };
 Object.freeze(SC);
 
-export interface UserStorageParams {
-	params: any;
-}
-
 const MID_KEY_USE = 'login-pub-key';
 
 function checkDefaultMidKeyParams(params: UserMidParams): boolean {
 	const ok = ('object' === typeof params.defaultPKey) && !!params.defaultPKey &&
 		jwk.isLikeJsonKey(params.defaultPKey.pkey) &&
-		(typeof params.defaultPKey.params === 'object') &&
-		!!params.defaultPKey.params;
+		(typeof params.defaultPKey.kdParams === 'object') &&
+		!!params.defaultPKey.kdParams;
 	if (!ok) { return false; }
 	try {
 		jwk.keyFromJson(params.defaultPKey.pkey, MID_KEY_USE,
@@ -75,7 +70,7 @@ export function validateUserMidParams(params: UserMidParams): boolean {
 
 export function validateUserStorageParams(params: UserStorageParams): boolean {
 	return ((typeof params === 'object') && !!params &&
-			(typeof params.params === 'object') && !!params.params);
+			(typeof params.kdParams === 'object') && !!params.kdParams);
 }
 
 /**

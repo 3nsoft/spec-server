@@ -143,23 +143,23 @@ describe('Home server Admin', () => {
 			return {
 				userId,
 				storage: {
-					params: {}
+					kdParams: {}
 				},
 				mailerId: {
 					defaultPKey: {
 						pkey: {
 							alg: box.JWK_ALG_NAME,
-							kid: (new Buffer(12)).toString('base64'),
+							kid: (Buffer.alloc(12)).toString('base64'),
 							use: use.MID_PKLOGIN,
-							k: (new Buffer(box.KEY_LENGTH)).toString('base64')
+							k: (Buffer.alloc(box.KEY_LENGTH)).toString('base64')
 						},
-						params: {}
+						kdParams: {}
 					},
 					otherPKeys: [ {
 							alg: box.JWK_ALG_NAME,
-							kid: (new Buffer(12)).toString('base64'),
+							kid: (Buffer.alloc(12)).toString('base64'),
 							use: use.MID_PKLOGIN,
-							k: (new Buffer(box.KEY_LENGTH)).toString('base64')
+							k: (Buffer.alloc(box.KEY_LENGTH)).toString('base64')
 						} ]
 				}
 			};
@@ -184,7 +184,7 @@ describe('Home server Admin', () => {
 			delete req.storage;
 			badJSONs.push(req);
 			req = makeAddUserReq(goodId);
-			delete req.storage.params;
+			delete req.storage.kdParams;
 			badJSONs.push(req);
 			req = makeAddUserReq(goodId);
 			delete req.mailerId;
@@ -205,7 +205,7 @@ describe('Home server Admin', () => {
 			delete req.mailerId.defaultPKey.pkey.use;
 			badJSONs.push(req);
 			req = makeAddUserReq(goodId);
-			delete req.mailerId.defaultPKey.params;
+			delete req.mailerId.defaultPKey.kdParams;
 			badJSONs.push(req);
 			req = makeAddUserReq(goodId);
 			delete req.mailerId.otherPKeys;

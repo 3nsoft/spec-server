@@ -25,7 +25,7 @@ import { makeSubscriber } from '../../../../../lib-common/ipc/ws-ipc';
 import { wsEventChannel as api, ERR_SC, objChanged, objRemoved }
 	from '../../../../../lib-common/service-api/3nstorage/owner';
 import { Obj, saveObj, removeObj }	from '../../../../libs-for-tests/3nstorage';
-import { bytes as randomBytes } from '../../../../../lib-common/random-node';
+import { bytesSync as randomBytes } from '../../../../../lib-common/random-node';
 import { Observable } from 'rxjs';
 
 export const specs: SpecDescribe = {

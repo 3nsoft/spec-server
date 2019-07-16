@@ -24,7 +24,7 @@ import { expectNonAcceptanceOfBadJsonRequest,
 	expectNonAcceptanceOfBadSessionId } from '../shared-checks/requests';
 import { utf8 } from '../../lib-common/buffer-utils';
 import * as mid from '../../lib-common/mid-sigs-NaCl-Ed';
-import { bytes as randomBytes } from '../../lib-common/random-node';
+import { bytesSync as randomBytes } from '../../lib-common/random-node';
 import { parse as parseUrl, resolve as resolveUrl } from 'url';
 
 export function midLoginSpecs(
@@ -88,9 +88,9 @@ export function midLoginSpecs(
 				sessionId
 			};
 			
-			const serviceDomain = parseUrl(uInfo.midUrl).hostname;
+			const serviceDomain = parseUrl(loginUrl()).hostname;
 			if (!serviceDomain) { throw new Error(
-				`Cannot get hostname from ${uInfo.midUrl}`); }
+				`Cannot get hostname from ${loginUrl()}`); }
 			const req: authSession.Request = {
 				assertion: midSigner.generateAssertionFor(
 					serviceDomain, sessionId),

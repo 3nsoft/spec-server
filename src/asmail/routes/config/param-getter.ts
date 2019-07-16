@@ -16,8 +16,7 @@
 
 import { RequestHandler, Response, NextFunction } from 'express';
 import { SC as recipSC } from '../../resources/recipients';
-import { PARAM_SC, ERR_SC }
-	from '../../../lib-common/service-api/asmail/config';
+import { PARAM_SC, ERR_SC } from '../../../lib-common/service-api/asmail/config';
 import { Request } from '../../resources/sessions';
 
 export function getParam<T>(paramGetter: (userId: string) => Promise<T>):

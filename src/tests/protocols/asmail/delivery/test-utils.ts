@@ -18,7 +18,7 @@ import { ASMailComponent }
 	from '../../../libs-for-tests/server-components/asmail';
 import { User } from '../../../libs-for-tests/mailerid';
 import { GenericSpecDescribe } from '../../../libs-for-tests/spec-assembly';
-import { bytes as randomBytes } from '../../../../lib-common/random-node';
+import { bytesSync as randomBytes } from '../../../../lib-common/random-node';
 import { Msg, Obj, DeliveryInfo, startMsgDelivery, sendMsgObj }
 	from '../../../libs-for-tests/asmail';
 

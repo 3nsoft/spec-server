@@ -15,13 +15,10 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { GenerateSession, Request }
-	from '../../resources/delivery-sessions';
+import { GenerateSession, Request } from '../../resources/delivery-sessions';
 import { SC as recipSC, AllowedMaxMsgSize } from '../../resources/recipients';
-import { sessionStart as api, ERR_SC, ErrorReply }
-	from '../../../lib-common/service-api/asmail/delivery';
-import { checkAndTransformAddress }
-	from '../../../lib-common/canonical-address';
+import { sessionStart as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/asmail/delivery';
+import { checkAndTransformAddress } from '../../../lib-common/canonical-address';
 
 export type Redirect = (userId: string) => Promise<string>;
 

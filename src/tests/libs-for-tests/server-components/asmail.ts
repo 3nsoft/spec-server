@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 - 2017 3NSoft Inc.
+ Copyright (C) 2016 - 2017, 2019 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -25,7 +25,9 @@ import { Msg } from '../asmail';
 import * as retrievalApi
 	from '../../../lib-common/service-api/asmail/retrieval';
 import { bytesEqual } from '../bytes-equal';
-import { parseOpenObjFile } from '../../../lib-common/obj-file';
+import { join } from 'path';
+import { ObjVersionFile } from '../../../lib-common/objs-on-disk/obj-file';
+import { joinByteArrs } from '../../../lib-common/buffer-utils';
 
 export class ASMailComponent extends Component {
 	
@@ -75,20 +77,27 @@ export class ASMailComponent extends Component {
 	}
 	
 	private inboxFolder(userId: string): string {
-		return `${this.conf.rootFolder}/users/${addressToFName(userId)}/mail`;
+		return join(this.conf.rootFolder,
+			'users', addressToFName(userId), 'mail');
+	}
+
+	private msgFolder(
+		userId: string, msgId: string, deliveryComplete: boolean
+	): string {
+		return join(this.inboxFolder(userId),
+			(deliveryComplete ? 'messages' : 'delivery'), msgId);
 	}
 	
+	// XXX adopt new file access
 	async msgExists(userId: string, msgId: string, deliveryComplete: boolean,
 			msg?: Msg): Promise<boolean> {
 		let meta: retrievalApi.msgMetadata.Reply
-		let msgFolder = this.inboxFolder(userId) +
-			(deliveryComplete ? '/messages/' : '/delivery/') + msgId;
+		let msgFolder = this.msgFolder(userId, msgId, deliveryComplete);
 		try {
-			let metaFile = 'meta.json';
-			meta = JSON.parse(await fs.readFile(
-				msgFolder+'/'+metaFile, { encoding: 'utf8' }));
+			let metaFile = join(msgFolder, 'meta.json');
+			meta = JSON.parse(await fs.readFile(metaFile, { encoding: 'utf8' }));
 		} catch (exc) {
-			if ((<fs.FileException> exc).notFound) { return false; }
+			if ((exc as fs.FileException).notFound) { return false; }
 			else { throw exc; }
 		}
 		let extMeta = meta.extMeta;
@@ -117,31 +126,21 @@ export class ASMailComponent extends Component {
 			expect(meta.objs[objId].completed).toBe(true, 'completness flag of a message object');
 
 			// check object file
-			let fd = await fs.open(`${msgFolder}/${objId}`, 'r')
+			const filePath = join(msgFolder, objId);
+			const file = await ObjVersionFile.forExisting(filePath)
 			.catch((exc: fs.FileException) => {
-				if (exc.notFound) {
-					fail(`missing file for object ${objId} in message ${msgId}`);
-					return undefined;
-				}
+				if (exc.notFound) { return undefined; }
 				throw exc;
 			});
-			if (fd === undefined) { return false; }
-			try {
-				// parse file
-				const { headerOffset, segsOffset, diff, fileSize } =
-					await parseOpenObjFile(fd);
-				// check header
-				let bytes = new Buffer(segsOffset - headerOffset);
-				await fs.read(fd, headerOffset, bytes);
-				expect(bytesEqual(bytes, obj.header)).toBeTruthy('header bytes must match');
-				// check segments
-				bytes = new Buffer(fileSize - segsOffset);
-				await fs.read(fd, segsOffset, bytes);
-				expect(bytesEqual(bytes, obj.segs)).toBeTruthy('segments bytes must match');
-			} finally {
-				await fs.close(fd);
-			}
+			if (!file) { return false; }
+			const headerInFile = await file.readHeader();
+			if (!headerInFile
+			|| !bytesEqual(headerInFile, obj.header)) { return false; }
+			const segsInFile = joinByteArrs(
+				await file.readSegs(0, file.getTotalSegsLen()));
+			if (!bytesEqual(segsInFile, obj.segs)) { return false; }
 		}
+
 		return true;
 	}
 	

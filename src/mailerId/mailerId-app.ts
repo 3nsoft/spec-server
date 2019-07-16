@@ -35,9 +35,7 @@ import { certify } from './routes/certify';
 // resources
 import { Certifier } from './resources/certifier';
 import { makeSessionFactory, SessionsFactory } from './resources/sessions';
-import { Factory as sessFactory } from '../lib-server/resources/sessions';
-import { makeFactory as makeUserFactory, Factory as userFactory }
-	from './resources/users';
+import { makeFactory as makeUserFactory, Factory as userFactory } from './resources/users';
 import { makeSingleProcCertifier } from './resources/certifier';
 import { calcNaClBoxSharedKey } from './resources/compute-login-dhshared-key';
 import { makeErrHandler } from '../lib-server/middleware/error-handler';

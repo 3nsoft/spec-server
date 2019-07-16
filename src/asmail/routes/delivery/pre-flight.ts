@@ -16,12 +16,10 @@
 
 import { RequestHandler, Response, NextFunction } from 'express';
 import { SC as recipSC, AllowedMaxMsgSize } from '../../resources/recipients';
-import { preFlight as api, ERR_SC, ErrorReply }
-	from '../../../lib-common/service-api/asmail/delivery';
+import { preFlight as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/asmail/delivery';
 import { Request } from '../../resources/delivery-sessions';
 import { Redirect } from './start-session';
-import { checkAndTransformAddress }
-	from '../../../lib-common/canonical-address';
+import { checkAndTransformAddress } from '../../../lib-common/canonical-address';
 
 /**
  * This creates a pre-flight route handler.

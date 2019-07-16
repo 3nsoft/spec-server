@@ -33,10 +33,10 @@ export async function addUserIn(rootServerUrl: string, userId: string): Promise<
 	};
 	let user: User = {
 		id: userId,
-		loginDefaultSKey: random.bytes(box.KEY_LENGTH),
+		loginDefaultSKey: await random.bytes(box.KEY_LENGTH),
 		loginLabeledSKey: {
-			k: random.bytes(box.KEY_LENGTH),
-			kid: random.stringOfB64Chars(12)
+			k: await random.bytes(box.KEY_LENGTH),
+			kid: await random.stringOfB64Chars(12)
 		},
 		midUrl: (undefined as any),
 		storageOwnerUrl: (undefined as any)
@@ -44,7 +44,7 @@ export async function addUserIn(rootServerUrl: string, userId: string): Promise<
 	let req: signup.addUser.Request = {
 		userId: user.id,
 		storage: {
-			params: {}
+			kdParams: {}
 		},
 		mailerId: {
 			defaultPKey: {
@@ -54,7 +54,7 @@ export async function addUserIn(rootServerUrl: string, userId: string): Promise<
 					use: use.MID_PKLOGIN,
 					k: base64.pack(box.generate_pubkey(user.loginDefaultSKey))
 				},
-				params: {}
+				kdParams: {}
 			},
 			otherPKeys: [ {
 					alg: box.JWK_ALG_NAME,
@@ -65,7 +65,9 @@ export async function addUserIn(rootServerUrl: string, userId: string): Promise<
 		}
 	};
 	let rep = await doJsonRequest<string[]>(reqOpts, req);
-	expect(rep.status).toBe(signup.addUser.SC.ok);
+	if (rep.status !== signup.addUser.SC.ok) {
+		throw new Error(`Fail to add user ${userId}`);
+	}
 	return user;
 }
 

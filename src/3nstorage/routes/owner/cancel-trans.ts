@@ -15,8 +15,7 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { CancelTransaction, SC as storeSC }
-	from '../../resources/users';
+import { CancelTransaction, SC as storeSC } from '../../resources/users';
 import { cancelTransaction as api, ERR_SC } from '../../../lib-common/service-api/3nstorage/owner';
 import { Request } from '../../resources/sessions';
 
@@ -38,8 +37,9 @@ export function cancelTransaction(root: boolean,
 		} catch (err) {
 			if ("string" !== typeof err) {
 				next(err);
-			} else if ((err === storeSC.TRANSACTION_UNKNOWN) ||
-					(err === storeSC.OBJ_UNKNOWN)) {
+			} else if ((err === storeSC.TRANSACTION_UNKNOWN)
+			|| (err === storeSC.OBJ_UNKNOWN)
+			|| (err === storeSC.OBJ_VER_UNKNOWN)) {
 				res.status(api.SC.missing).send(
 					"Unknown transaction or object.");
 			} else if (err === storeSC.USER_UNKNOWN) {

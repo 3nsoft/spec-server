@@ -15,15 +15,11 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { SC as recipSC, IncompleteMsgDeliveryParams }
-	from '../../resources/recipients';
-import { sessionRestart as api, ERR_SC, ErrorReply }
-	from '../../../lib-common/service-api/asmail/delivery';
-import { Request, GenerateSession, GetSessionForMsg }
-	from '../../resources/delivery-sessions';
+import { SC as recipSC, IncompleteMsgDeliveryParams } from '../../resources/recipients';
+import { sessionRestart as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/asmail/delivery';
+import { Request, GenerateSession, GetSessionForMsg } from '../../resources/delivery-sessions';
 import { Redirect } from './start-session';
-import { checkAndTransformAddress }
-	from '../../../lib-common/canonical-address';
+import { checkAndTransformAddress } from '../../../lib-common/canonical-address';
 import * as confUtil from '../../../lib-server/conf-util';
 
 /**

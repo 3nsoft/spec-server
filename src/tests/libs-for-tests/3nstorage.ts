@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 3NSoft Inc.
+ Copyright (C) 2016, 2019 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -19,6 +19,7 @@ import { RequestOpts, doBodylessRequest, doBinaryRequest, doJsonRequest }
 import { resolve as resolveUrl } from 'url';
 import * as api from '../../lib-common/service-api/3nstorage/owner';
 import { utf8 } from '../../lib-common/buffer-utils';
+import { assert } from './assert';
 
 export async function get3NStorageServiceUrl(storageUrl: string,
 		service: 'owner'|'shared'): Promise<string> {
@@ -28,9 +29,9 @@ export async function get3NStorageServiceUrl(storageUrl: string,
 		responseType: 'json'
 	};
 	let rep = await doBodylessRequest<any>(reqOpts);
-	expect(rep.status).toBe(200);
+	assert(rep.status === 200);
 	let serviceUrl: string = rep.data[service];
-	expect(typeof serviceUrl).toBe('string');
+	assert(typeof serviceUrl === 'string');
 	return resolveUrl(storageUrl, serviceUrl);
 }
 
@@ -56,9 +57,7 @@ export async function cancelTransaction(ownerUrl: string, sessionId: string,
 		sessionId
 	};
 	let rep = await doBodylessRequest<void>(reqOpts);
-	expect(rep.status).toBe((objId === null) ?
-		api.cancelRootTransaction.SC.ok :
-		api.cancelTransaction.SC.ok);
+	assert(rep.status === api.cancelTransaction.SC.ok, `Obj transaction isn't canceled: server status ${rep.status} instead of expected ${api.cancelTransaction.SC.ok}`);
 }
 
 export async function getSessionParams(ownerUrl: string, sessionId: string):
@@ -70,7 +69,7 @@ export async function getSessionParams(ownerUrl: string, sessionId: string):
 		sessionId
 	};
 	let rep = await doBodylessRequest<api.sessionParams.Reply>(reqOpts);
-	expect(rep.status).toBe(200);
+	assert(rep.status === 200);
 	return rep.data;
 }
 
@@ -85,37 +84,48 @@ export async function saveObj(ownerUrl: string, sessionId: string,
 		objId: string|null, ver: number, obj: Obj): Promise<void> {
 
 	const header = obj.header.length;
-	const segs = obj.segs.length;
 	const diffBytes = (obj.diff ?
 		utf8.pack(JSON.stringify(obj.diff)) : undefined);
 	const diff = (diffBytes ? diffBytes.length : undefined);
-	let opts: RequestOpts;
-	if (objId) {
-		opts = {
-			url: resolveUrl(ownerUrl, api.currentObj.firstPutReqUrlEnd(objId,
-				{ ver, diff, header, segs })),
-			method: 'PUT',
-			responseType: 'json',
-			sessionId
-		};
-	} else {
-		opts = {
-			url: resolveUrl(ownerUrl, api.currentRootObj.firstPutReqUrlEnd(
-				{ ver, diff, header, segs })),
-			method: 'PUT',
-			responseType: 'json',
-			sessionId
-		};
-	}
-
-	const bytes = [ obj.header, obj.segs ];
+	const opts: RequestOpts = {
+		method: 'PUT',
+		responseType: 'json',
+		sessionId
+	};
 	if (diffBytes) {
-		bytes.unshift(diffBytes);
+		const urlEnd = (objId ?
+			api.currentObj.firstPutReqUrlEnd(objId, { ver, diff, header }) :
+			api.currentRootObj.firstPutReqUrlEnd({ ver, diff, header }));
+		opts.url = resolveUrl(ownerUrl, urlEnd);
+		const rep = await doBinaryRequest<api.currentObj.ReplyToPut>(
+			opts, [ diffBytes, obj.header ]);
+		assert(rep.status === api.currentObj.SC.okPut, `Obj header isn't saved: server status ${rep.status} instead of expected ${api.currentObj.SC.okPut}`);
+		const trans = rep.data.transactionId!;
+		let ofs = 0;
+		for (const [ isNew, dOfs, len ] of obj.diff!.sections) {
+			const last = ((dOfs+len) === obj.segs.length);
+			if (isNew === 1) {
+				const urlEnd = (objId ?
+					api.currentObj.secondPutReqUrlEnd(objId, { ofs, trans, last }) :
+					api.currentRootObj.secondPutReqUrlEnd({ ofs, trans, last }));
+				opts.url = resolveUrl(ownerUrl, urlEnd);
+				const rep = await doBinaryRequest<api.currentObj.ReplyToPut>(
+					opts, obj.segs.subarray(dOfs, dOfs+len));
+				assert(rep.status === api.currentObj.SC.okPut, `Obj segments sections isn't saved: server status ${rep.status} instead of expected ${api.currentObj.SC.okPut}`);
+			}
+			ofs += len;
+		}
+	} else {
+		const urlEnd = (objId ?
+			api.currentObj.firstPutReqUrlEnd(
+				objId, { ver, header, last: true }) :
+			api.currentRootObj.firstPutReqUrlEnd(
+				{ ver, header, last: true }));
+		opts.url = resolveUrl(ownerUrl, urlEnd);
+		const rep = await doBinaryRequest<api.currentObj.ReplyToPut>(
+			opts, [ obj.header, obj.segs ]);
+		assert(rep.status === api.currentObj.SC.okPut, `Complete obj isn't saved: server status ${rep.status} instead of expected ${api.currentObj.SC.okPut}`);
 	}
-	const rep = await doBinaryRequest<api.currentObj.ReplyToPut>(opts, bytes);
-	expect(rep.status).toBe((objId === null) ?
-		api.currentRootObj.SC.okPut : api.currentRootObj.SC.okPut);
-
 }
 
 export async function removeObj(ownerUrl: string, sessionId: string,
@@ -126,7 +136,7 @@ export async function removeObj(ownerUrl: string, sessionId: string,
 		sessionId
 	};
 	const rep = await doBodylessRequest(opts);
-	expect(rep.status).toBe(api.currentObj.SC.okDelete);
+	assert(rep.status === api.currentObj.SC.okDelete, `Obj isn't removed: server status ${rep.status} instead of expected ${api.currentObj.SC.okDelete}`);
 }
 
 Object.freeze(exports);

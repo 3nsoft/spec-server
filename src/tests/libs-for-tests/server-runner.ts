@@ -19,7 +19,7 @@ import { sslOpts } from '../../mock/tls-options';
 import { AppWithWSs } from '../../lib-server/web-sockets/app';
 
 // allow client test calls to trust above self-signed cert
-(<any> https.globalAgent).options.ca = sslOpts.cert;
+https.globalAgent.options.ca = sslOpts.cert;
 
 export type ServerState = 'stopped' | 'starting' | 'running' | 'stopping';
 

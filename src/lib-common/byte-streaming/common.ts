@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2019 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -52,24 +52,27 @@ export function wrapByteSinkImplementation(sink: ByteSink): ByteSink {
 export class BytesFIFOBuffer {
 	
 	private queue: Uint8Array[] = [];
-	private queueLen = 0;
+	private bytesLen = 0;
 	get length(): number {
-		return this.queueLen;
+		return this.bytesLen;
+	}
+	get queueLength(): number {
+		return this.queue.length;
 	}
 	
 	constructor() {
 		Object.seal(this);
 	}
-	
+
 	clear(): void {
 		this.queue = [];
-		this.queueLen = 0;
+		this.bytesLen = 0;
 	}
 	
 	push(bytes: Uint8Array): void {
 		if (bytes.length === 0) { return; }
 		this.queue.push(bytes);
-		this.queueLen += bytes.length;
+		this.bytesLen += bytes.length;
 	}
 	
 	/**
@@ -97,7 +100,7 @@ export class BytesFIFOBuffer {
 	}
 	
 	private extractAllBytesFrom(): Uint8Array|undefined {
-		return this.extractSomeBytesFrom(this.queueLen);
+		return this.extractSomeBytesFrom(this.bytesLen);
 	}
 		
 	/**
@@ -112,7 +115,7 @@ export class BytesFIFOBuffer {
 		} else {
 			if (len < 1) { throw new Error('Length parameter is illegal: '+len); }
 			if (this.queue.length === 0) { return undefined; }
-			if (this.queueLen < len) {
+			if (this.bytesLen < len) {
 				if (canBeLess) {
 					extract = this.extractAllBytesFrom();
 				} else {
@@ -123,7 +126,7 @@ export class BytesFIFOBuffer {
 			}
 		}
 		if (extract) {
-			this.queueLen -= extract.length;
+			this.bytesLen -= extract.length;
 		}
 		return extract;
 	}

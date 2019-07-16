@@ -16,10 +16,7 @@
 
 
 import * as cProcs from 'child_process';
-import { RawDuplex, RequestServer, makeRequestServer,
-	RequestingClient, makeRequestingClient, Envelope, Observer,
-	SingleObserverWrap }
-	from '../lib-common/ipc/generic-ipc';
+import { RawDuplex, RequestServer, makeRequestServer, RequestingClient, makeRequestingClient, Envelope, Observer, SingleObserverWrap } from '../lib-common/ipc/generic-ipc';
 
 export { RequestEnvelope, RequestHandler } from '../lib-common/ipc/generic-ipc';
 

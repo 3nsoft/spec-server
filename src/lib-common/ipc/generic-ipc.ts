@@ -189,7 +189,7 @@ class RequestingSide extends MessageHandler implements RequestingClient {
 
 	wrap(): RequestingClient {
 		const w: RequestingClient = {
-			makeRequest: bind(this, this.makeRequest),
+			makeRequest: this.makeRequest.bind(this),
 			close: bind(this, this.close),
 			on: bind(this, this.on)
 		};

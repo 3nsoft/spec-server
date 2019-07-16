@@ -19,11 +19,8 @@
  * express 3NStorage owners' application.
  */
 
-import * as express from 'express';
-
 // Internal libs
-import { json as parseJSON, emptyBody }
-	from '../lib-server/middleware/body-parsers';
+import { json as parseJSON, emptyBody } from '../lib-server/middleware/body-parsers';
 import { UserSockets, AppWithWSs } from '../lib-server/web-sockets/app';
 import { ServerEvents } from '../lib-server/web-sockets/server-events';
 

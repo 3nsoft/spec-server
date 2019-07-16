@@ -15,10 +15,8 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { SignedLoad, getPrincipalAddress } from '../../../lib-common/jwkeys';
-import { SC as recipSC } from '../../resources/recipients';
-import { authSender as api, ERR_SC }
-	from '../../../lib-common/service-api/asmail/delivery';
+import { SignedLoad } from '../../../lib-common/jwkeys';
+import { authSender as api, ERR_SC } from '../../../lib-common/service-api/asmail/delivery';
 import { Request } from '../../resources/delivery-sessions';
 
 export interface IMidAuthorizer {

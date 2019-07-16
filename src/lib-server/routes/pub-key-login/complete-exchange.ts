@@ -22,8 +22,8 @@
 import { RequestHandler, Response, NextFunction } from 'express';
 import { compareVectors, arrays } from 'ecma-nacl';
 import { Request } from './start-exchange';
-import { complete as api, ERR_SC, ErrorReply }
-	from '../../../lib-common/service-api/pub-key-login';
+import { complete as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/pub-key-login';
+import { toBuffer } from '../../../lib-common/buffer-utils';
 
 export function completePKLogin(): RequestHandler {
 	return (req: Request, res: Response, next: NextFunction) => {
@@ -44,8 +44,8 @@ export function completePKLogin(): RequestHandler {
 			const key = session.params.sessionKey;
 			if (!compareVectors(decryptedKey, key)) { throw new Error(); }
 			session.isAuthorized = true;
-			res.status(api.SC.ok).send(new Buffer(
-				session.params.serverVerificationBytes));
+			res.status(api.SC.ok).send(
+				toBuffer(session.params.serverVerificationBytes));
 		} catch (err) {
 			session.close();
 			res.status(api.SC.authFailed).json( <ErrorReply> {

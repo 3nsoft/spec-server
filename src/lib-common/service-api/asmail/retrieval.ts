@@ -87,7 +87,7 @@ Object.freeze(rmMsg);
 
 export interface ObjSize {
 	header: number;
-	segments: number|undefined;
+	segments: number;
 }
 
 export interface ObjStatus {
@@ -169,7 +169,7 @@ export namespace msgObj {
 	
 	export function genUrlEnd(msgId: string, objId: string,
 			opts?: GetObjQueryOpts): string {
-		let optStr = (opts ? '?'+stringifyOpts(opts) : '');
+		let optStr = (opts ? '?'+stringifyOpts(opts as any) : '');
 		return `msg/${msgId}/obj/${objId}${optStr}`;
 	}
 	

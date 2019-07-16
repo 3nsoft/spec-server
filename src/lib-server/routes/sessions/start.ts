@@ -15,12 +15,9 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { GenerateSession, Request as SessionReq, SessionParams }
-	from '../../resources/sessions';
-import { startSession as api, ERR_SC, ErrorReply }
-	from '../../../lib-common/service-api/mailer-id/login';
-import { checkAndTransformAddress }
-	from '../../../lib-common/canonical-address';
+import { GenerateSession, Request as SessionReq, SessionParams } from '../../resources/sessions';
+import { startSession as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/mailer-id/login';
+import { checkAndTransformAddress } from '../../../lib-common/canonical-address';
 
 export type Request = SessionReq<SessionParams>;
 

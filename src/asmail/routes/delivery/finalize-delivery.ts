@@ -17,8 +17,7 @@
 import { RequestHandler, Response, NextFunction } from 'express';
 import { SC as recipSC, FinalizeDelivery } from '../../resources/recipients';
 import { Request } from '../../resources/delivery-sessions';
-import { completion as api, ERR_SC }
-	from '../../../lib-common/service-api/asmail/delivery';
+import { completion as api, ERR_SC } from '../../../lib-common/service-api/asmail/delivery';
 
 export function finalizeDelivery(finDelivFunc: FinalizeDelivery):
 		RequestHandler {

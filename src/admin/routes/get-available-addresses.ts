@@ -15,8 +15,7 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Request, Response, NextFunction } from 'express';
-import { availableAddressesForName as api, ERR_SC }
-	from '../../lib-common/admin-api/signup';
+import { availableAddressesForName as api, ERR_SC } from '../../lib-common/admin-api/signup';
 import { ICheckName, IAvailableAddressesForName } from '../resources/users';
 
 /**

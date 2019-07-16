@@ -23,7 +23,7 @@ import { certify as certApi }
 	from '../../lib-common/service-api/mailer-id/provisioning';
 import { user as midUser }	from '../../lib-common/mid-sigs-NaCl-Ed';
 import { doPubKeyLogin, User } from './pkl';
-import { bytes as randomBytes } from '../../lib-common/random-node';
+import { bytesSync as randomBytes } from '../../lib-common/random-node';
 import { parse as parseUrl } from 'url';
 
 export { User } from './pkl';

@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 3NSoft Inc.
+ Copyright (C) 2016, 2019 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -23,9 +23,10 @@ import * as fs from '../../../lib-common/async-fs-node';
 import { addressToFName } from '../../../lib-server/resources/user-files';
 import { Obj } from '../3nstorage';
 import { bytesEqual } from '../bytes-equal';
-import { deepEqual } from '../json-equal';
 import { ObjStatusInfo } from '../../../3nstorage/resources/store';
-import { parseOpenObjFile } from '../../../lib-common/obj-file';
+import { ObjVersionFile } from '../../../lib-common/objs-on-disk/obj-file';
+import { join } from 'path';
+import { joinByteArrs } from '../../../lib-common/buffer-utils';
 
 async function rmFolderContent(folder: string): Promise<void> {
 	await fs.rmDirWithContent(folder);
@@ -79,8 +80,9 @@ export class StorageComponent extends Component {
 		return `${this.conf.rootFolder}/users/${addressToFName(userId)}/store`;
 	}
 	
-	private async checkTransactionPresence(transFolder: string,
-			transactionId: string|undefined): Promise<boolean> {
+	private async checkTransactionPresence(
+		transFolder: string, transactionId: string|undefined
+	): Promise<boolean> {
 		let transFile = 'transaction';
 		try {
 			let lst = await fs.readdir(transFolder);
@@ -97,20 +99,23 @@ export class StorageComponent extends Component {
 		return true;
 	}
 	
-	rootTransactionExists(userId: string, transactionId?: string):
-			Promise<boolean> {
+	rootTransactionExists(
+		userId: string, transactionId?: string
+	): Promise<boolean> {
 		return this.checkTransactionPresence(
-			this.storeFolder(userId)+'/root/transaction', transactionId);
+			join(this.storeFolder(userId), '/root/transaction'), transactionId);
 	}
 	
-	transactionExists(userId: string, objId: string, transactionId?: string):
-			Promise<boolean> {
+	transactionExists(
+		userId: string, objId: string, transactionId?: string
+	): Promise<boolean> {
 		return this.checkTransactionPresence(
-			this.storeFolder(userId)+'/transactions/'+objId, transactionId);
+			join(this.storeFolder(userId),'transactions', objId), transactionId);
 	}
 	
-	private async checkCurrentObjPresence(objFolder: string,
-			ver: number|undefined, obj: Obj|undefined): Promise<boolean> {
+	private async checkCurrentObjPresence(
+		objFolder: string, ver: number|undefined, obj: Obj|undefined
+	): Promise<boolean> {
 		let status: ObjStatusInfo;
 		try {
 			status = JSON.parse(await fs.readFile(
@@ -123,38 +128,55 @@ export class StorageComponent extends Component {
 		const currVer = status.currentVersion;
 		if ((ver !== undefined) && (currVer !== ver)) { return false; }
 		if (obj) {
-			const fd = await fs.open(`${objFolder}/${currVer}.`, 'r')
+			const filePath = join(objFolder, `${currVer}.`);
+			const file = await ObjVersionFile.forExisting(filePath)
 			.catch((exc: fs.FileException) => {
 				if (exc.notFound) { return undefined; }
 				throw exc;
 			});
-			if (fd === undefined) { return false; }
-			try {
-				const { headerOffset, segsOffset, diff, fileSize } =
-					await parseOpenObjFile(fd);
-				let bytes = new Buffer(segsOffset - headerOffset);
-				await fs.read(fd, headerOffset, bytes);
-				if (!bytesEqual(bytes, obj.header)) { return false; }
-				bytes = new Buffer(fileSize - segsOffset);
-				await fs.read(fd, segsOffset, bytes);
-				if (!bytesEqual(bytes, obj.segs)) { return false; }
-				if ((diff && !obj.diff) || (!diff && obj.diff)) { return false; }
-				if (diff && !deepEqual(diff, obj.diff)) { return false; }
-			} finally {
-				await fs.close(fd);
+			if (!file) { return false; }
+			const headerInFile = await file.readHeader();
+			if (!headerInFile
+			|| !bytesEqual(headerInFile, obj.header)) { return false; }
+			const diff = obj.diff;
+			if (file.getBaseVersion() === undefined) {
+				if (diff) { return false; }
+				const segsInFile = joinByteArrs(
+					await file.readSegs(0, file.getTotalSegsLen()));
+				if (!bytesEqual(segsInFile, obj.segs)) { return false; }
+			} else {
+				if (!diff) { return false; }
+				if (file.getBaseVersion() !== diff.baseVersion) { return false; }
+				if (file.getTotalSegsLen() !== diff.segsSize) { return false; }
+				let ofs = 0;
+				for (const [ isNew, dsOfs, len ] of diff.sections) {
+					if (isNew === 0) {
+						const sections = await file.segsLocations(ofs, len);
+						for (const section of sections) {
+							if (section.type !== 'base') { return false; }
+						}
+					} else {
+						if (!bytesEqual(
+							joinByteArrs(await file.readSegs(ofs, len)),
+							obj.segs.subarray(dsOfs, dsOfs+len))) { return false; }
+					}
+					ofs += len;
+				}
 			}
 		}
 		return true;
 	}
 	
-	currentRootObjExists(userId: string, ver?: number, obj?: Obj):
-			Promise<boolean> {
+	currentRootObjExists(
+		userId: string, ver?: number, obj?: Obj
+	): Promise<boolean> {
 		return this.checkCurrentObjPresence(
 			this.storeFolder(userId)+'/root', ver, obj);
 	}
 	
-	currentObjExists(userId: string, objId: string, ver?: number, obj?: Obj):
-			Promise<boolean> {
+	currentObjExists(
+		userId: string, objId: string, ver?: number, obj?: Obj
+	): Promise<boolean> {
 		return this.checkCurrentObjPresence(
 			this.storeFolder(userId)+'/objects/'+objId, ver, obj);
 	}
@@ -174,5 +196,6 @@ export class StorageComponent extends Component {
 }
 Object.freeze(StorageComponent.prototype);
 Object.freeze(StorageComponent);
+
 
 Object.freeze(exports);

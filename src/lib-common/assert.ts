@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright(c) 2018 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -14,25 +14,8 @@
  You should have received a copy of the GNU General Public License along with
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
-/**
- * This module is a test-grade function to calculate DH-shared keys for login.
- */
-
-import { box } from 'ecma-nacl';
-import * as random from '../../lib-common/random-node';
-
-// XXX update the key from time-to-time
-
-const testLoginSecretKey = random.bytesSync(32);
-
-const testLoginPublicKey = box.generate_pubkey(testLoginSecretKey);
-
-export function calcNaClBoxSharedKey(userPubKey: Uint8Array) {
-	const dhsharedKey = box.calc_dhshared_key(userPubKey, testLoginSecretKey);
-	return {
-		dhsharedKey: dhsharedKey,
-		serverPubKey: testLoginPublicKey
-	};
+export function assert(ok: boolean, errMsg?: string): void {
+	if (!ok) { throw new Error(errMsg); }
 }
 
 Object.freeze(exports);

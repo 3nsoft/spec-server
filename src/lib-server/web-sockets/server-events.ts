@@ -14,8 +14,7 @@
  You should have received a copy of the GNU General Public License along with
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
-import { EventfulServer, makeEventfulServer, makeJsonCommPoint }
-	from '../../lib-common/ipc/ws-ipc';
+import { EventfulServer, makeEventfulServer, makeJsonCommPoint } from '../../lib-common/ipc/ws-ipc';
 import * as WebSocket from 'ws';
 import { SocketIPCs } from './app';
 import { bind } from '../../lib-common/binding';

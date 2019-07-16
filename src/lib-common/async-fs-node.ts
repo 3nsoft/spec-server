@@ -256,7 +256,7 @@ export async function writeFromBuf(fd: number, pos: number, buf: Buffer):
 	}
 }
 
-const SINGLE_BYTE_BUF = new Buffer(1);
+const SINGLE_BYTE_BUF = Buffer.alloc(1);
 SINGLE_BYTE_BUF[0] = 0;
 
 /**
@@ -570,7 +570,7 @@ export async function streamFromFile(filePath: string, pos: number,
 		'Illegal length given: '+len); }
 	if ((typeof bufSize !== 'number') || (bufSize < 1024)) { throw new Error(
 		'Illegal buffer size given: '+bufSize); }
-	let buf = new Buffer(Math.min(bufSize, len));
+	let buf = Buffer.alloc(Math.min(bufSize, len));
 	let byteCount = 0;
 	while (byteCount < len) {
 		const bytesLeft = len - byteCount;

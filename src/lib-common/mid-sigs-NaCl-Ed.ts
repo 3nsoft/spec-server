@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2017 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -313,12 +313,15 @@ export interface CertsChain {
 
 export module relyingParty {
 
+	const minValidityPeriodForCert = 20*60;
+
 	function verifyCertAndGetPubKey(signedCert: SignedLoad, use: string,
 			validAt: number, arrFactory: arrays.Factory|undefined,
 			issuer?: string, issuerPKey?: Key):
 			{ pkey: Key; address:string; } {
 		const cert = getKeyCert(signedCert);
-		if ((validAt < cert.issuedAt) || (cert.expiresAt <= validAt)) {
+		if ((validAt < (cert.issuedAt - minValidityPeriodForCert))
+		|| (cert.expiresAt <= validAt)) {
 			throw makeTimeMismatchException(`Certificate is not valid at a given moment ${validAt}, cause it is issued at ${cert.issuedAt}, and expires at ${cert.expiresAt}`);
 		}
 		if (issuer) {
@@ -414,8 +417,15 @@ export module relyingParty {
 		if (!signing.verify(sigBytes, loadBytes, userInfo.pkey.k, arrFactory)) {
 			throw makeSigVerifException(`Assertion fails verification.`);
 		}
-		if (assertion.user !== userInfo.address) { throw makeMalformedCertsException(`Assertion is for one user, while chain is for another.`); }
-		if (!assertion.sessionId) { throw makeMalformedCertsException(`Assertion doesn't have session id.`); }
+		if (assertion.user !== userInfo.address) {
+			throw makeMalformedCertsException(
+				`Assertion is for one user, while chain is for another.`);
+		}
+		if (!assertion.sessionId) {throw makeMalformedCertsException(
+			`Assertion doesn't have session id.`); }
+		// Note that assertion can be valid before issue time, to counter
+		// some mis-synchronization of clocks.
+		// It can be some fixed value, like minimum validity period of certs.
 		if (Math.abs(validAt - assertion.issuedAt) >
 				(assertion.expiresAt - assertion.issuedAt)) {
 			throw makeTimeMismatchException(`Assertion is not valid at ${validAt}, being issued at ${assertion.expiresAt} and expiring at ${assertion.expiresAt}.`);
@@ -468,8 +478,15 @@ export module relyingParty {
 		if (cert.cert.principal.address !== principalAddress) {
 			throw makeCertsMismatchException(`Key certificate is for user ${cert.cert.principal.address}, while expected address is ${principalAddress}`);
 		}
-		if ((validAt < cert.issuedAt) || (cert.expiresAt <= validAt)) {
-			throw makeTimeMismatchException(`Certificate is not valid at ${validAt} being issued at ${cert.issuedAt} and expiring at ${cert.expiresAt}`);
+		if ((cert.expiresAt - cert.issuedAt) <= minValidityPeriodForCert) {
+			if (Math.abs(cert.issuedAt - validAt) > minValidityPeriodForCert) {
+				throw makeTimeMismatchException(`Certificate is not valid at ${validAt} being issued at ${cert.issuedAt} and applying minimum validity period window of ${minValidityPeriodForCert} seconds`);
+			}
+		} else {
+			if ((validAt < (cert.issuedAt - minValidityPeriodForCert))
+			|| (cert.expiresAt <= validAt)) {
+				throw makeTimeMismatchException(`Certificate is not valid at ${validAt} being issued at ${cert.issuedAt} and expiring at ${cert.expiresAt}`);
+			}
 		}
 		return cert.cert.publicKey;
 	}

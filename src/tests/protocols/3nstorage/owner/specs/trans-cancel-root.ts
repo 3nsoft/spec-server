@@ -26,7 +26,7 @@ import { Obj }	from '../../../../libs-for-tests/3nstorage';
 import { expectNonAcceptanceOfBadSessionId,
 	expectNonAcceptanceOfNonEmptyBody }
 	from '../../../../shared-checks/requests';
-import { bytes as randomBytes } from '../../../../../lib-common/random-node';
+import { bytesSync as randomBytes } from '../../../../../lib-common/random-node';
 import { resolve as resolveUrl } from 'url';
 
 export const specs: SpecDescribe = {
@@ -54,7 +54,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		const sessionId = await startSession(user);
 		const fstReqOpts: RequestOpts = {
 			url: resolveUrl(user.storageOwnerUrl, rootApi.firstPutReqUrlEnd({
-				ver: 1, header: obj.header.length, append: true })),
+				ver: 1, header: obj.header.length })),
 			method: 'PUT',
 			sessionId
 		};

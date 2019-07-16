@@ -22,8 +22,7 @@ import { readFile, FileException } from '../../lib-common/async-fs-node';
 import { base64urlSafe, utf8 } from '../../lib-common/buffer-utils';
 import { box } from 'ecma-nacl';
 import { JsonKey, keyFromJson } from '../../lib-common/jwkeys';
-import { GetUserPKeyAndKeyGenParams, UserPKeyAndKeyGenParams } from 
-	'../../lib-server/routes/pub-key-login/start-exchange';
+import { GetUserPKeyAndKeyGenParams, UserPKeyAndKeyGenParams } from '../../lib-server/routes/pub-key-login/start-exchange';
 import { UserMidParams } from '../../lib-common/admin-api/signup';
 
 export interface Factory {
@@ -70,7 +69,7 @@ export function makeFactory(rootFolder: string): Factory {
 			} else {
 				params = {
 					pkey: extractPKeyBytes(userInfo.defaultPKey.pkey),
-					params: userInfo.defaultPKey.params
+					params: userInfo.defaultPKey.kdParams
 				};
 			}
 			return params;

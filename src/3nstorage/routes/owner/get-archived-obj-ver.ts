@@ -15,11 +15,8 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { GetArchivedObjVersion, SC as storeSC }
-	from '../../resources/users';
-import { GetObjQueryOpts, ERR_SC, HTTP_HEADER, BIN_TYPE,
-	archivedObjVersion as api }
-	from '../../../lib-common/service-api/3nstorage/owner';
+import { GetArchivedObjVersion, SC as storeSC } from '../../resources/users';
+import { GetObjQueryOpts, ERR_SC, HTTP_HEADER, BIN_TYPE, archivedObjVersion as api } from '../../../lib-common/service-api/3nstorage/owner';
 import { Request } from '../../resources/sessions';
 import { errWithCause } from '../../../lib-common/exceptions/error';
 import { EMPTY_BUFFER } from '../../../lib-common/buffer-utils';
@@ -89,7 +86,8 @@ export function getArchivedObjVersion(root: boolean,
 		} catch (err) {
 			if ("string" !== typeof err) {
 				next(err);
-			} else if (err === storeSC.OBJ_UNKNOWN) {
+			} else if ((err === storeSC.OBJ_UNKNOWN)
+			|| (err === storeSC.OBJ_VER_UNKNOWN)) {
 				res.status(api.SC.missing).send(objId ?
 					`Object ${objId}, version ${opts.ver} is unknown.` : `Root object version ${opts.ver} is not known.`);
 			} else if (err === storeSC.USER_UNKNOWN) {

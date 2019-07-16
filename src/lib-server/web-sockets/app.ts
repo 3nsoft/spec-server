@@ -20,8 +20,7 @@ import * as express from 'express';
 import * as WebSocket from 'ws';
 import { bind } from '../../lib-common/binding';
 import { MapOfSets } from '../../lib-common/map-of-sets';
-import { CheckSession, BaseRequest as HttpRequest, SessionParams }
-	from '../resources/sessions';
+import { CheckSession, BaseRequest as HttpRequest, SessionParams } from '../resources/sessions';
 import { parse as parseUrl } from 'url';
 	
 export type HttpServer = http.Server | https.Server;
@@ -59,7 +58,7 @@ class UserSocketsServer {
 			clientTracking: true,
 			maxPayload: MAX_MSG_PAYLOAD,
 			verifyClient: bind(this, this.verifyClient)
-		} as WebSocket.IServerOptions)
+		} as WebSocket.ServerOptions)
 		.on('connection', bind(this, this.handleConnection) as any)	// bad @types
 		.on('error', (err) => { console.error(err); });
 
@@ -293,7 +292,7 @@ export class AppWithWSs {
 		// start listening
 		this.closingProc = undefined;
 		return new Promise<void>((resolve, reject) => {
-			const cb = (err) => {
+			const cb = (err?) => {
 				if (err) { reject(err); }
 				else { resolve(); }
 			};

@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2019 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -37,21 +37,18 @@
  *              object file;
  */
 
-// XXX change from transaction folder to a pair of transaction info and new
-//		version files, and remove dot after version, as there is no need in it.
-
 import * as fs from '../../lib-common/async-fs-node';
-import { Readable as ReadableStream } from 'stream';
-import { createReadStream, ReadStream } from 'fs'
-import { PutObjFirstQueryOpts, PutObjSecondQueryOpts }
-	from '../../lib-common/service-api/3nstorage/owner';
+import { Readable } from 'stream';
+import { PutObjFirstQueryOpts, PutObjSecondQueryOpts } from '../../lib-common/service-api/3nstorage/owner';
 import { stringOfB64UrlSafeChars } from '../../lib-common/random-node';
-import { UserFiles, SC as ufSC, addressToFName, ObjPipe, ObjReader, pipeBytes }
-	from '../../lib-server/resources/user-files';
-import { utf8 } from '../../lib-common/buffer-utils';
-import { DiffInfo, objChanged, objRemoved }
-	from '../../lib-common/service-api/3nstorage/owner';
-import { parseObjFile, createObjFile } from '../../lib-common/obj-file';
+import { UserFiles, SC as ufSC, addressToFName, ObjReader } from '../../lib-server/resources/user-files';
+import { DiffInfo, objChanged, objRemoved } from '../../lib-common/service-api/3nstorage/owner';
+import { streamToObjFile, diffToLayout, chunksInOrderedStream, makeObjPipe, GetObjFile } from '../../lib-common/objs-on-disk/utils';
+import { TimeWindowCache } from '../../lib-common/time-window-cache';
+import { ObjVersionFile } from '../../lib-common/objs-on-disk/obj-file';
+import { errWithCause } from '../../lib-common/exceptions/error';
+import { join } from 'path';
+import { NamedProcs } from '../../lib-common/processes';
 
 export { DiffInfo } from '../../lib-common/service-api/3nstorage/owner';
 export { ObjPipe, ObjReader } from '../../lib-server/resources/user-files';
@@ -66,11 +63,11 @@ export const SC = {
 	OBJ_EXIST: 'obj-already-exist',
 	OBJ_UNKNOWN: 'obj-unknown',
 	OBJ_VER_UNKNOWN: 'obj-ver-unknown',
-	WRITE_OVERFLOW: ufSC.WRITE_OVERFLOW,
+	OBJ_VER_EXIST: 'obj-ver-already-exist',
 	CONCURRENT_TRANSACTION: "concurrent-transactions",
 	TRANSACTION_UNKNOWN: "transactions-unknown",
-	INCOMPATIBLE_TRANSACTION: "incompatible-transaction",
-	NOT_ENOUGH_SPACE: "not-enough-space"
+	NOT_ENOUGH_SPACE: "not-enough-space",
+	OBJ_FILE_INCOMPLETE: 'obj-file-incomplete',
 };
 Object.freeze(SC);
 
@@ -98,18 +95,12 @@ const STATUS_FILE = 'status';
 export interface TransactionParams {
 	isNewObj?: boolean;
 	version: number;
-	sizes: {
-		header: number;
-		segments: number;
-	};
-	diff?: DiffInfo;
+	baseVersion?: number;
 }
 
 export interface TransactionInfo extends TransactionParams {
 	transactionType: 'write' | 'remove' | 'archive';
 	transactionId: string;
-	headerOffset: number;
-	segsOffset: number;
 }
 
 interface SpaceInfo {
@@ -117,9 +108,8 @@ interface SpaceInfo {
 	used: number;
 }
 
-// XXX this is what space-tracker in lib-server should do
-//		we may reuse UserFiles to contain worker-side space tracking functionality
-// This is a memoizer for space usage with a little extra.
+// XXX move this space-tracker into user-files file. One instance for the whole
+// server should do the job.
 class SpaceTracker {
 	
 	private space: {
@@ -132,7 +122,7 @@ class SpaceTracker {
 
 	private async diskUsed(path: string, runNum = 0): Promise<number> {
 		
-		// XXX use du, while on windows du might be in linux console!
+		// XXX use calculated value, updating it from time to time with du <folder>. while on windows du might be in linux console!
 
 		return 0;
 	}
@@ -156,7 +146,8 @@ class SpaceTracker {
 			s = await this.updateSpaceInfo(store);
 		}
 		if ((delta > 0) && ((s.free - delta) < 0)) {
-			throw SC.NOT_ENOUGH_SPACE; }
+			throw SC.NOT_ENOUGH_SPACE;
+		}
 		s.free -= delta;
 		s.used += delta;
 	}
@@ -174,82 +165,31 @@ const spaceTracker = new SpaceTracker();
 const SINGLE_BYTE_BUF = Buffer.alloc(1);
 SINGLE_BYTE_BUF[0] = 0;
 
-function getFstAndLastSections(sections: number[][], offset: number,
-		len: number): { fstInd: number; fstSec: number[];
-			lastInd: number; lastSec: number[]; } {
-	let fstInd: number = (undefined as any);
-	const fstSec = new Array(3);
-	let sectionEnd = 0;
-	for (let i=0; i<sections.length; i+=1) {
-		const s = sections[i];
-		sectionEnd += s[2];
-		if (offset < sectionEnd) {
-			fstInd = i;
-			fstSec[0] = s[0];
-			const secLen = sectionEnd - offset;
-			const secPos = s[1] + (s[2] - secLen);
-			fstSec[1] = secPos;
-			fstSec[2] = secLen;
-			break;
-		}
-	}
-	if (typeof fstInd !== 'number') { return ({} as any); }
-	if (fstSec[2] >= len) {
-		fstSec[2] = len;
-		return { fstSec, fstInd, lastSec: fstSec, lastInd: fstInd };
-	}
-	if ((fstInd + 1) === sections.length) {
-		return { fstSec, fstInd, lastSec: fstSec, lastInd: fstInd };
-	}
-	let lastInd: number = (undefined as any);
-	let lastSec = new Array<number>(3);
-	for (let i=fstInd+1; i<sections.length; i+=1) {
-		const s = sections[i];
-		sectionEnd += s[2];
-		if (len <= (sectionEnd - offset)) {
-			lastInd = i;
-			lastSec[0] = s[0];
-			lastSec[1] = s[1];
-			lastSec[2] = s[2] - ((sectionEnd - offset) - len);
-			break;
-		}
-	}
-	if (typeof lastInd !== 'number') {
-		lastInd = sections.length - 1;
-		lastSec = sections[lastInd];
-	}
-	return { fstInd, fstSec, lastInd, lastSec }; 
-}
-
 export class Store extends UserFiles {
 
-	private storageEventsSink: StorageEventsSink;
+	private objVerFiles = new ObjVerFiles(30*1000);
+
+	private statuses = new ObjStatuses(30*1000, this.path);
+
+	private transactions = new ObjTransactions(
+		30*1000, this.statuses, this.path, this.objVerFiles.uncache);
 	
 	constructor(userId: string, path: string,
-			storageEventsSink: StorageEventsSink,
-			writeBufferSize?: string|number, readBufferSize?: string|number) {
+		private storageEventsSink: StorageEventsSink,
+		writeBufferSize?: string|number, readBufferSize?: string|number
+	) {
 		super(userId, path, writeBufferSize, readBufferSize);
-		this.storageEventsSink = storageEventsSink;
 		Object.freeze(this);
 	}
 	
 	static async make(rootFolder: string, userId: string,
-			storageEventsSink: StorageEventsSink,
-			writeBufferSize?: string|number, readBufferSize?: string|number):
-			Promise<Store> {
-		const path = rootFolder+'/'+addressToFName(userId)+'/store';
+		storageEventsSink: StorageEventsSink, writeBufferSize?: string|number, readBufferSize?: string|number
+	): Promise<Store> {
+		const path = join(rootFolder, addressToFName(userId), 'store');
 		const store = new Store(userId, path, storageEventsSink,
 			writeBufferSize, readBufferSize);
 		await store.ensureUserExistsOnDisk();
 		return store;
-	}
-	
-	private objFolder(objId: string|null): string {
-		return (objId ? this.path+'/objects/'+objId : this.path+'/root');
-	}
-	
-	private listAllObjs(): Promise<string[]> {
-		return fs.readdir(this.path+'/objects/');
 	}
 
 	/**
@@ -264,34 +204,50 @@ export class Store extends UserFiles {
 	 * @param byteLen is an expected length of a given byte stream.
 	 * @param opts
 	 */
-	async startSavingObjNewVersion(objId: string|null, diff: DiffInfo|undefined,
-			bytes: ReadableStream, byteLen: number, opts: PutObjFirstQueryOpts):
-			Promise<string|undefined> {
+	async startSavingObjNewVersion(
+		objId: string|null, diff: DiffInfo|undefined,
+		bytes: Readable, byteLen: number, opts: PutObjFirstQueryOpts
+	): Promise<string|undefined> {
+		if (byteLen > 0) {
+			await spaceTracker.change(this, byteLen);
+		}
 
-		const trans = await this.startTransaction(objId, {
+		const params: TransactionParams = {
 			isNewObj: (opts.ver === 1),
 			version: opts.ver,
-			diff,
-			sizes: {
-				header: opts.header,
-				segments: ((typeof opts.segs === 'number') ? opts.segs : -1)
-			}
-		});
+			baseVersion: (diff ? diff.baseVersion : undefined)
+		};
+		const trans = await this.transactions.startNew(objId, params);
 
-		const file = `${this.transactionFolder(objId)}/new`;
-		await fs.streamToExistingFile(file, trans.headerOffset,
-				byteLen, bytes, this.fileWritingBufferSize);
-		
-		if (opts.append || (byteLen < (opts.header + opts.segs!))) {
-			return trans.transactionId;
-		} else {
-			await this.completeTransaction(objId, trans.transactionId);
-			this.storageEventsSink(this.userId, objChanged.EVENT_NAME, {
-				objId,
-				newVer: opts.ver
-			});
+		let file: ObjVersionFile;
+		try {
+			const filePath = this.transactions.objFileWritingPath(objId);
+			file = await this.objVerFiles.forNewFile(
+				objId, trans.version, filePath);
+			if (diff) {
+				await file.setSegsLayout(diffToLayout(diff), false);
+			}
+
+			const chunks = chunksInOrderedStream(byteLen, opts.header, 0);
+			await streamToObjFile(file, chunks, bytes, this.fileWritingBufferSize);
+
+			if (opts.last) {
+				if (!file.isFileComplete()) { throw SC.OBJ_FILE_INCOMPLETE; }
+				await this.transactions.complete(objId, trans, file);
+				this.storageEventsSink(this.userId, objChanged.EVENT_NAME, {
+					objId,
+					newVer: opts.ver
+				});
+			} else {
+				return trans.transactionId;
+			}
+
+		} catch (err) {
+			await spaceTracker.change(this, -byteLen);
+			await this.transactions.cancel(objId, trans.transactionId).catch(() => {});
+			throw err;
 		}
-	}
+}
 
 	/**
 	 * This method continues object saving transaction. If this request is the
@@ -305,263 +261,45 @@ export class Store extends UserFiles {
 	 * @param byteLen is an expected length of a given byte stream.
 	 * @param opts
 	 */
-	async continueSavingObjNewVersion(objId: string|null, bytes: ReadableStream,
-			byteLen: number, opts: PutObjSecondQueryOpts):
-			Promise<string|undefined> {
-		const trans = await this.getTransactionParams(objId, opts.trans);
-		const file = `${this.transactionFolder(objId)}/new`;
+	async continueSavingObjNewVersion(
+		objId: string|null, bytes: Readable, byteLen: number,
+		opts: PutObjSecondQueryOpts
+	): Promise<string|undefined> {
+		const trans = await this.transactions.get(objId, opts.trans);
 
-		if (opts.append) {
-			if (trans.sizes.segments >= 0) { throw SC.INCOMPATIBLE_TRANSACTION; }
+		try {
+			const filePath = this.transactions.objFileWritingPath(objId);
+			const file = await this.objVerFiles.forExistingFile(
+				objId, trans.version, filePath);
 
 			if (byteLen > 0) {
-				const offset = await fs.getFileSize(file);
 				await spaceTracker.change(this, byteLen);
-				await fs.streamToExistingFile(
-					file, offset, byteLen, bytes, this.fileWritingBufferSize)
-				.catch(async (err) => {
-					await fs.truncate(file, offset).catch(() => {});
-					throw err;
+				const chunks = chunksInOrderedStream(byteLen, undefined, opts.ofs);
+				await streamToObjFile(
+					file, chunks, bytes, this.fileWritingBufferSize);
+			}
+			
+			if (opts.last) {
+				if (!file.isFileComplete()) { throw SC.OBJ_FILE_INCOMPLETE; }
+				await this.transactions.complete(objId, trans, file);
+				this.storageEventsSink(this.userId, objChanged.EVENT_NAME, {
+					objId,
+					newVer: trans.version
 				});
-			}
-		} else {
-			if ((trans.sizes.segments < 0) && !opts.append) {
-				throw SC.INCOMPATIBLE_TRANSACTION;
-			} else if ((opts.ofs! + byteLen) > trans.sizes.segments) {
-				throw SC.WRITE_OVERFLOW;
-			}
-			
-			const offset = trans.segsOffset + opts.ofs!;
-			if (byteLen > 0) {
-				await fs.streamToExistingFile(file, offset, byteLen, bytes,
-					this.fileWritingBufferSize);
-			}
-		}
-		
-		if (!opts.last) { return opts.trans; }
-
-		await this.completeTransaction(objId, opts.trans);
-		this.storageEventsSink(this.userId, objChanged.EVENT_NAME, {
-			objId,
-			newVer: trans.version
-		});
-	}
-
-	/**
-	 * @param objId
-	 * @return a promise, resolvable to object's status info.
-	 */
-	private async getObjStatus(objId: string|null): Promise<ObjStatusInfo> {
-		const filePath = `${this.objFolder(objId)}/${STATUS_FILE}`;
-		try {
-			const str = await fs.readFile(filePath, { encoding: 'utf8', flag: 'r' });
-			const status: ObjStatusInfo = JSON.parse(str);
-			return status;
-		} catch (err) {
-			if ((<fs.FileException> err).notFound) {
-				throw SC.OBJ_UNKNOWN;
-			}
-			throw err;
-		}
-	}
-
-	/**
-	 * @param objId
-	 * @param status is object's status info.
-	 * @return a promise, resolvable when a new version is set.
-	 */
-	private setObjStatus(objId: string|null, status: ObjStatusInfo): Promise<void> {
-		const filePath = `${this.objFolder(objId)}/${STATUS_FILE}`;
-		return fs.writeFile(filePath, JSON.stringify(status),
-			{ encoding: 'utf8', flag: 'w' });
-	}
-	
-	private async makeNewObj(objId: string|null): Promise<void> {
-		if (objId === null) {
-			await this.getObjStatus(objId).then(
-				() => { throw SC.OBJ_EXIST; },
-				(err) => { if (err !== SC.OBJ_UNKNOWN) { throw err; } });
-		} else {
-			// creation of folder ensures that id is unique
-			const objFolder = this.objFolder(objId);
-			await fs.mkdir(objFolder).catch((err: fs.FileException) => {
-				if (err.alreadyExists) { throw SC.OBJ_EXIST; }
-				else { throw err; }
-			});
-			// check that no id exists, that is equal up to letter case 
-			const allObjIds = await this.listAllObjs();
-			const lowerCaseObjId = objId.toLowerCase();
-			for (const id of allObjIds) {
-				if ((id.toLowerCase() === lowerCaseObjId) && (id !== objId)) {
-					fs.rmdir(objFolder);
-					throw SC.OBJ_EXIST;
-				}
-			}
-		}
-		await this.setObjStatus(objId, {
-			state: 'new'
-		});
-	}
-	
-	private transactionFolder(objId: string|null): string {
-		return (objId ?
-			`${this.path}/transactions/${objId}` :
-			`${this.path}/root/transaction`);
-	}
-	
-	private saveTransactionParams(objId: string|null,
-			transaction: TransactionInfo): Promise<void> {
-		return fs.writeFile(`${this.transactionFolder(objId)}/transaction`,
-			JSON.stringify(transaction), { encoding: 'utf8', flag: 'w' });
-	}
-	
-	/**
-	 * @param objId
-	 * @param transactionId is an optional parameter, that ensures that
-	 * object transaction has given id.
-	 * @return A promise, resolvable to transaction info object.
-	 */
-	private async getTransactionParams(objId: string|null, transactionId?: string):
-			Promise<TransactionInfo> {
-		try {
-			const buf = await fs.readFile(
-				`${this.transactionFolder(objId)}/transaction`);
-			const trans = <TransactionInfo> JSON.parse(buf.toString('utf8'));
-			if (transactionId && (trans.transactionId !== transactionId)) {
-				throw SC.TRANSACTION_UNKNOWN;
-			}
-			return trans;
-		} catch (err) {
-			if ((<fs.FileException> err).notFound) {
-				await fs.stat(this.objFolder(objId))
-				.catch((exc: fs.FileException) => {
-					if (exc.notFound) { throw SC.OBJ_UNKNOWN; }
-					else { throw exc; }
-				})
-				throw SC.TRANSACTION_UNKNOWN;
-			}
-			throw err;
-		}
-	}
-	
-	/**
-	 * @param objId
-	 * @return a promise, resolvable, when transaction folder is created,
-	 * or rejectable, when transaction folder already exists.
-	 */
-	private async makeTransactionFolder(objId: string|null): Promise<void> {
-		try {
-			await fs.mkdir(this.transactionFolder(objId));
-		} catch (err) {
-			if ((<fs.FileException> err).alreadyExists) {
-				throw SC.CONCURRENT_TRANSACTION;
-			}
-			throw err;
-		}
-	}
-	
-	private async startTransaction(objId: string|null,
-			reqTrans: TransactionParams): Promise<TransactionInfo> {
-		const trans = <TransactionInfo> reqTrans;
-		trans.transactionId = stringOfB64UrlSafeChars(10);
-		trans.transactionType = 'write';
-		await this.makeTransactionFolder(objId);
-		try {
-			
-			// check object status
-			if (trans.isNewObj) {
-				await this.makeNewObj(objId);
 			} else {
-				// get current version, and check new one against it
-				const status = await this.getObjStatus(objId);
-				if (status.state !== 'current') {
-					throw SC.OBJ_UNKNOWN;
-				} else if (trans.version <= status.currentVersion!) {
-					throw makeMismatchedObjVerException(status.currentVersion!);
-				}
+				return opts.trans;
 			}
-
-			// check if given size is allowed, and create object file
-			const diffBytes = (trans.diff ?
-				utf8.pack(JSON.stringify(trans.diff)) : undefined);
-			const fileSize = (diffBytes ? 13 + diffBytes.length : 8) +
-				trans.sizes.header + Math.max(trans.sizes.segments, 0);
-			await spaceTracker.change(this, fileSize);
-			const filePath = `${this.transactionFolder(objId)}/new`;
-			const { headerOffset, segsOffset } = await createObjFile(
-				filePath, trans.sizes.header, trans.sizes.segments, diffBytes);
-			
-			// set and save transaction parameters
-			trans.headerOffset = headerOffset;
-			trans.segsOffset = segsOffset;
-			await this.saveTransactionParams(objId, trans);
 		} catch (err) {
-			await this.cancelTransaction(objId, trans.transactionId).catch(() => {});
+			await spaceTracker.change(this, -byteLen);
+			await this.transactions.cancel(objId, trans.transactionId).catch(() => {});
 			throw err;
 		}
-		return trans;
 	}
-	
-	private async applyTransactionFiles(transFolder: string,
-			objFolder: string, trans: TransactionInfo, objId: string|null):
-			Promise<void> {
-		// move new file from transaction folder to obj's one
-		fs.rename(`${transFolder}/new`, `${objFolder}/${trans.version}.`);
-		// update object status
-		const status = await this.getObjStatus(objId);
-		if (status.state === 'current') {
-			// if needed, remove previous version, right after exposing a new one
-			const verToDel = (status.archivedVersions &&
-				(status.archivedVersions.indexOf(
-					status.currentVersion as number) >= 0)) ?
-				null : status.currentVersion;
-			status.currentVersion = trans.version;
-			await this.setObjStatus(objId, status);
-			if (verToDel !== null) {
-				if (!trans.diff || (trans.diff.baseVersion !== verToDel))
-				await fs.unlink(`${objFolder}/${verToDel}.`);
-			}
-		} else if (status.state === 'new') {
-			status.state = 'current';
-			status.currentVersion = trans.version;
-			await this.setObjStatus(objId, status);
-		} else {
-			throw new Error(`Object ${objId} has unexpected for transaction completion state: ${status.state}`);
-		}
-	}
-	
-	async cancelTransaction(objId: string|null,
-			transactionId: string|undefined): Promise<void> {
-		
-		// XXX implement assurance that canceling without transaction id
-		//		happens only after a certain timeout, i.e. as a method to
-		//		remove deadlock, when time determines that there is a deadlock
 
-		const trans = await this.getTransactionParams(objId).catch(
-			async (exc: string) => {
-				if (exc === SC.TRANSACTION_UNKNOWN) { return null; }
-				else { throw exc; }
-			});
-		if (trans && trans.isNewObj) {
-			if (objId === null) {
-				await fs.unlink(`${this.objFolder(null)}/${STATUS_FILE}`)
-				.catch(() => {});
-			} else {
-				const objFolder = this.objFolder(objId);
-				await fs.rmDirWithContent(objFolder).catch(() => {});
-			}
-		}
-		const transFolder = this.transactionFolder(objId);
-		await fs.rmDirWithContent(transFolder).catch(() => {});
-	}
-	
-	private async completeTransaction(objId: string|null, transactionId: string):
-			Promise<void> {
-		const trans = await this.getTransactionParams(objId, transactionId);
-		const transFolder = this.transactionFolder(objId);
-		const objFolder = this.objFolder(objId);
-		await this.applyTransactionFiles(transFolder, objFolder, trans, objId);
-		await fs.rmDirWithContent(transFolder).catch(() => {});
+	async cancelTransaction(
+		objId: string|null, transactionId?: string
+	): Promise<void> {
+		await this.transactions.cancel(objId, transactionId);
 	}
 
 	/**
@@ -576,10 +314,11 @@ export class Store extends UserFiles {
 	 * @param segsLimit is a maximum number of segment bytes to read. Undefined
 	 * indicates that all bytes can be read.
 	 */
-	async getCurrentObj(objId: string|null,
-			header: boolean, segsOffset: number, segsLimit: number|undefined):
-			Promise<{ reader: ObjReader; version: number; }> {
-		const status = await this.getObjStatus(objId);
+	async getCurrentObj(
+		objId: string|null, header: boolean, segsOffset: number,
+		segsLimit: number|undefined
+	): Promise<{ reader: ObjReader; version: number; }> {
+		const status = await this.statuses.get(objId);
 		const version = status.currentVersion;
 		if (typeof version !== 'number') { throw SC.OBJ_UNKNOWN; }
 		const reader = await this.makeObjReader(
@@ -599,10 +338,11 @@ export class Store extends UserFiles {
 	 * @param segsLimit is a maximum number of segment bytes to read. Undefined
 	 * indicates that all bytes can be read.
 	 */
-	async getArchivedObjVersion(objId: string|null, version: number,
-			header: boolean, segsOffset: number, segsLimit: number|undefined):
-			Promise<ObjReader> {
-		const status = await this.getObjStatus(objId);
+	async getArchivedObjVersion(
+		objId: string|null, version: number,
+		header: boolean, segsOffset: number, segsLimit: number|undefined
+	): Promise<ObjReader> {
+		const status = await this.statuses.get(objId);
 		if (!status.archivedVersions) { throw SC.OBJ_UNKNOWN; }
 		if (status.archivedVersions.indexOf(version) < 0) {
 			throw SC.OBJ_UNKNOWN; }
@@ -611,31 +351,24 @@ export class Store extends UserFiles {
 		return reader;
 	}
 
-	private async makeObjReader(objId: string|null, version: number,
-			header: boolean, offsetIntoSegs: number, segsLimit: number|undefined):
-			Promise<ObjReader> {
-		const objFolder = this.objFolder(objId);
-		const objFile = `${objFolder}/${version}.`;
+	private async makeObjReader(
+		objId: string|null, version: number,
+		header: boolean, segsOfs: number, segsLimit: number|undefined
+	): Promise<ObjReader> {
+		const file = await this.getObjFile(objId, version);
 
-		// parse first part of an object file
-		const { headerOffset, segsOffset, diff, fileSize } =
-			await parseObjFile(objFile).catch((exc: fs.FileException) => {
-				if (exc.notFound) { throw SC.OBJ_UNKNOWN; }
-				throw exc;
-			});
-		
 		// find total segments length
-		const segsLen = (diff ? diff.segsSize : (fileSize - segsOffset));
+		const segsLen = file.getTotalSegsLen();
 
 		// contain boundary parameters offsetIntoSegs and len for segment bytes
-		if (segsLen < offsetIntoSegs) {
-			offsetIntoSegs = segsLen;
+		if (segsLen < segsOfs) {
+			segsOfs = segsLen;
 		}
 		let segBytesToRead: number;
 		if (segsLimit === undefined) {
-			segBytesToRead = segsLen - offsetIntoSegs;
-		} else if ((offsetIntoSegs+segsLimit) >= segsLen) {
-			segBytesToRead = segsLen - offsetIntoSegs;
+			segBytesToRead = segsLen - segsOfs;
+		} else if ((segsOfs+segsLimit) >= segsLen) {
+			segBytesToRead = segsLen - segsOfs;
 		} else {
 			segBytesToRead = segsLimit;
 		}
@@ -643,120 +376,37 @@ export class Store extends UserFiles {
 		// construct reader
 		let reader: ObjReader;
 		if (header) {
-			const headerLen = segsOffset - headerOffset;
+			const headerLen = file.getHeaderLen()!;
 			reader = {
 				len: (segBytesToRead + headerLen),
 				segsLen,
 				headerLen,
-				pipe: this.makeObjPipe(objId, objFile, offsetIntoSegs,
-					segBytesToRead, diff, headerOffset, segsOffset)
+				pipe: makeObjPipe(
+					file, true, segsOfs, segBytesToRead, objId, this.getObjFile)
 			};
 		} else {
 			reader = {
 				len: segBytesToRead,
 				segsLen,
-				pipe: this.makeObjPipe(objId, objFile, offsetIntoSegs,
-					segBytesToRead, diff, undefined, segsOffset)
+				pipe: makeObjPipe(
+					file, false, segsOfs, segBytesToRead, objId, this.getObjFile)
 			};
 		}
 		Object.freeze(reader);
 		
 		return reader;
 	}
-	
-	private makeObjPipe(objId: string|null, file: string, offset: number,
-			segBytesToRead: number, diff: DiffInfo|undefined,
-			headerOffset: number|undefined, segsOffset: number):
-			ObjPipe|undefined {
-		if ((typeof headerOffset === 'number') && (offset > 0)) { throw new Error(
-			`Offset into segments is ${offset} instead of being zero when header is requested.`); }
-		
-		// function to pipe directly from non-diff-ed version
-		if (!diff) {
-			if (typeof headerOffset === 'number') {
-				return (outStream: NodeJS.WritableStream) => pipeBytes(
-					createReadStream(file, {
-						flags: 'r',
-						start: headerOffset,
-						end: segsOffset+segBytesToRead-1
-					}),
-					outStream);
-			} else {
-				if (segBytesToRead < 1) { return; }
-				return (outStream: NodeJS.WritableStream) => pipeBytes(
-					createReadStream(file, {
-						flags: 'r',
-						start: offset+segsOffset,
-						end: offset+segsOffset+segBytesToRead-1
-					}),
-					outStream);
-			}
-		}
 
-		// find which diff's sections should be read
-		const { fstInd, fstSec, lastInd, lastSec } =
-			getFstAndLastSections(diff.sections, offset, segBytesToRead);
-		if (!fstSec) { return; }
-
-		// function to pipe from diff sections
-		return async (outStream: NodeJS.WritableStream): Promise<void> => {
-			if (typeof headerOffset === 'number') {
-				await pipeBytes(
-					createReadStream(file, {
-						flags: 'r',
-						start: headerOffset,
-						end: segsOffset-1
-					}),
-					outStream);
-			}
-			const pipeSection = async (secInd: number): Promise<void> => {
-				const s = ((secInd === fstInd) ? fstSec :
-						((secInd === lastInd) ? lastSec : diff.sections[secInd]));
-				if (s[0] === 1) {
-					await pipeBytes(
-						createReadStream(file, {
-							flags: 'r',
-							start: s[1]+segsOffset,
-							end: s[1]+segsOffset+s[2]-1
-						}),
-						outStream);
-				} else {
-					const base = await this.makeObjReader(
-						objId, diff.baseVersion, false, s[1], s[2]);
-					if (base.pipe) {
-						await base.pipe(outStream);
-					}
-				}
-				// continue recursively
-				secInd += 1;
-				if (secInd <= lastInd) {
-					return pipeSection(secInd);
-				}
-			};
-			return pipeSection(fstInd);
-		};
-	}
-
-	/**
-	 * @param objId is a string object id for non-root objects, and null for
-	 * root object.
-	 * @param version identifies exact version of files for removal.
-	 * @return a promise, resolvable when version files are removed.
-	 */
-	private async rmObjFiles(objId: string, version: number): Promise<void> {
-		const objFolder = this.objFolder(objId);
-		let objFiles = await fs.readdir(objFolder)
-		.catch((exc: fs.FileException) => {
-			if (exc.notFound) { throw SC.OBJ_UNKNOWN; }
-			else { throw exc; }
-		});
-		const verPart = `${version}.`;
-		objFiles = objFiles.filter(fName => fName.startsWith(verPart));
-		if (objFiles.length === 0) { throw SC.OBJ_UNKNOWN; }
-		for (const fName of objFiles) {
-			await fs.unlink(`${objFolder}/${fName}`).catch(() => {});
-		}
-	}
+	private getObjFile: GetObjFile = async (
+		objId: string|null, version: number
+	): Promise<ObjVersionFile> => {
+		const filePath = this.statuses.objFileReadingPath(objId, version);
+		return await this.objVerFiles.forExistingFile(
+			objId, version, filePath).catch((exc: fs.FileException) => {
+				if (exc.notFound) { throw SC.OBJ_UNKNOWN; }
+				throw exc;
+			});
+	};
 
 	/**
 	 * @param objId is a string object id for non-root objects, and null for
@@ -766,9 +416,10 @@ export class Store extends UserFiles {
 	 * If an object has any archived versions (even if current), these will not
 	 * be removed, and such object state will be labeled as archived.
 	 */
-	async deleteObj(objId: string, archVersion: number|null = null):
-			Promise<void> {
-		const status = await this.getObjStatus(objId);
+	async deleteObj(
+		objId: string, archVersion: number|null = null
+	): Promise<void> {
+		const status = await this.statuses.get(objId);
 		const arch = status.archivedVersions;
 		// XXX need to put removal transaction, closing it in a finally clause
 
@@ -777,12 +428,12 @@ export class Store extends UserFiles {
 				'Root object is not removable.'); }
 			if (status.state !== 'current') { throw SC.OBJ_UNKNOWN; }
 			if (!Array.isArray(arch) || (arch.length === 0)) {
-				await fs.rmDirWithContent(this.objFolder(objId)).catch(() => {});
+				await this.statuses.deleteWithObj(objId);
 			} else {
 				const currVer = status.currentVersion;
 				delete status.currentVersion;
 				status.state = 'archived';
-				await this.setObjStatus(objId, status);
+				await this.statuses.set(objId, status);
 				if (typeof currVer !== 'number') { throw new Error(`Illegal state of object status file for ${objId}: state is current, while current version is missing.`); }
 				if (arch.indexOf(currVer) < 0) {
 					await this.rmObjFiles(objId, currVer);
@@ -796,7 +447,7 @@ export class Store extends UserFiles {
 			if (arch.length === 0) {
 				delete status.archivedVersions;
 			}
-			await this.setObjStatus(objId, status);
+			await this.statuses.set(objId, status);
 			if (status.currentVersion !== archVersion) {
 				await this.rmObjFiles(objId, archVersion);
 			}
@@ -806,17 +457,39 @@ export class Store extends UserFiles {
 		});
 	}
 
+	/**
+	 * @param objId is a string object id for non-root objects, and null for
+	 * root object.
+	 * @param version identifies exact version of files for removal.
+	 * @return a promise, resolvable when version files are removed.
+	 */
+	private async rmObjFiles(objId: string, version: number): Promise<void> {
+		const objFolder = this.statuses.objFolder(objId);
+		let objFiles = await fs.readdir(objFolder)
+		.catch((exc: fs.FileException) => {
+			if (exc.notFound) { throw SC.OBJ_UNKNOWN; }
+			else { throw exc; }
+		});
+		const verPart = toFName(version);
+		objFiles = objFiles.filter(fName => fName.startsWith(verPart));
+		if (objFiles.length === 0) { throw SC.OBJ_UNKNOWN; }
+		for (const fName of objFiles) {
+			await fs.unlink(join(objFolder, fName)).catch(() => {});
+		}
+	}
+
 	// XXX need both, archiving and removal transactions for atomic locking
 	//		should these be like empty lock files instead of saving folders,
 	//		with code distiguishing between the two, while concurrent transaction
 	//		only need fs.stat for a given name, or a fail of creating lock
 	//		file/folder.
 
-	async archiveCurrentObjVersion(objId: string, version: number):
-			Promise<void> {
+	async archiveCurrentObjVersion(
+		objId: string, version: number
+	): Promise<void> {
 		// XXX need to put archiving transaction, closing it in a finally clause
 
-		const status = await this.getObjStatus(objId);
+		const status = await this.statuses.get(objId);
 		if (status.state !== 'current') { throw SC.OBJ_UNKNOWN; }
 		if (typeof status.currentVersion !== 'number') { throw new Error(`Illegal state of object status file for ${objId}: state is current, while current version is missing.`); }
 		const arch = status.archivedVersions;
@@ -825,11 +498,11 @@ export class Store extends UserFiles {
 		} else {
 			status.archivedVersions = [ status.currentVersion ];
 		}
-		await this.setObjStatus(objId, status);
+		await this.statuses.set(objId, status);
 	}
 
 	async listObjArchive(objId: string): Promise<number[]> {
-		const status = await this.getObjStatus(objId);
+		const status = await this.statuses.get(objId);
 		const arch = status.archivedVersions;
 		return (Array.isArray(arch) ? arch : []);
 	}
@@ -841,8 +514,9 @@ export class Store extends UserFiles {
 	static getKeyDerivParams(store: Store): Promise<any> {
 		return store.getParam<any>('key-deriv');
 	}
-	static async setKeyDerivParams(store: Store, params: any,
-			setDefault: boolean): Promise<boolean> {
+	static async setKeyDerivParams(
+		store: Store, params: any, setDefault: boolean
+	): Promise<boolean> {
 		if (setDefault) {
 			params = {};
 		} else if ((typeof params !== 'object') || Array.isArray(params)) {
@@ -858,5 +532,333 @@ export class Store extends UserFiles {
 }
 Object.freeze(Store.prototype);
 Object.freeze(Store);
+
+class ObjVerFiles {
+
+	private cache: TimeWindowCache<string, ObjVersionFile>;
+
+	constructor(cachePeriodMillis: number) {
+		this.cache = new TimeWindowCache(cachePeriodMillis);
+		Object.freeze(this);
+	}
+
+	async forNewFile(
+		objId: string|null, version: number, path: string
+	): Promise<ObjVersionFile> {
+		const cacheId = this.cacheIdFor(objId, version);
+		const objFile = await ObjVersionFile.createNew(path)
+		.catch((exc: fs.FileException) => {
+			if (exc.alreadyExists) { throw  SC.OBJ_VER_EXIST; }
+			throw exc;
+		});
+		this.cache.set(cacheId, objFile);
+		return objFile;
+	}
+
+	async forExistingFile(
+		objId: string|null, version: number, path?: string
+	): Promise<ObjVersionFile> {
+		const cacheId = this.cacheIdFor(objId, version);
+		let objFile = this.cache.get(cacheId);
+		if (!objFile) {
+			if (!path) { throw new Error(
+				`Path to file is not given, while instance of obj version file is not found in cache.`); }
+			objFile = await ObjVersionFile.forExisting(path)
+			.catch((exc: fs.FileException) => {
+				if (exc.notFound) { throw SC.OBJ_VER_UNKNOWN; }
+				throw exc;
+			});
+			this.cache.set(cacheId, objFile);
+		}
+		return objFile;
+	}
+
+	private cacheIdFor(objId: string|null, version: number): string {
+		return `${objId}:${version}`;
+	}
+
+	uncache = (objId: string|null, version: number): void => {
+		this.cache.delete(this.cacheIdFor(objId, version));
+	};
+
+}
+Object.freeze(ObjVerFiles.prototype);
+Object.freeze(ObjVerFiles);
+
+class ObjStatuses {
+
+	private cache: TimeWindowCache<string|null, ObjStatusInfo>;
+	private saveProcs = new NamedProcs();
+
+	constructor(
+		cachePeriodMillis: number,
+		public path: string
+	) {
+		this.cache = new TimeWindowCache(cachePeriodMillis);
+		Object.freeze(this);
+	}
+	
+	objFolder(objId: string|null): string {
+		return (objId ?
+			join(this.path, 'objects', objId) :
+			join(this.path, 'root'));
+	}
+
+	async get(objId: string|null): Promise<ObjStatusInfo> {
+		let status = this.cache.get(objId);
+		if (!status) {
+			status = await this.fromFile(objId);
+			this.cache.set(objId, status);
+		}
+		return status;
+	}
+
+	private async fromFile(objId: string|null): Promise<ObjStatusInfo> {
+		const filePath = join(this.objFolder(objId), STATUS_FILE);
+		const str = await fs.readFile(filePath, { encoding: 'utf8', flag: 'r' }).catch((exc: fs.FileException) => {
+			if (exc.notFound) { throw SC.OBJ_UNKNOWN; }
+			throw exc;
+		});
+		try {
+			return JSON.parse(str) as ObjStatusInfo;
+		} catch (err) {
+			throw errWithCause(err, `Can't parse content of obj status file`);
+		}
+	}
+
+	async set(objId: string|null, status: ObjStatusInfo): Promise<void> {
+		this.cache.set(objId, status);
+		await this.saveToFile(objId, status)
+	}
+
+	private async saveToFile(
+		objId: string|null, status: ObjStatusInfo
+	): Promise<void> {
+		const filePath = join(this.objFolder(objId), STATUS_FILE);
+		const str = JSON.stringify(status);
+		const procId = (objId ? objId : 'null');
+		await this.saveProcs.startOrChain(procId, () => fs.writeFile(
+			filePath, str, { encoding: 'utf8', flag: 'w' }));
+	}
+
+	async deleteWithObj(objId: string|null): Promise<void> {
+		this.cache.delete(objId);
+		if (objId === null) {
+			await fs.unlink(join(this.objFolder(null), STATUS_FILE))
+			.catch(() => {});
+		} else {
+			const objFolder = this.objFolder(objId);
+			await fs.rmDirWithContent(objFolder).catch(() => {});
+		}
+	}
+
+	async makeNewObj(objId: string|null): Promise<void> {
+		if (objId === null) {
+			await this.get(objId).then(
+				() => { throw SC.OBJ_EXIST; },
+				(err) => { if (err !== SC.OBJ_UNKNOWN) { throw err; } });
+		} else {
+			// creation of folder ensures that id is unique
+			const objFolder = this.objFolder(objId);
+			await fs.mkdir(objFolder).catch((err: fs.FileException) => {
+				if (err.alreadyExists) { throw SC.OBJ_EXIST; }
+				else { throw err; }
+			});
+		}
+		await this.set(objId, {
+			state: 'new'
+		});
+	}
+
+	objFileReadingPath(objId: string|null, version: number): string {
+		return join(this.objFolder(objId), toFName(version));
+	}
+
+}
+Object.freeze(ObjStatuses.prototype);
+Object.freeze(ObjStatuses);
+
+class ObjTransactions {
+
+	private cache: TimeWindowCache<string|null, TransactionInfo>;
+	private saveProcs = new NamedProcs();
+
+	constructor(
+		cachePeriodMillis: number,
+		private statuses: ObjStatuses,
+		private path: string,
+		private uncacheFile: ObjVerFiles['uncache']
+	) {
+		this.cache = new TimeWindowCache(cachePeriodMillis);
+		Object.freeze(this);
+	}
+
+	private transactionFolder(objId: string|null): string {
+		return (objId ?
+			join(this.path, 'transactions', objId) :
+			join(this.path, 'root', 'transaction'));
+	}
+
+	async get(
+		objId: string|null, transactionId?: string
+	): Promise<TransactionInfo> {
+		let isInCache = true;
+		let trans = this.cache.get(objId);
+		if (!trans) {
+			isInCache = false;
+			trans = await this.fromFile(objId);
+		}
+		if (transactionId && (trans.transactionId !== transactionId)) {
+			throw SC.TRANSACTION_UNKNOWN;
+		}
+		if (isInCache) {
+			this.cache.set(objId, trans);
+		}
+		return trans;
+	}
+
+	private transactionFilePath(objId: string|null): string {
+		return join(this.transactionFolder(objId), 'transaction');
+	}
+
+	private async fromFile(objId: string|null): Promise<TransactionInfo> {
+		const filePath = this.transactionFilePath(objId);
+		const str = await fs.readFile(filePath, { encoding: 'utf8', flag: 'r' })
+		.catch(async (exc: fs.FileException) => {
+			if (exc.notFound) {
+				// it may be due to obj missing, in which case the following
+				// throws respective error
+				await this.statuses.get(objId);
+				// or just missing transaction file
+				throw SC.TRANSACTION_UNKNOWN;
+			}
+			throw exc;
+		});
+		try {
+			return JSON.parse(str) as TransactionInfo;
+		} catch (err) {
+			throw errWithCause(err, `Can't parse content of obj transaction file`);
+		}
+	}
+
+	async set(objId: string|null, status: TransactionInfo): Promise<void> {
+		this.cache.set(objId, status);
+		await this.saveToFile(objId, status)
+	}
+
+	private async saveToFile(
+		objId: string|null, transaction: TransactionInfo
+	): Promise<void> {
+		const filePath = this.transactionFilePath(objId);
+		const str = JSON.stringify(transaction);
+		const procId = (objId ? objId : 'null');
+		await this.saveProcs.startOrChain(procId, () => fs.writeFile(
+			filePath, str, { encoding: 'utf8', flag: 'w' }));
+	}
+
+	objFileWritingPath(objId: string|null): string {
+		return join(this.transactionFolder(objId), 'new');
+	}
+
+	async startNew(
+		objId: string|null, reqTrans: TransactionParams
+	): Promise<TransactionInfo> {
+		const trans = reqTrans as TransactionInfo;
+		trans.transactionId = await stringOfB64UrlSafeChars(10);
+		trans.transactionType = 'write';
+		await this.makeTransactionFolder(objId);
+		await this.set(objId, trans);
+		try {
+			
+			// check object status
+			if (trans.isNewObj) {
+				await this.statuses.makeNewObj(objId);
+			} else {
+				// get current version, and check new one against it
+				const status = await this.statuses.get(objId);
+				if (status.state !== 'current') {
+					throw SC.OBJ_UNKNOWN;
+				} else if (trans.version <= status.currentVersion!) {
+					throw makeMismatchedObjVerException(status.currentVersion!);
+				}
+			}
+
+		} catch (err) {
+			await this.cancel(objId, trans.transactionId).catch(() => {});
+			throw err;
+		}
+		return trans;
+	}
+	
+	private async makeTransactionFolder(objId: string|null): Promise<void> {
+		try {
+			await fs.mkdir(this.transactionFolder(objId));
+		} catch (err) {
+			if ((<fs.FileException> err).alreadyExists) {
+				throw SC.CONCURRENT_TRANSACTION;
+			}
+			throw err;
+		}
+	}
+
+	async cancel(objId: string|null, transactionId?: string): Promise<void> {
+		
+		// XXX implement assurance that canceling without transaction id
+		//		happens only after a certain timeout, i.e. as a method to
+		//		remove deadlock, when time determines that there is a deadlock
+
+		const trans = await this.get(objId).catch(
+			async (exc: string) => {
+				if (exc === SC.TRANSACTION_UNKNOWN) { return null; }
+				else { throw exc; }
+			});
+		if (trans && trans.isNewObj) {
+			this.statuses.deleteWithObj(objId);
+		}
+		this.cache.delete(objId);
+		const transFolder = this.transactionFolder(objId);
+		await fs.rmDirWithContent(transFolder).catch(() => {});
+	}
+
+	async complete(
+		objId: string|null, trans: TransactionInfo, newVerFile: ObjVersionFile
+	): Promise<void> {
+		this.cache.delete(objId);
+		// move new file from transaction folder to obj's one
+		const newVerPath = this.statuses.objFileReadingPath(objId, trans.version);
+		await newVerFile.moveFile(newVerPath);
+		// update object status
+		const status = await this.statuses.get(objId);
+		if (status.state === 'current') {
+			// if needed, remove previous version, right after exposing a new one
+			const verToDel = (status.archivedVersions &&
+				(status.archivedVersions.indexOf(
+					status.currentVersion as number) >= 0)) ?
+				undefined : status.currentVersion;
+			status.currentVersion = trans.version;
+			await this.statuses.set(objId, status);
+			if ((verToDel !== undefined) && (trans.baseVersion !== verToDel)) {
+				this.uncacheFile(objId, verToDel);
+				const rmPath = this.statuses.objFileReadingPath(objId, verToDel);
+				await fs.unlink(rmPath);
+			}
+		} else if (status.state === 'new') {
+			status.state = 'current';
+			status.currentVersion = trans.version;
+			await this.statuses.set(objId, status);
+		} else {
+			throw new Error(`Object ${objId} has unexpected for transaction completion state: ${status.state}`);
+		}
+		await fs.rmDirWithContent(this.transactionFolder(objId)).catch(() => {});
+	}
+
+}
+Object.freeze(ObjStatuses.prototype);
+Object.freeze(ObjStatuses);
+
+function toFName(version: number): string {
+	return `${version}.`;
+}
+
 
 Object.freeze(exports);

@@ -14,10 +14,8 @@
  You should have received a copy of the GNU General Public License along with
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
-import { commToParent, RequestEnvelope }
-	from './node-child-ipc';
-import { Configurations, servicesApp as makeServicesApp,
-	adminApp as makeAdminApp } from '../services';
+import { commToParent, RequestEnvelope } from './node-child-ipc';
+import { Configurations, servicesApp as makeServicesApp, adminApp as makeAdminApp } from '../services';
 import * as dns from 'dns';
 import { DNSMock, DnsTxtRecords } from './dns';
 import { mkdir, rmDirWithContent } from '../lib-common/async-fs-node';

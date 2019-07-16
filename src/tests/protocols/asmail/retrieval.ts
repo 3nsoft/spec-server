@@ -24,7 +24,7 @@ import { expectNonAcceptanceOfBadSessionId, expectNonAcceptanceOfNonEmptyBody }
 import { midLoginSpecs } from '../../shared-checks/check-mid-login';
 import { resolve as resolveUrl } from 'url';
 import * as api from '../../../lib-common/service-api/asmail/retrieval';
-import { bytes as randomBytes } from '../../../lib-common/random-node';
+import { bytesSync as randomBytes } from '../../../lib-common/random-node';
 import { Msg, sendMsg } from '../../libs-for-tests/asmail';
 import { bytesEqual } from '../../libs-for-tests/bytes-equal';
 import { addSpecsFrom } from '../../libs-for-tests/spec-assembly';

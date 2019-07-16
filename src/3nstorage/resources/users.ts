@@ -22,23 +22,9 @@
 
 import { Readable as ReadableStream } from 'stream';
 import { Store, SC, ObjReader, StorageEventsSink } from './store';
-import { PutObjFirstQueryOpts, PutObjSecondQueryOpts, DiffInfo }
-	from '../../lib-common/service-api/3nstorage/owner';
+import { PutObjFirstQueryOpts, PutObjSecondQueryOpts, DiffInfo } from '../../lib-common/service-api/3nstorage/owner';
 
 export { SC, ObjReader, MismatchedObjVerException } from './store';
-
-export interface BlobGetOpts {
-	offset: number;
-	maxLen: number|null;
-}
-
-export interface BlobSaveOpts {
-	objId: string;
-	appendMode: boolean;
-	transactionId: string;
-	chunkLen: number;
-	offset?: number;
-}
 
 export type UserExists = (userId: string) => Promise<boolean>;
 

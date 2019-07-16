@@ -25,7 +25,6 @@ import { json as parseJSON } from '../lib-server/middleware/body-parsers';
 import { makeErrHandler } from '../lib-server/middleware/error-handler';
 
 // Resource/Data modules
-import { Factory as sessionsFactory } from '../lib-server/resources/sessions';
 import { Factory as usersFactory, makeFactory as makeUserFactory }
 	from './resources/users';
 

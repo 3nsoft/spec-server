@@ -18,9 +18,8 @@
  * This module constructs memory-backed sessions factories.
  */
 
-import { Factory, Session, SessionParams, BaseSessionFactory, wrapFactory }
+import { Factory, Session, BaseSessionFactory, wrapFactory }
 	from './sessions';
-import { bind } from '../../lib-common/binding';
 import * as random from '../../lib-common/random-node';
 
 export class InMemorySessions<T> extends BaseSessionFactory<T> {
@@ -52,7 +51,7 @@ export class InMemorySessions<T> extends BaseSessionFactory<T> {
 	async generate(): Promise<Session<T>> {
 		let newSessionId: string;
 		do {
-			newSessionId = random.stringOfB64Chars(40);
+			newSessionId = await random.stringOfB64Chars(40);
 		} while (this.sessions.has(newSessionId));
 		const params = this.makeDefaultSessionParams(newSessionId);
 		const session = this.makeSession(newSessionId, params);

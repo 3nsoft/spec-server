@@ -18,14 +18,14 @@ import { startSession, SpecDescribe, TestSetup, User, StorageComponent }
 	from '../test-utils';
 import { HTTP_HEADER, ERR_SC, currentRootObj as api }
 	from '../../../../../lib-common/service-api/3nstorage/owner';
-import { beforeAllAsync, itAsync, xitAsync }
+import { beforeAllAsync, itAsync, xitAsync, fitAsync }
 	from '../../../../libs-for-tests/async-jasmine';
 import { RequestOpts, doBodylessRequest, Reply }
 	from '../../../../libs-for-tests/xhr-utils';
 import { Obj, saveObj }	from '../../../../libs-for-tests/3nstorage';
 import { expectNonAcceptanceOfBadSessionId }
 	from '../../../../shared-checks/requests';
-import { bytes as randomBytes } from '../../../../../lib-common/random-node';
+import { bytesSync as randomBytes } from '../../../../../lib-common/random-node';
 import { resolve as resolveUrl } from 'url';
 import { copy } from '../../../../libs-for-tests/json-copy';
 import { bytesEqual } from '../../../../libs-for-tests/bytes-equal';
@@ -206,7 +206,7 @@ const diffVer: Obj = {
 
 function combineDiffSegs(baseSegs: Uint8Array, diffObj: Obj): Uint8Array {
 	if (!diffObj.diff) { throw new Error(`object has no diff`); }
-	const combined = new Buffer(diffObj.diff.segsSize);
+	const combined = Buffer.alloc(diffObj.diff.segsSize);
 	let offset = 0;
 	for (const s of diffObj.diff.sections) {
 		const src = ((s[0] === 0) ? baseSegs : diffObj.segs);

@@ -16,8 +16,7 @@
 
 import { RequestHandler, Response, NextFunction } from 'express';
 import { SC as recipSC, DeleteMsg } from '../../resources/recipients';
-import { rmMsg as api, ERR_SC }
-	from '../../../lib-common/service-api/asmail/retrieval';
+import { rmMsg as api, ERR_SC } from '../../../lib-common/service-api/asmail/retrieval';
 import { Request } from '../../resources/sessions';
 
 export function deleteMsg(delMsgFunc: DeleteMsg): RequestHandler {

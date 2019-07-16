@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 3NSoft Inc.
+ Copyright (C) 2016, 2019 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -19,6 +19,7 @@ import { doJsonRequest, RequestOpts, request }
 import { randomBytes } from 'crypto';
 import { utf8 } from '../../lib-common/buffer-utils';
 import { copy } from '../libs-for-tests/json-copy';
+import { ConnectException } from '../../lib-common/exceptions/http';
 
 const LONG_BODY_STATUS = 413;
 const MALFORMED_BODY_STATUS = 400;
@@ -42,7 +43,7 @@ export async function expectNonAcceptanceOfBadJsonRequest(opts: RequestOpts,
 	}
 	
 	// bad non-json bodies
-	const badBodies = [ new Buffer(0), randomBytes(Math.floor(maxBodyLen/2)) ];
+	const badBodies = [ Buffer.alloc(0), randomBytes(Math.floor(maxBodyLen/2)) ];
 	for (const bytes of badBodies) {
 		const req = request<void>('application/json', opts);
 		req.xhr.send(bytes);
@@ -81,8 +82,14 @@ export async function expectNonAcceptanceOfLongBody(opts: RequestOpts,
 	const badReq = randomBytes(maxBodyLen+1);
 	const req = request<void>(bodyType, opts);
 	req.xhr.send(badReq);
-	const rep = await req.promise;
-	expect(rep.status).toBe(LONG_BODY_STATUS, 'status code for long request');
+	try {
+		const rep = await req.promise;
+		expect(rep.status).toBe(LONG_BODY_STATUS, 'status code for long request');
+	} catch (exc) {
+		const cantConnect = (exc as ConnectException).runtimeException &&
+		((exc as ConnectException).type === 'http-connect');
+		expect(cantConnect).toBe(true, `server can close connection on a long reply, resulting in a can't connect error on a client side`);
+	}
 }
 
 export async function expectNonAcceptanceOfNonEmptyBody(opts: RequestOpts):

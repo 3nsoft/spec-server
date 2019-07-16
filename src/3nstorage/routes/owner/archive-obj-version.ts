@@ -15,8 +15,7 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import * as express from 'express';
-import { ArchiveObjCurrentVersion, SC as storeSC }
-	from '../../resources/users';
+import { ArchiveObjCurrentVersion, SC as storeSC } from '../../resources/users';
 import { archiveObj as api } from '../../../lib-common/service-api/3nstorage/owner';
 import { Request } from '../../resources/sessions';
 

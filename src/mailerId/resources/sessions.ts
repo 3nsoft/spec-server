@@ -14,11 +14,9 @@
  You should have received a copy of the GNU General Public License along with
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
-import { InMemorySessions }
-	from '../../lib-server/resources/mem-backed-sessions-factory';
+import { InMemorySessions } from '../../lib-server/resources/mem-backed-sessions-factory';
 import { Factory } from '../../lib-server/resources/sessions';
-import { SessionParams }
-	from '../../lib-server/routes/pub-key-login/start-exchange';
+import { SessionParams } from '../../lib-server/routes/pub-key-login/start-exchange';
 export { Request } from '../../lib-server/routes/pub-key-login/start-exchange';
 
 

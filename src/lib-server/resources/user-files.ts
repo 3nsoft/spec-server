@@ -15,8 +15,7 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import * as fs from '../../lib-common/async-fs-node';
-import { FileException, Code as excCode }
-	from '../../lib-common/exceptions/file';
+import { FileException, Code as excCode } from '../../lib-common/exceptions/file';
 import { stringToNumOfBytes } from '../conf-util';
 import { toCanonicalAddress } from '../../lib-common/canonical-address';
 import { base64urlSafe, utf8 } from '../../lib-common/buffer-utils';
@@ -27,7 +26,6 @@ const DEFAULT_FILE_READ_BUFFER_SIZE = 64*1024;
 
 export const SC = {
 	USER_UNKNOWN: 'user-unknown',
-	WRITE_OVERFLOW: 'write-overflow'
 };
 Object.freeze(SC);
 

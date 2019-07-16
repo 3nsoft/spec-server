@@ -22,8 +22,7 @@
 import * as express from 'express';
 
 // Internal libs
-import { json as parseJSON, emptyBody }
-	from '../lib-server/middleware/body-parsers';
+import { json as parseJSON, emptyBody } from '../lib-server/middleware/body-parsers';
 
 // Resource/Data modules
 import { SessionsFactory } from './resources/delivery-sessions';
@@ -33,10 +32,8 @@ import { Factory as recipFactory } from './resources/recipients';
 import { startSession } from './routes/delivery/start-session';
 import { preFlight } from './routes/delivery/pre-flight';
 import { restartSession } from './routes/delivery/restart-session';
-import { IMidAuthorizer, authorize }
-	from './routes/delivery/sender-authorization';
-import { getRecipientPubKey }
-	from './routes/delivery/provide-recipient-pubkey';
+import { IMidAuthorizer, authorize } from './routes/delivery/sender-authorization';
+import { getRecipientPubKey } from './routes/delivery/provide-recipient-pubkey';
 import { saveMetadata } from './routes/delivery/put-metadata';
 import { saveMsgObj } from './routes/delivery/put-obj';
 import { finalizeDelivery } from './routes/delivery/finalize-delivery';

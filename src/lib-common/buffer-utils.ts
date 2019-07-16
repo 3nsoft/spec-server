@@ -72,7 +72,23 @@ export namespace base64urlSafe {
 			.replace(/_/g, '/');
 		return base64.open(str);
 	}
-	
+
+	export function allCharsFromAlphabet(str: string): boolean {
+		for (let i=0; i<str.length; i+=1) {
+			const cp = str.codePointAt(i)!;
+			// small letters
+			if ((0x61 <= cp) && (cp <= 0x7A)) { continue; }
+			// capital letters
+			if ((0x41 <= cp) && (cp <= 0x5A)) { continue; }
+			// digits
+			if ((0x30 <= cp) && (cp <= 0x39)) { continue; }
+			// underscore and hyphen
+			if ((cp === 0x5F) || (cp === 0x2D)) { continue; }
+			return false;
+		}
+		return true;
+	}
+
 }
 Object.freeze(base64);
 

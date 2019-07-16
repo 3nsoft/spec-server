@@ -15,14 +15,11 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { signing } from 'ecma-nacl';
-import { relyingParty as midRP, idProvider as midIdP, KEY_USE }
-	from '../../lib-common/mid-sigs-NaCl-Ed';
-import { getKeyCert, JsonKey, SignedLoad, keyFromJson }
-	from '../../lib-common/jwkeys';
+import { relyingParty as midRP, idProvider as midIdP, KEY_USE } from '../../lib-common/mid-sigs-NaCl-Ed';
+import { getKeyCert, JsonKey, SignedLoad, keyFromJson } from '../../lib-common/jwkeys';
 import * as random from '../../lib-common/random-node';
 import { readFileSync, writeFileSync } from 'fs';
-import { FileException, Code as excCode }
-	from '../../lib-common/exceptions/file';
+import { FileException, Code as excCode } from '../../lib-common/exceptions/file';
 
 export const ROOT_CERT_VALIDITY = 365*24*60*60;
 export const PROVIDER_CERT_VALIDITY = 10*24*60*60;
@@ -77,7 +74,7 @@ function createFirstCert(domain: string, path: string, log?: LogFn):
 		{ certs: RootCerts; skey: JsonKey; } {
 	if (log) { log("\nMailerId service: Creating and saving new root certificate."); } 
 	const root = midIdP.generateRootKey(
-		domain, ROOT_CERT_VALIDITY, random.bytes);
+		domain, ROOT_CERT_VALIDITY, random.bytesSync);
 	const toSave = {
 		skey: root.skey,
 		certs: {
@@ -94,7 +91,7 @@ function updateCert(domain: string, path: string, certs: RootCerts,
 		log?: LogFn): { certs: RootCerts; skey: JsonKey; } {
 	if (log) { log("\nMailerId service: Updating root certificate."); }
 	const root = midIdP.generateRootKey(
-		domain, ROOT_CERT_VALIDITY, random.bytes);
+		domain, ROOT_CERT_VALIDITY, random.bytesSync);
 	const toSave = {
 		skey: root.skey,
 		certs: {
@@ -142,7 +139,7 @@ export function makeSingleProcCertifier(domain: string, certsPath: string):
 		rootCerts = certsAndKey.certs;
 		
 		const provider = midIdP.generateProviderKey(
-				domain, PROVIDER_CERT_VALIDITY, certsAndKey.skey, random.bytes);
+				domain, PROVIDER_CERT_VALIDITY, certsAndKey.skey, random.bytesSync);
 		certsAndKey = (undefined as any);
 		
 		provCert = provider.cert;

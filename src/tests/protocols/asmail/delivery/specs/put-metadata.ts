@@ -70,7 +70,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		
 	});
 	
-	itAsync('is not allowing message with object ids that are either same, even if only up to a letter case', async () => {
+	itAsync('is not allowing message with object ids that are either same, or have chars not from base64 url-safe alphabet', async () => {
 
 		// request with object ids, exact to letter case
 		const req: api.Request = {
@@ -81,8 +81,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		let rep = await doJsonRequest<api.Reply>(reqOpts, req);
 		expect(rep.status).toBe(ERR_SC.malformed, 'same object ids are not allowed');
 		
-		// request with object ids that differ only in letter case
-		req.objIds = [ msg.msgObjs[0].objId, msg.msgObjs[0].objId.toUpperCase() ];
+		req.objIds = [ msg.msgObjs[0].objId, msg.msgObjs[0].objId+'+as' ];
 		rep = await doJsonRequest<api.Reply>(reqOpts, req);
 		expect(rep.status).toBe(ERR_SC.malformed, 'object ids, equal to letter case, are not allowed');
 		

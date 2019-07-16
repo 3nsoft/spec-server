@@ -18,11 +18,8 @@
  * This module constructs memory-backed sessions factories.
  */
 
-import { InMemorySessions }
-	from '../../lib-server/resources/mem-backed-sessions-factory';
-import { Request as Req, Factory, Session, GenerateSession as GenSession,
-	wrapFactory }
-	from '../../lib-server/resources/sessions';
+import { InMemorySessions } from '../../lib-server/resources/mem-backed-sessions-factory';
+import { Request as Req, Factory, Session, GenerateSession as GenSession, wrapFactory } from '../../lib-server/resources/sessions';
 import { bind } from '../../lib-common/binding';
 
 export interface SessionParams {

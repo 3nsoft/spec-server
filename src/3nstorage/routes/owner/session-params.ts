@@ -15,9 +15,8 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { GetKeyDerivParams, SC as storeSC } from '../../resources/users';
-import { sessionParams as api, ERR_SC }
-	from '../../../lib-common/service-api/3nstorage/owner';
+import { SC as storeSC } from '../../resources/users';
+import { sessionParams as api, ERR_SC } from '../../../lib-common/service-api/3nstorage/owner';
 import { stringToNumOfBytes } from '../../../lib-server/conf-util';
 import { Request } from '../../resources/sessions';
 

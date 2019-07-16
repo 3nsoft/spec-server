@@ -23,14 +23,10 @@ import { RequestHandler, Response, NextFunction } from 'express';
 import { secret_box as sbox, arrays, nonce as nonceMod } from 'ecma-nacl';
 import { base64 } from '../../../lib-common/buffer-utils';
 import { bytes as randomBytes } from '../../../lib-common/random-node';
-import { GenerateSession, Request as SessReq, Session,
-	SessionParams as UserParams } from '../../resources/sessions';
-import { SessionEncryptor, makeSessionEncryptor }
-	from '../../../lib-common/session-encryptor';
-import { start as api, ERR_SC, ErrorReply }
-	from '../../../lib-common/service-api/pub-key-login';
-import { checkAndTransformAddress }
-	from '../../../lib-common/canonical-address';
+import { GenerateSession, Request as SessReq, Session, SessionParams as UserParams } from '../../resources/sessions';
+import { SessionEncryptor, makeSessionEncryptor } from '../../../lib-common/session-encryptor';
+import { start as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/pub-key-login';
+import { checkAndTransformAddress } from '../../../lib-common/canonical-address';
 
 const boxWN = sbox.formatWN;
 const NONCE_LENGTH = sbox.NONCE_LENGTH;
@@ -142,8 +138,8 @@ export function startPKLogin(
 			}
 			
 			// get random bytes for session key and nonce
-			const nonce = randomBytes(NONCE_LENGTH);
-			const sessionKey = randomBytes(KEY_LENGTH);
+			const nonce = await randomBytes(NONCE_LENGTH);
+			const sessionKey = await randomBytes(KEY_LENGTH);
 			
 			// compute DH-shared key for encrypting a challenge
 			const compRes = computeDHSharedKeyFunc(userParamsAndKey.pkey)

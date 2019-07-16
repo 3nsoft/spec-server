@@ -18,10 +18,8 @@
  * This module is recipient boxes factory.
  */
 
-import * as fs from '../../lib-common/async-fs-node';
 import { Readable } from 'stream';
-import { Inbox, ObjReader, AuthSenderPolicy, SC, MailEventsSink }
-	from './inbox';
+import { Inbox, ObjReader, AuthSenderPolicy, SC, MailEventsSink } from './inbox';
 import * as deliveryApi from '../../lib-common/service-api/asmail/delivery';
 import * as configApi from '../../lib-common/service-api/asmail/config';
 import * as retrievalApi from '../../lib-common/service-api/asmail/retrieval';
@@ -245,23 +243,6 @@ export interface Factory {
 	getAnonSenderInvites: GetAnonSenderInvites;
 	setAnonSenderInvites: SetAnonSenderInvites;
 	setMailEventsSink(sink: EventsSink): void;
-}
-
-export interface BlobSaveOpts {
-	msgId: string;
-	objId: string;
-	appendMode: boolean;
-	isFirstReq: boolean;
-	totalSize?: number;
-	chunkLen: number;
-	offset?: number;
-}
-
-export interface BlobGetOpts {
-	msgId: string;
-	objId: string;
-	offset: number;
-	maxLen?: number;
 }
 
 export function makeFactory(rootFolder: string,

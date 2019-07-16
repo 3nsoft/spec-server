@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2019 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -15,12 +15,11 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import * as https from 'https';
-import * as express from 'express';
-import { SignedLoad, getKeyCert, getPrincipalAddress }
-	from '../../lib-common/jwkeys';
+import { SignedLoad, getKeyCert, getPrincipalAddress } from '../../lib-common/jwkeys';
 import * as mid from '../../lib-common/mid-sigs-NaCl-Ed';
 import { get3NWebRecords } from './dns';
 import { MidAuthorizer } from '../routes/sessions/mid-auth';
+import { serviceRoot } from '../../lib-common/service-api/mailer-id/provisioning';
 
 /**
  * @param serviceURL
@@ -37,7 +36,7 @@ function getRootCert(serviceURL: string): Promise<SignedLoad> {
 					collectedString += chunk;
 				});
 				res.on('end', () => {
-					const infoObj = JSON.parse(collectedString);
+					const infoObj: serviceRoot.Reply = JSON.parse(collectedString);
 					const cert = infoObj['current-cert'];
 					if (cert) {
 						resolve(cert);

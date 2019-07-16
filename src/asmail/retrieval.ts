@@ -32,8 +32,7 @@ import { SessionsFactory } from './resources/sessions';
 import { Factory as recipFactory } from './resources/recipients';
 
 // routes
-import { MidAuthorizer, midLogin }
-	from '../lib-server/routes/sessions/mid-auth';
+import { MidAuthorizer, midLogin } from '../lib-server/routes/sessions/mid-auth';
 import { startSession } from '../lib-server/routes/sessions/start';
 import { closeSession } from '../lib-server/routes/sessions/close';
 import { listMsgIds } from './routes/retrieval/list-messages';

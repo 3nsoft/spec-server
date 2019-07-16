@@ -16,8 +16,7 @@
 
 import { RequestHandler, Response, NextFunction } from 'express';
 import { SC as recipSC, GetPubKey } from '../../resources/recipients';
-import { initPubKey as api, ERR_SC }
-	from '../../../lib-common/service-api/asmail/delivery';
+import { initPubKey as api, ERR_SC } from '../../../lib-common/service-api/asmail/delivery';
 import { Request } from '../../resources/delivery-sessions';
 
 /**

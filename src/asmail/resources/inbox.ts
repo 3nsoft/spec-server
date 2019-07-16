@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2019 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -30,18 +30,19 @@
  */
 
 import * as fs from '../../lib-common/async-fs-node';
-import { createReadStream } from 'fs';
-import { Writable, Readable } from 'stream';
+import { Readable } from 'stream';
 import { isLikeSignedKeyCert } from '../../lib-common/jwkeys';
 import * as random from '../../lib-common/random-node';
 import * as deliveryApi from '../../lib-common/service-api/asmail/delivery';
 import * as configApi from '../../lib-common/service-api/asmail/config';
 import * as retrievalApi from '../../lib-common/service-api/asmail/retrieval';
-import { UserFiles, SC as ufSC, addressToFName, ObjReader, pipeBytes }
-	from '../../lib-server/resources/user-files';
-import { parseObjFile, createObjFile } from '../../lib-common/obj-file';
-import { SingleProc } from '../../lib-common/processes';
+import { UserFiles, SC as ufSC, addressToFName, ObjReader } from '../../lib-server/resources/user-files';
+import { NamedProcs } from '../../lib-common/processes';
 import { TimeWindowCache } from '../../lib-common/time-window-cache';
+import { ObjVersionFile } from '../../lib-common/objs-on-disk/obj-file';
+import { join } from 'path';
+import { errWithCause } from '../../lib-common/exceptions/error';
+import { chunksInOrderedStream, streamToObjFile, makeObjPipe, makeNoBaseObjPipe } from '../../lib-common/objs-on-disk/utils';
 
 export { ObjPipe, ObjReader } from '../../lib-server/resources/user-files';
 
@@ -53,7 +54,6 @@ type AuthSenderInvites = configApi.p.authSenderInvites.List;
 type AnonSenderInvites = configApi.p.anonSenderInvites.List;
 
 type MsgMeta = retrievalApi.MsgMeta;
-type ObjStatus = retrievalApi.ObjStatus;
 export type MsgEvents = retrievalApi.msgMainObjRecieved.Event |
 	retrievalApi.msgRecievedCompletely.Event;
 
@@ -66,7 +66,7 @@ export const SC = {
 	MSG_UNKNOWN: 'msg-unknown',
 	OBJ_UNKNOWN: 'obj-unknown',
 	WRONG_OBJ_STATE: 'wrong-obj-state',
-	WRITE_OVERFLOW: ufSC.WRITE_OVERFLOW
+	OBJ_FILE_INCOMPLETE: 'obj-file-incomplete'
 };
 Object.freeze(SC);
 
@@ -82,10 +82,10 @@ const MSG_ID_LEN = 32;
  */
 async function genMsgIdAndMakeFolder(delivPath: string, msgsFolder: string):
 		Promise<string> {
-	const msgId = random.stringOfB64UrlSafeChars(MSG_ID_LEN);
+	const msgId = await random.stringOfB64UrlSafeChars(MSG_ID_LEN);
 	// make msg folder among deliveries
 	try {
-		await fs.mkdir(`${delivPath}/${msgId}`);
+		await fs.mkdir(join(delivPath, msgId));
 	} catch (exc) {
 		if ((<fs.FileException> exc).alreadyExists) {
 			return genMsgIdAndMakeFolder(delivPath, msgsFolder);
@@ -93,8 +93,8 @@ async function genMsgIdAndMakeFolder(delivPath: string, msgsFolder: string):
 	}
 	// ensure that msgId does not belong to any existing message
 	try {
-		await fs.stat(`${msgsFolder}/${msgId}`);
-		await fs.rmdir(`${delivPath}/${msgId}`);
+		await fs.stat(join(msgsFolder, msgId));
+		await fs.rmdir(join(delivPath, msgId));
 		return genMsgIdAndMakeFolder(delivPath, msgsFolder);
 	} catch (exc) {}
 	return msgId;
@@ -102,8 +102,12 @@ async function genMsgIdAndMakeFolder(delivPath: string, msgsFolder: string):
 
 export class Inbox extends UserFiles {
 
-	private cachedMetas = new TimeWindowCache<string, MsgMeta>(5*60*1000);
-	private metaSavingProc = new SingleProc();
+	private metas = new MsgMetas(
+		5*60*1000, join(this.path, 'delivery'), join(this.path, 'messages'));
+
+	private objFiles = new ObjFiles(
+		5*60*1000, this.metas.deliveryFolder, this.metas.readyMsgsFolder);
+
 	private mailEventsSink: MailEventsSink;
 	
 	constructor(userId: string, path: string, mailEventsSink: MailEventsSink,
@@ -116,7 +120,7 @@ export class Inbox extends UserFiles {
 	static async make(rootFolder: string, userId: string,
 			mailEventsSink: MailEventsSink, writeBufferSize?: string|number,
 			readBufferSize?: string|number): Promise<Inbox> {
-		const path = `${rootFolder}/${addressToFName(userId)}/mail`;
+		const path = join(rootFolder, addressToFName(userId), 'mail');
 		const inbox = new Inbox(userId, path, mailEventsSink,
 			writeBufferSize, readBufferSize);
 		await inbox.ensureUserExistsOnDisk();
@@ -154,14 +158,14 @@ export class Inbox extends UserFiles {
 			authSender: string|undefined, invite: string|undefined,
 			maxMsgLength: number): Promise<string> {
 		const msgId = await genMsgIdAndMakeFolder(
-			`${this.path}/delivery`, `${this.path}/messages`);
+			this.metas.deliveryFolder, this.metas.readyMsgsFolder);
 		const meta: MsgMeta = {
 			extMeta, authSender, invite, maxMsgLength,
 			recipient: this.userId,
 			deliveryStart: Date.now(),
 			objs: {}
 		};
-		this.setMeta(msgId, meta, true);
+		await this.metas.set(msgId, meta);
 		return msgId;
 	}
 
@@ -174,147 +178,67 @@ export class Inbox extends UserFiles {
 	 * incomplete (in-delivery) messages.
 	 */
 	async getMsgMeta(msgId: string, completeMsg): Promise<MsgMeta> {
-		return this.getMeta(msgId, completeMsg);
-	}
-
-	private async getMeta(msgId: string, completeMsg = false): Promise<MsgMeta> {
-		const meta = this.cachedMetas.get(msgId);
-		if (meta) {
-			if ((meta.deliveryCompletion && !completeMsg) ||
-					(!meta.deliveryCompletion && completeMsg)) {
-				throw SC.MSG_UNKNOWN; }
-			return meta;
-		}
-
-		try {
-			const file = `${this.path}/${completeMsg ? 'messages' : 'delivery'}/${msgId}/${META_FILE}`;
-			const str = await fs.readFile(file, { encoding: 'utf8', flag: 'r' });
-			const meta = JSON.parse(str) as MsgMeta;
-			this.cachedMetas.set(msgId, meta);
-			return meta;
-		} catch (err) {
-			if ((<fs.FileException> err).notFound) {
-				throw SC.MSG_UNKNOWN;
-			}
-			throw err;
-		}
-	}
-
-	/**
-	 * This sets meta for a given message.
-	 * @param msgId 
-	 * @param meta 
-	 * @param isNew Indicates with true, if this meta should be added as new,
-	 * else, false, default value, treats meta as existing one, and only updates
-	 * respective file.
-	 */
-	private async setMeta(msgId: string, meta: MsgMeta, isNew = false):
-			Promise<void> {
-		if (isNew && this.cachedMetas.get(msgId)) { throw new Error(
-			`Meta is already created for message ${msgId}`); }
-		this.cachedMetas.set(msgId, meta);
-		await this.metaSavingProc.startOrChain(() => fs.writeFile(
-			`${this.path}/delivery/${msgId}/${META_FILE}`,
-			JSON.stringify(meta),
-			{ encoding: 'utf8', flag: (isNew ? 'wx' : 'r+') }));
+		return this.metas.get(msgId, completeMsg);
 	}
 
 	async startSavingObj(msgId: string, objId: string, bytes: Readable,
 			bytesLen: number, opts: deliveryApi.PutObjFirstQueryOpts):
 			Promise<void> {
 		// check meta
-		const meta = await this.getMeta(msgId);
-		if (meta.objs[objId]) { throw SC.WRONG_OBJ_STATE; }
+		const meta = await this.metas.get(msgId, false);
 		if (meta.extMeta.objIds.indexOf(objId) < 0) { throw SC.OBJ_UNKNOWN; }
+		if (meta.objs[objId]) { throw SC.WRONG_OBJ_STATE; }
 
-		// create file
-		const file = `${this.path}/delivery/${msgId}/${objId}`;
-		const { headerOffset } = await createObjFile(
-			file, opts.header, (opts.segs ? opts.segs : 0))
-		.catch((exc: fs.FileException) => {
-			if (exc.alreadyExists) { throw SC.OBJ_EXIST; }
-			else { throw exc; }
-		});
-
-		// write to file (remove it in case of an error)
-		await fs.streamToExistingFile(file, headerOffset, bytesLen, bytes,
-			this.fileWritingBufferSize)
-		.catch(async (err) => {
-			await fs.unlink(file).catch(() => {})
-			throw err;
-		});
+		const file = await this.objFiles.forNewFile(msgId, objId);
+		const chunks = chunksInOrderedStream(bytesLen, opts.header, 0);
+		await streamToObjFile(file, chunks, bytes, this.fileWritingBufferSize);
 
 		// set obj status in meta
 		meta.objs[objId] = {
 			size: {
 				header: opts.header,
-				segments: opts.segs
+				segments: bytesLen - opts.header
 			}
 		};
-		const isComplete = ((typeof opts.segs === 'number') ?
-			(bytesLen === (opts.header + opts.segs)) : false);
-		if (isComplete) {
-			meta.objs[objId].completed = true;
+		if (opts.last) {
+			if (file.isFileComplete()) {
+				meta.objs[objId].completed = true;
+			} else {
+				await this.metas.set(msgId, meta);
+				throw SC.OBJ_FILE_INCOMPLETE;
+			}
 		}
-		await this.setMeta(msgId, meta);
+		await this.metas.set(msgId, meta);
 	}
 
 	async continueSavingObj(msgId: string, objId: string, bytes: Readable,
 			bytesLen: number, opts: deliveryApi.PutObjSecondQueryOpts):
 			Promise<void> {
 		// check obj status
-		const meta = await this.getMeta(msgId);
+		const meta = await this.metas.get(msgId, false);
 		const objStatus = meta.objs[objId];
-		if (!objStatus) {
+		if (objStatus) {
+			if (objStatus.completed) { throw SC.WRONG_OBJ_STATE; }
+		} else {
 			if (meta.extMeta.objIds.indexOf(objId) < 0) { throw SC.OBJ_UNKNOWN; }
 			else { throw SC.WRONG_OBJ_STATE; }
 		}
-		if ((!opts.last && !objStatus.size.segments && !opts.append) ||
-				(objStatus.size.segments && opts.append)) {
-			throw SC.WRONG_OBJ_STATE; }
 
-		// parse existing obj file
-		const file = `${this.path}/delivery/${msgId}/${objId}`;
-		const { segsOffset, fileSize } = await parseObjFile(file)
-		.catch((exc: fs.FileException) => {
-			if (exc.notFound) { throw SC.OBJ_UNKNOWN; }
-			else { throw exc; }
-		});
+		const file = await this.objFiles.forExistingFile(msgId, objId, true);
+		const chunks = chunksInOrderedStream(bytesLen, undefined, opts.ofs);
+		await streamToObjFile(file, chunks, bytes, this.fileWritingBufferSize);
 
-		// write to object file only when there are bytes to write
-		if (bytesLen > 0) {
-
-			// find offset and check boundaries
-			let offset: number;
-			if (opts.append) {
-				offset = fileSize;
-			} else {
-				offset = segsOffset + opts.ofs!;
-				if ((offset + bytesLen) > fileSize) {
-					throw SC.WRITE_OVERFLOW;
-				}
-
-			}
-
-			// write to file (truncate appended bytes in case of error)
-			await fs.streamToExistingFile(file, offset, bytesLen, bytes,
-				this.fileWritingBufferSize)
-			.catch(async (err) => {
-				if (opts.append) {
-					await fs.truncate(file, fileSize);
-				}
-				throw err;
-			});
-		}
-
-		// update meta, if this is the last request
+		// update meta
+		objStatus.size.segments += bytesLen;
 		if (opts.last) {
-			if (opts.append) {
-				objStatus.size.segments = fileSize + bytesLen - segsOffset;
+			if (file.isFileComplete()) {
+				objStatus.completed = true;
+			} else {
+				await this.metas.set(msgId, meta);
+				throw SC.OBJ_FILE_INCOMPLETE;
 			}
-			objStatus.completed = true;
-			await this.setMeta(msgId, meta);
 		}
+		await this.metas.set(msgId, meta);
 	}
 	
 	/**
@@ -325,14 +249,18 @@ export class Inbox extends UserFiles {
 	 */
 	async completeMsgDelivery(msgId: string): Promise<void> {
 		// indicate completion in meta
-		const meta = await this.getMeta(msgId);
+		const meta = await this.metas.get(msgId, false);
+		if (!this.areAllMsgObjsComplete(msgId, meta)) {
+			throw SC.OBJ_FILE_INCOMPLETE;
+		}
 		meta.deliveryCompletion = Date.now();
-		await this.setMeta(msgId, meta);
+		await this.metas.set(msgId, meta);
 
 		// move message folder to a place with completed messages
-		const srcFolder = `${this.path}/delivery/${msgId}`;
-		const dstFolder = `${this.path}/messages/${msgId}`;
+		const srcFolder = join(this.metas.deliveryFolder, msgId);
+		const dstFolder = join(this.metas.readyMsgsFolder, msgId);
 		await fs.rename(srcFolder, dstFolder);
+		this.objFiles.changeToReadingPathsInMsg(msgId);
 		
 		// raise event about completion of receiving a message
 		this.mailEventsSink(this.userId,
@@ -340,11 +268,20 @@ export class Inbox extends UserFiles {
 			{ msgId });
 	}
 
+	private areAllMsgObjsComplete(
+		msgId: string, meta: retrievalApi.MsgMeta
+	): boolean {
+		for (const status of Object.values(meta.objs)) {
+			if (!status.completed) { return false; }
+		}
+		return true;
+	}
+
 	/**
 	 * @return a promise, resolvable to a list of available message ids.
 	 */
 	getMsgIds(): Promise<retrievalApi.listMsgs.Reply> {
-		return fs.readdir(`${this.path}/messages`);
+		return fs.readdir(this.metas.readyMsgsFolder);
 	}
 
 	/**
@@ -354,9 +291,11 @@ export class Inbox extends UserFiles {
 	 */
 	async getIncompleteMsgParams(msgId: string):
 			Promise<{ maxMsgLength: number; currentMsgLength: number; }> {
-		const msgMeta = await this.getMeta(msgId);
-		const msgFolder = `${this.path}/delivery/${msgId}`;
-		const currentMsgLength = await fs.getFolderContentSize(msgFolder);
+		const msgMeta = await this.metas.get(msgId, false);
+		let currentMsgLength = 0;
+		for (const obj of Object.values(msgMeta.objs)) {
+			currentMsgLength += obj.size.header + obj.size.segments;
+		}
 		const maxMsgLength = msgMeta.maxMsgLength;
 		return { maxMsgLength, currentMsgLength };
 	}
@@ -369,8 +308,10 @@ export class Inbox extends UserFiles {
 	 * Rejected promise may pass string error code from SC.
 	 */
 	async rmMsg(msgId: string): Promise<void> {
+		this.metas.uncache(msgId);
+		this.objFiles.uncache(msgId);
 		try {
-			const msgPath = `${this.path}/messages/${msgId}`;
+			const msgPath = join(this.metas.readyMsgsFolder, msgId);
 			const rmPath = `${msgPath}~remove`;
 			await fs.rename(msgPath, rmPath);
 			await fs.rmDirWithContent(rmPath);
@@ -387,74 +328,52 @@ export class Inbox extends UserFiles {
 	 * @param msgId
 	 * @param objId
 	 * @param header is a boolean flag that says if header bytes should be
-	 * present
+	 * read
 	 * @param segsOffset indicates offset from which segment bytes should be
-	 * read. If header is present this offset must be zero.
+	 * read
 	 * @param segsLimit
 	 */
-	async getObj(msgId: string, objId: string, header: boolean,
-			offsetIntoSegs: number, segsLimit: number|undefined):
-			Promise<ObjReader> {
-		if (header && (offsetIntoSegs !== 0)) { throw new Error(
-			`When header is read, segments offset must be zero`); }
-		const filePath = `${this.path}/messages/${msgId}/${objId}`;
-		
-		// parse first part of an object file
-		const { headerOffset, segsOffset, fileSize } =
-			await parseObjFile(filePath).catch((exc: fs.FileException) => {
-				if (exc.notFound) { throw SC.OBJ_UNKNOWN; }
-				throw exc;
-			});
+	async getObj(
+		msgId: string, objId: string,
+		header: boolean, segsOfs: number, segsLimit: number|undefined
+	): Promise<ObjReader> {
+		const file = await this.objFiles.forExistingFile(msgId, objId);
 
 		// find total segments length
-		const segsLen = fileSize - segsOffset;
+		const segsLen = file.getTotalSegsLen();
 
 		// contain boundary parameters offsetIntoSegs and len for segment bytes
-		if (segsLen < offsetIntoSegs) {
-			offsetIntoSegs = segsLen;
+		if (segsLen < segsOfs) {
+			segsOfs = segsLen;
 		}
 		let segBytesToRead: number;
 		if (segsLimit === undefined) {
-			segBytesToRead = segsLen - offsetIntoSegs;
-		} else if ((offsetIntoSegs+segsLimit) >= segsLen) {
-			segBytesToRead = segsLen - offsetIntoSegs;
+			segBytesToRead = segsLen - segsOfs;
+		} else if ((segsOfs+segsLimit) >= segsLen) {
+			segBytesToRead = segsLen - segsOfs;
 		} else {
 			segBytesToRead = segsLimit;
 		}
 
 		// construct reader
 		let reader: ObjReader;
-		let start: number;
 		if (header) {
-			const headerLen = segsOffset - headerOffset;
+			const headerLen = file.getHeaderLen()!;
 			reader = {
 				len: (segBytesToRead + headerLen),
 				segsLen,
 				headerLen,
-				pipe: undefined
+				pipe: makeNoBaseObjPipe(file, true, segsOfs, segBytesToRead)
 			};
-			start = headerOffset;
 		} else {
 			reader = {
 				len: segBytesToRead,
 				segsLen,
-				pipe: undefined
+				pipe: makeNoBaseObjPipe(file, false, segsOfs, segBytesToRead)
 			};
-			start = segsOffset + offsetIntoSegs;
 		}
-
-		// attach pipe function, if needed
-		if (reader.len > 0) {
-			reader.pipe = (outStream => pipeBytes(
-					createReadStream(filePath, {
-						flags: 'r',
-						start,
-						end: start+reader.len-1
-					}),
-					outStream));
-		}
-
 		Object.freeze(reader);
+		
 		return reader;
 	}
 	
@@ -637,5 +556,157 @@ export class Inbox extends UserFiles {
 }
 Object.freeze(Inbox.prototype);
 Object.freeze(Inbox);
+
+class ObjFiles {
+
+	private cache: TimeWindowCache<string, Map<string, ObjVersionFile>>;
+
+	constructor(
+		cachePeriodMillis: number,
+		public deliveryFolder: string,
+		public readyMsgsFolder: string
+	) {
+		this.cache = new TimeWindowCache(cachePeriodMillis);
+		Object.freeze(this);
+	}
+
+	private getCached(msgId: string, objId: string): ObjVersionFile|undefined {
+		const msgObjs = this.cache.get(msgId);
+		return (msgObjs ? msgObjs.get(objId) : undefined);
+	}
+
+	private setIntoCache(
+		msgId: string, objId: string, obj: ObjVersionFile
+	): void {
+		let msgObjs = this.cache.get(msgId);
+		if (!msgObjs) {
+			msgObjs = new Map();
+			this.cache.set(msgId, msgObjs);
+		}
+		msgObjs.set(objId, obj);
+	}
+
+	async forNewFile(
+		msgId: string, objId: string
+	): Promise<ObjVersionFile> {
+		const path = this.objFileWritingPath(msgId, objId);
+		const objFile = await ObjVersionFile.createNew(path)
+		.catch((exc: fs.FileException) => {
+			if (exc.alreadyExists) { throw SC.OBJ_EXIST; }
+			throw exc;
+		});
+		this.setIntoCache(msgId, objId, objFile);
+		return objFile;
+	}
+
+	async forExistingFile(
+		msgId: string, objId: string, forWriting = false
+	): Promise<ObjVersionFile> {
+		let objFile = this.getCached(msgId, objId);
+		if (!objFile) {
+			const path = (forWriting ?
+				this.objFileWritingPath(msgId, objId) :
+				this.objFileReadingPath(msgId, objId));
+			objFile = await ObjVersionFile.forExisting(path)
+			.catch((exc: fs.FileException) => {
+				if (exc.notFound) { throw SC.OBJ_UNKNOWN; }
+				throw exc;
+			});
+			this.setIntoCache(msgId, objId, objFile);
+		}
+		return objFile;
+	}
+
+	private objFileWritingPath(msgId: string, objId: string): string {
+		return join(this.deliveryFolder, msgId, objId);
+	}
+
+	private objFileReadingPath(msgId: string, objId: string): string {
+		return join(this.readyMsgsFolder, msgId, objId);
+	}
+
+	changeToReadingPathsInMsg(msgId: string): void {
+		const msgObjs = this.cache.get(msgId);
+		if (!msgObjs) { return; }
+		for (const [ objId, obj ] of msgObjs.entries()) {
+			obj.changePathWithoutFileMove(this.objFileReadingPath(msgId, objId));
+		}
+	}
+
+	uncache(msgId: string): void {
+		this.cache.delete(msgId);
+	}
+
+}
+Object.freeze(ObjFiles.prototype);
+Object.freeze(ObjFiles);
+
+class MsgMetas {
+
+	private cache: TimeWindowCache<string|null, MsgMeta>;
+	private saveProcs = new NamedProcs();
+
+	constructor(
+		cachePeriodMillis: number,
+		public deliveryFolder: string,
+		public readyMsgsFolder: string
+	) {
+		this.cache = new TimeWindowCache(cachePeriodMillis);
+		Object.freeze(this);
+	}
+
+	async get(msgId: string, completeMsg: boolean): Promise<MsgMeta> {
+		let meta = this.cache.get(msgId);
+		if (meta) {
+			if ((meta.deliveryCompletion && !completeMsg)
+			|| (!meta.deliveryCompletion && completeMsg)) {
+				throw SC.MSG_UNKNOWN;
+			}
+		} else {
+			meta = await this.fromFile(msgId, completeMsg);
+			this.cache.set(msgId, meta);
+		}
+		return meta;
+	}
+
+	private async fromFile(
+		msgId: string, completeMsg: boolean
+	): Promise<MsgMeta> {
+		const filePath = join(
+			(completeMsg ? this.readyMsgsFolder : this.deliveryFolder),
+			msgId, META_FILE);
+		const str = await fs.readFile(filePath, { encoding: 'utf8', flag: 'r' })
+		.catch((exc: fs.FileException) => {
+			if (exc.notFound) {
+				throw SC.MSG_UNKNOWN;
+			}
+			throw exc;
+		});
+		try {
+			return JSON.parse(str) as MsgMeta;
+		} catch (err) {
+			throw errWithCause(err, `Can't parse content of message meta file`);
+		}
+	}
+
+	async set(msgId: string, meta: MsgMeta): Promise<void> {
+		this.cache.set(msgId, meta);
+		await this.saveToFile(msgId, meta);
+	}
+
+	private async saveToFile(msgId: string, meta: MsgMeta): Promise<void> {
+		const filePath = join(this.deliveryFolder, msgId, META_FILE);
+		await this.saveProcs.startOrChain(msgId, () => fs.writeFile(
+			filePath, JSON.stringify(meta), { encoding: 'utf8', flag: 'w' }));
+	}
+
+	uncache(msgId: string): void {
+		this.cache.delete(msgId);
+	}
+
+}
+Object.freeze(MsgMetas.prototype);
+Object.freeze(MsgMetas);
+
 
 Object.freeze(exports);

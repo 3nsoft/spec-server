@@ -16,10 +16,8 @@
 
 import { RequestHandler, Response, NextFunction } from 'express';
 import { Request } from './start';
-import { SignedLoad, isLikeSignedMailerIdAssertion, isLikeSignedKeyCert,
-	getPrincipalAddress } from '../../../lib-common/jwkeys';
-import { authSession as api, ERR_SC }
-	from '../../../lib-common/service-api/mailer-id/login';
+import { SignedLoad, isLikeSignedMailerIdAssertion, isLikeSignedKeyCert } from '../../../lib-common/jwkeys';
+import { authSession as api, ERR_SC } from '../../../lib-common/service-api/mailer-id/login';
 
 /**
  * This function returns a promise, which resolves to true for

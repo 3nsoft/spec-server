@@ -15,12 +15,10 @@
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
 import { RequestHandler, Response, NextFunction } from 'express';
-import { GetCurrentObj, SC as storeSC }
-	from '../../resources/users';
-import { GetObjQueryOpts, ERR_SC, HTTP_HEADER, BIN_TYPE, currentObj as api }
-	from '../../../lib-common/service-api/3nstorage/owner';
+import { GetCurrentObj, SC as storeSC } from '../../resources/users';
+import { GetObjQueryOpts, ERR_SC, HTTP_HEADER, BIN_TYPE, currentObj as api } from '../../../lib-common/service-api/3nstorage/owner';
 import { Request } from '../../resources/sessions';
-import { errWithCause } from '../../../lib-common/exceptions/error';
+import { errWithCause, stringifyErr } from '../../../lib-common/exceptions/error';
 import { EMPTY_BUFFER } from '../../../lib-common/buffer-utils';
 
 function extractQueryOptions(req: Request): undefined |
@@ -94,7 +92,7 @@ export function getCurrentObj(root: boolean, getCurrentObjFunc: GetCurrentObj):
 				try {
 					await reader.pipe!(res);
 				} catch (err) {
-					console.error(errWithCause(err, `Wasn't able to complete sending segments due to error in piping`));
+					console.error(stringifyErr(errWithCause(err, `Wasn't able to complete sending segments due to error in piping`)));
 				} finally {
 					res.end();
 				}
@@ -104,7 +102,8 @@ export function getCurrentObj(root: boolean, getCurrentObjFunc: GetCurrentObj):
 		} catch (err) {
 			if ("string" !== typeof err) {
 				next(err);
-			} else if (err === storeSC.OBJ_UNKNOWN) {
+			} else if ((err === storeSC.OBJ_UNKNOWN)
+			|| (err === storeSC.OBJ_VER_UNKNOWN)) {
 				res.status(api.SC.unknownObj).send(objId ?
 					`Object ${objId} is unknown.` : `Root object is not set.`);
 			} else if (err === storeSC.USER_UNKNOWN) {
