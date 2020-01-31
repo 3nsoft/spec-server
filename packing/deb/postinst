@@ -1,0 +1,20 @@
+#!/bin/sh
+
+var_dir=/var/3nweb
+
+if [ ! -d var_dir ]
+then
+	mkdir -p var_dir
+fi
+
+echo "
+   ####################
+   #   3NWeb server   #
+   ####################
+
+1. Set configurations of 3NWeb services in /etc/3nweb/services.json
+
+2. Start systemd service \"sudo systemctl start 3nweb\"
+
+"
+

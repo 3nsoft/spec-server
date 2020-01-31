@@ -1,0 +1,11 @@
+[Unit]
+Description=3NWeb server
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/3nweb-start
+ExecStop=/usr/bin/3nweb-stop
+
+[Install]
+WantedBy=multi-user.target

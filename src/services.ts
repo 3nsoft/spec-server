@@ -37,12 +37,7 @@ export interface Configurations {
 	servicesConnect?: {
 		hostname?: string;
 		port: number;
-		sslOts?: https.ServerOptions;
-	};
-	adminConnect?: {
-		hostname?: string;
-		port: number;
-		sslOts?: https.ServerOptions;
+		sslOpts?: https.ServerOptions;
 	};
 	rootFolder: string;
 	domain: string;

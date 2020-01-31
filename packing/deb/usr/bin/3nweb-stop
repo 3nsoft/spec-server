@@ -1,0 +1,8 @@
+#!/bin/sh
+
+PID_FILE=/var/3nweb/service.pid
+
+if [ -e $PID_FILE ]
+then
+	kill -SIGTERM $(cat $PID_FILE)
+fi

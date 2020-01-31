@@ -21,7 +21,7 @@ import { doJsonRequest, RequestOpts } from '../libs-for-tests/xhr-utils';
 import * as signup from '../../lib-common/admin-api/signup';
 import { expectNonAcceptanceOfBadJsonRequest }
 	from '../shared-checks/requests';
-import { JsonKey, use } from '../../lib-common/jwkeys';
+import { use } from '../../lib-common/jwkeys';
 import { box } from 'ecma-nacl';
 
 /*

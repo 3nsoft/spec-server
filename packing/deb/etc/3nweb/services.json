@@ -1,0 +1,23 @@
+{
+  "enabledServices": {
+    "asmail": true,
+    "storage": true,
+    "mailerId": true
+  },
+  "servicesConnect": {
+    "port": 443,
+    "sslOts": {
+      "key": "/etc/letsencrypt/live/domain/privkey.pem",
+      "cert": "/etc/letsencrypt/live/domain/fullchain.pem",
+      "ca": "/etc/letsencrypt/live/domain/chain.pem"
+    }
+  },
+  "rootFolder": "/var/3nweb/data",
+  "domain": "domain",
+  "mailerId": {
+    "certs": "/etc/3nweb/mailerid/certs.json"
+  },
+  "signup": {
+    "domains": []
+  }
+}
