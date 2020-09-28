@@ -329,9 +329,9 @@ export async function getFolderContentSize(folderPath: string):
 	for (const childName of list) {
 		const childPath = `${folderPath}/${childName}`;
 		const childStats = await stat(childPath);
-		if (childStats.isFile) {
+		if (childStats.isFile()) {
 			size += childStats.size;
-		} else if (childStats.isDirectory) {
+		} else if (childStats.isDirectory()) {
 			size += await getFolderContentSize(childPath);
 		}
 	}

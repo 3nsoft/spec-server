@@ -1,7 +1,7 @@
 {
   "name": "3nweb-spec-server",
   "private": true,
-  "version": "1.2.7",
+  "version": "1.2.8",
   "description": "3NWeb spec server.",
   "main": "build/main.js",
   "scripts": {
