@@ -25,12 +25,12 @@ import * as dns from 'dns';
 import { DNSMock, DnsTxtRecords } from './dns';
 import { join } from 'path';
 
-// allow client test calls to trust above self-signed cert
-https.globalAgent.options.ca = sslOpts.cert;
-
 export async function startOnLocalhost(
 	dataDir: string, port: number, signupDomains: string[]
 ): Promise<{ stop: () => Promise<void>; dnsMock: DNSMock; }> {
+
+	// allow client test calls to trust above self-signed cert
+	https.globalAgent.options.ca = sslOpts.cert;
 
 	const conf: Configurations = {
 		rootFolder: join(dataDir, 'users'),
