@@ -1,8 +1,9 @@
 {
   "name": "spec-3nweb-server",
-  "version": "1.2.10",
+  "version": "1.2.11",
   "description": "3NWeb spec server.",
   "main": "build/lib.js",
+  "types": "build/lib.d.ts",
   "scripts": {
     "test": "tsc && node build/tests/jasmine.js",
     "build": "tsc"

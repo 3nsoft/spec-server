@@ -39,6 +39,7 @@ function setupSpecs<TSetup>(specs: GenericSpecDescribe<TSetup>,
 export function addSpecsFrom<TSetup>(specsFolder: string,
 		setup: () => TSetup): void {
 	for (let fName of readdirSync(specsFolder)) {
+		if (!fName.endsWith('.js')) { continue; }
 		let modPath = joinPaths(specsFolder, fName);
 		let specs: ExportedSpecs<TSetup> = require(modPath).specs;
 		if (!specs) {
