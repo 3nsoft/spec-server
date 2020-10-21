@@ -25,16 +25,36 @@ import * as dns from 'dns';
 import { DNSMock, DnsTxtRecords } from './dns';
 import { join } from 'path';
 
-export async function startOnLocalhost(
-	dataDir: string, port: number, signupDomains: string[]
-): Promise<{ stop: () => Promise<void>; dnsMock: DNSMock; }> {
+export function setTestCertsAndDNS(
+	signupDomains: string[], srvDomain: string, port: number
+): DNSMock {
 
 	// allow client test calls to trust above self-signed cert
 	https.globalAgent.options.ca = sslOpts.cert;
 
+	// inject dns mock
+	const thisLoc = `${srvDomain}:${port}`;
+	const dnsRecs: DnsTxtRecords = {};
+	for (const domain of signupDomains) {
+		dnsRecs[domain] = [
+			[ 'asmail', '=', `${thisLoc}/asmail` ],	// DNS txt with spaces
+			[ 'mailerid=', `${thisLoc}/mailerid` ],	// DNS txt with space
+			[ `3nstorage=${thisLoc}/3nstorage` ]	// DNS txt without spaces
+		];
+	}
+	const dnsMock = new DNSMock(dnsRecs);
+	(dns as any).resolveTxt = dnsMock.resolveTxt;
+
+	return dnsMock;
+}
+
+export async function startOn(
+	srvDomain: string, dataDir: string, port: number, signupDomains: string[]
+): Promise<{ stop: () => Promise<void>; dnsMock: DNSMock; }> {
+
 	const conf: Configurations = {
 		rootFolder: join(dataDir, 'users'),
-		domain: 'localhost',
+		domain: srvDomain,
 		enabledServices: {
 			asmail: true,
 			mailerId: true,
@@ -59,18 +79,8 @@ export async function startOnLocalhost(
 		if (!exc.alreadyExists) { throw exc; }
 	});
 
-	// inject dns mock
-	const thisLoc = `${conf.domain}:${port}`;
-	const dnsRecs: DnsTxtRecords = {};
-	for (const domain of signupDomains) {
-		dnsRecs[domain] = [
-			[ 'asmail', '=', `${thisLoc}/asmail` ],	// DNS txt with spaces
-			[ 'mailerid=', `${thisLoc}/mailerid` ],	// DNS txt with space
-			[ `3nstorage=${thisLoc}/3nstorage` ]	// DNS txt without spaces
-		];
-	}
-	const dnsMock = new DNSMock(dnsRecs);
-	(dns as any).resolveTxt = dnsMock.resolveTxt;
+	// certs and DNS
+	const dnsMock = setTestCertsAndDNS(signupDomains, srvDomain, port);
 
 	// setup services and start
 	const app = new AppWithWSs();
@@ -79,4 +89,10 @@ export async function startOnLocalhost(
 	await app.start(conf.servicesConnect!.sslOpts, conf.servicesConnect!.port);
 
 	return { dnsMock, stop: () => app.stop() };
+}
+
+export function startOnLocalhost(
+	dataDir: string, port: number, signupDomains: string[]
+): Promise<{ stop: () => Promise<void>; dnsMock: DNSMock; }> {
+	return startOn('localhost', dataDir, port, signupDomains);
 }
