@@ -27,7 +27,7 @@ import { join } from 'path';
 import { makeMultiDomainSignupCtx } from "../admin/signup-tokens";
 
 export function setTestCertsAndDNS(
-	signupDomains: string[], srvDomain: string, port: number
+	domains: string[], srvDomain: string, port: number
 ): DNSMock {
 
 	// allow client test calls to trust above self-signed cert
@@ -36,7 +36,7 @@ export function setTestCertsAndDNS(
 	// inject dns mock
 	const thisLoc = `${srvDomain}:${port}`;
 	const dnsRecs: DnsTxtRecords = {};
-	for (const domain of signupDomains) {
+	for (const domain of domains) {
 		dnsRecs[domain] = [
 			[ 'asmail', '=', `${thisLoc}/asmail` ],	// DNS txt with spaces
 			[ 'mailerid=', `${thisLoc}/mailerid` ],	// DNS txt with space
@@ -50,7 +50,8 @@ export function setTestCertsAndDNS(
 }
 
 export async function startOn(
-	srvDomain: string, dataDir: string, port: number, signupDomains: string[]
+	srvDomain: string, dataDir: string, port: number,
+	domains: { noTokenSignup: string[]; other: string[]; }
 ): Promise<{ stop: () => Promise<void>; dnsMock: DNSMock; }> {
 
 	const noTokensFilePath = join(dataDir, 'no-tokens-signup.json');
@@ -80,13 +81,14 @@ export async function startOn(
 		if (!exc.alreadyExists) { throw exc; }
 	});
 	// write to-tokens signup file
-	const noTokenCtx = makeMultiDomainSignupCtx(signupDomains);
+	const noTokenCtx = makeMultiDomainSignupCtx(domains.noTokenSignup);
 	await writeFile(
 		noTokensFilePath, JSON.stringify(noTokenCtx), { encoding: 'utf8' }
 	);
 
 	// certs and DNS
-	const dnsMock = setTestCertsAndDNS(signupDomains, srvDomain, port);
+	const allDomains = domains.noTokenSignup.concat(domains.other);
+	const dnsMock = setTestCertsAndDNS(allDomains, srvDomain, port);
 
 	// setup services and start
 	const app = new AppWithWSs();
@@ -98,7 +100,8 @@ export async function startOn(
 }
 
 export function startOnLocalhost(
-	dataDir: string, port: number, signupDomains: string[]
+	dataDir: string, port: number,
+	domains: { noTokenSignup: string[]; other: string[]; }
 ): Promise<{ stop: () => Promise<void>; dnsMock: DNSMock; }> {
-	return startOn('localhost', dataDir, port, signupDomains);
+	return startOn('localhost', dataDir, port, domains);
 }

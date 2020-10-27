@@ -16,6 +16,7 @@
 */
 
 import { toCanonicalAddress } from '../lib-common/canonical-address';
+import { assert } from '../lib-common/assert';
 
 
 export type SignupContext = SingleUserSignupCtx | MultiDomainSignupCtx;
@@ -85,6 +86,7 @@ export function makeSingleUserSignupCtx(
 export function makeMultiDomainSignupCtx(
 	signupDomains: string[], validitySecs?: number
 ): MultiDomainSignupCtx {
+	assert(Array.isArray(signupDomains));
 	const ctx: MultiDomainSignupCtx = {
 		type: 'multi-domain',
 		domains: signupDomains.map(toCanonicalAddress)
