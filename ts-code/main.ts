@@ -69,7 +69,7 @@ const noop = () => {};
 
 	try {
 
-		const app = new AppWithWSs();
+		app = new AppWithWSs();
 		app.use(servicesApp(conf));
 		app.use(adminApp(conf));
 

@@ -17,17 +17,24 @@
 
 import { toCanonicalAddress } from '../lib-common/canonical-address';
 import { assert } from '../lib-common/assert';
+import { bytes as randomBytes } from '../lib-common/random-node';
+import { base64urlSafe } from '../lib-common/buffer-utils';
+import { tokensInRootFolder } from '../lib-server/resources/server-data-folders';
+import { join } from 'path';
+import { compareVectors } from 'ecma-nacl';
 
 
 export type SignupContext = SingleUserSignupCtx | MultiDomainSignupCtx;
 
 export interface SingleUserSignupCtx {
+	token: string;
 	type: 'single-user';
 	userId: string;
 	validTill?: number;
 }
 
 export interface MultiDomainSignupCtx {
+	token?: string;
 	type: 'multi-domain';
 	domains: string[];
 	validTill?: number;
@@ -71,9 +78,10 @@ export function addressesForName(
 }
 
 export function makeSingleUserSignupCtx(
-	userId: string, validitySecs?: number
+	token: string, userId: string, validitySecs?: number
 ): SingleUserSignupCtx {
 	const ctx: SingleUserSignupCtx = {
+		token,
 		type: 'single-user',
 		userId: toCanonicalAddress(userId)
 	};
@@ -84,10 +92,11 @@ export function makeSingleUserSignupCtx(
 }
 
 export function makeMultiDomainSignupCtx(
-	signupDomains: string[], validitySecs?: number
+	signupDomains: string[], token?: string, validitySecs?: number
 ): MultiDomainSignupCtx {
 	assert(Array.isArray(signupDomains));
 	const ctx: MultiDomainSignupCtx = {
+		token,
 		type: 'multi-domain',
 		domains: signupDomains.map(toCanonicalAddress)
 	};
@@ -95,6 +104,44 @@ export function makeMultiDomainSignupCtx(
 		ctx.validTill = Math.floor(Date.now()/1000) + validitySecs;
 	}
 	return ctx;
+}
+
+const TOKEN_BYTES_LEN = 30;
+const TOKEN_FILE_NAME_LEN = 10;
+
+export async function generateToken(): Promise<string> {
+	const tokenBytes = await randomBytes(TOKEN_BYTES_LEN);
+	const token = base64urlSafe.pack(tokenBytes);
+	return token;
+}
+
+export function parseToken(
+	token: string
+): { tokenBytes: Buffer; tokenFile: string; }|undefined {
+	try {
+		const tokenBytes = base64urlSafe.open(token) as Buffer;
+		const tokenFile = tokenFileName(token);
+		return { tokenBytes, tokenFile };
+	} catch (err) {
+		return;	// explicit undefined
+	}
+}
+
+function tokenFileName(token: string): string {
+	return token.substring(0, TOKEN_FILE_NAME_LEN);
+}
+
+export function tokenPath(rootFolder: string, token: string): string {
+	return join(tokensInRootFolder(rootFolder), tokenFileName(token));
+}
+
+export function areTokensSame(t1: Buffer, t2: string): boolean {
+	try {
+		const t2Bytes = base64urlSafe.open(t2);
+		return compareVectors(t1, t2Bytes);
+	} catch (err) {
+		return false;
+	}
 }
 
 

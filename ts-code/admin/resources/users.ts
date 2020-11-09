@@ -29,7 +29,7 @@ import { bind } from '../../lib-common/binding';
 import * as asmailConf from '../../lib-common/service-api/asmail/config';
 import { join } from 'path';
 import { createFolderTreeSync, treeInRootFolder, treeInDefaultsFolder, DefaultsDataTree, addressToFName, treeInUserFolder, createFolderTree } from '../../lib-server/resources/server-data-folders';
-import { MultiDomainSignupCtx, SignupContext, addressesForName, canCreateUser } from '../signup-tokens';
+import { MultiDomainSignupCtx, SignupContext, addressesForName, canCreateUser, parseToken, areTokensSame } from '../signup-tokens';
 import { errWithCause } from '../../lib-common/exceptions/error';
 
 export const SC = {
@@ -246,13 +246,18 @@ class Users {
 		userId: string, signupToken: string|undefined
 	): Promise<(() => Promise<void>)|undefined> {
 		if (signupToken) {
-			const ctxFilePath = join(this.tokens, signupToken);
+			const t = parseToken(signupToken);
+			if (!t) { throw SC.CREATION_UNAUTHORIZED; }
+			const ctxFilePath = join(this.tokens, t.tokenFile);
 			const str = await fs.readFile(ctxFilePath, { encoding: 'utf8' })
 			.catch((exc: fs.FileException) => {
 				throw (exc.notFound ? SC.CREATION_UNAUTHORIZED : exc);
 			});
 			try {
 				const ctx = JSON.parse(str) as SignupContext;
+				if (ctx.token && !areTokensSame(t.tokenBytes, ctx.token)) {
+					throw SC.CREATION_UNAUTHORIZED;
+				}
 				if (canCreateUser(userId, ctx)) {
 					if (ctx.type === 'single-user') {
 						return () => fs.unlink(ctxFilePath).catch(noop);
@@ -284,7 +289,9 @@ class Users {
 		name: string, signupToken: string|undefined
 	): Promise<string[]> {
 		if (signupToken) {
-			const ctxFilePath = join(this.tokens, signupToken);
+			const t = parseToken(signupToken);
+			if (!t) { return []; }
+			const ctxFilePath = join(this.tokens, t.tokenFile);
 			const str = await fs.readFile(ctxFilePath, { encoding: 'utf8' })
 			.catch((exc: fs.FileException) => {
 				if (exc.notFound) { return; }
@@ -295,6 +302,9 @@ class Users {
 			}
 			try {
 				const ctx = JSON.parse(str) as SignupContext;
+				if (ctx.token && !areTokensSame(t.tokenBytes, ctx.token)) {
+					return [];
+				}
 				return this.availableAddressInCtx(name, ctx);
 			} catch (err) {
 				throw errWithCause(err, `Error occured in using file ${

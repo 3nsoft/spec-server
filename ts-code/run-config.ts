@@ -16,12 +16,11 @@
 */
 
 import { Configurations } from "./services";
-import { existsFolderSync, writeFile } from './lib-common/async-fs-node';
+import { existsFolderSync, writeFile, FileException, mkdir } from './lib-common/async-fs-node';
 import { join } from "path";
 import { realpathSync, mkdirSync } from "fs";
 import { ServerOptions } from "https";
-import { stringOfB64UrlSafeChars } from "./lib-common/random-node";
-import { makeSingleUserSignupCtx } from "./admin/signup-tokens";
+import { makeSingleUserSignupCtx, generateToken, tokenPath } from "./admin/signup-tokens";
 import { tokensInRootFolder } from "./lib-server/resources/server-data-folders";
 
 const DOMAIN_VAR = 'W3N_DOMAIN';
@@ -125,13 +124,26 @@ function getTLSParamsFromEnv(): ServerOptions|undefined {
 export async function addSingleUserSignup(
 	rootFolder: string, userId: string
 ): Promise<string> {
-	const token = await stringOfB64UrlSafeChars(40);
-	const ctx = makeSingleUserSignupCtx(userId);
-	await writeFile(
-		join(tokensInRootFolder(rootFolder), token),
-		JSON.stringify(ctx), { encoding: 'utf8' }
-	);
-	return token;
+	const token = await generateToken();
+	const ctx = makeSingleUserSignupCtx(token, userId);
+	const fPath = tokenPath(rootFolder, token);
+	try {
+		await writeFile(
+			fPath, JSON.stringify(ctx), { encoding: 'utf8', flag: 'wx' });
+		return token;
+	} catch(exc) {
+		if ((exc as FileException).alreadyExists) {
+			return addSingleUserSignup(rootFolder, userId);
+		} else if ((exc as FileException).notFound) {
+			await mkdir(tokensInRootFolder(rootFolder))
+			.catch((exc: FileException) => {
+				if (!exc.alreadyExists) { throw exc; }
+			});
+			return addSingleUserSignup(rootFolder, userId);
+		} else {
+			throw exc;
+		}
+	}
 }
 
 
