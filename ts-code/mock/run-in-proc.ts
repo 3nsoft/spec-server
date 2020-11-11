@@ -27,20 +27,21 @@ import { join } from 'path';
 import { makeMultiDomainSignupCtx } from "../admin/signup-tokens";
 
 export function setTestCertsAndDNS(
-	domains: string[], srvDomain: string, port: number
+	domains: string[], thisSrvLoc: string
 ): DNSMock {
+	if (thisSrvLoc.endsWith('/')) { throw new Error(
+		`Location value shouldn't have trailing slash`); }
 
 	// allow client test calls to trust above self-signed cert
 	https.globalAgent.options.ca = sslOpts.cert;
 
 	// inject dns mock
-	const thisLoc = `${srvDomain}:${port}`;
 	const dnsRecs: DnsTxtRecords = {};
 	for (const domain of domains) {
 		dnsRecs[domain] = [
-			[ 'asmail', '=', `${thisLoc}/asmail` ],	// DNS txt with spaces
-			[ 'mailerid=', `${thisLoc}/mailerid` ],	// DNS txt with space
-			[ `3nstorage=${thisLoc}/3nstorage` ]	// DNS txt without spaces
+			[ 'asmail', '=', `${thisSrvLoc}/asmail` ],	// DNS txt with spaces
+			[ 'mailerid=', `${thisSrvLoc}/mailerid` ],	// DNS txt with space
+			[ `3nstorage=${thisSrvLoc}/3nstorage` ]	// DNS txt without spaces
 		];
 	}
 	const dnsMock = new DNSMock(dnsRecs);
@@ -88,7 +89,7 @@ export async function startOn(
 
 	// certs and DNS
 	const allDomains = domains.noTokenSignup.concat(domains.other);
-	const dnsMock = setTestCertsAndDNS(allDomains, srvDomain, port);
+	const dnsMock = setTestCertsAndDNS(allDomains, `${srvDomain}:${port}`);
 
 	// setup services and start
 	const app = new AppWithWSs();
