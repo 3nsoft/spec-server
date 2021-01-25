@@ -87,7 +87,7 @@ export class DeliverySessions extends InMemorySessions<SessionParams>
 			Promise<Session<SessionParams>|undefined> {
 		const sessionId = this.msgToSessionMap.get(`${recipient}:${msgId}`);
 		if (sessionId) {
-			const session = this.sessions.get(sessionId);
+			const session = await this.get(sessionId);
 			if (session) {
 				session.lastAccessedAt = Date.now();
 				return session;

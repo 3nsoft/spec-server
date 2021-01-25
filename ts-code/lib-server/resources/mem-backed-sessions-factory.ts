@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2021 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -12,25 +12,31 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /**
  * This module constructs memory-backed sessions factories.
  */
 
-import { Factory, Session, BaseSessionFactory, wrapFactory }
-	from './sessions';
-import * as random from '../../lib-common/random-node';
+import { Factory, Session, BaseSessionFactory, wrapFactory } from './sessions';
+import { bytes as randomBytes } from '../../lib-common/random-node';
+import { base64urlSafe } from '../../lib-common/buffer-utils';
+import { compareVectors } from 'ecma-nacl';
+
+const ID_BYTES_LEN = 30;
+const ID_STR_CHUNK_LEN = 15;
+
 
 export class InMemorySessions<T> extends BaseSessionFactory<T> {
 
-	protected sessions = new Map<string, Session<T>>();
+	private sessions = new Map<string, [Uint8Array, Session<T>]>();
 	private timeoutCodeIntervalId: NodeJS.Timer|undefined = undefined;
 	private timeoutMillis: number;
 
 	private checkSessionsForTimeout = () => {
 		const now = Date.now();
-		for (const s of this.sessions.values()) {
+		for (const [, s] of this.sessions.values()) {
 			if ((now - s.lastAccessedAt) >= this.timeoutMillis) { s.close(); }
 		}
 	};
@@ -51,15 +57,16 @@ export class InMemorySessions<T> extends BaseSessionFactory<T> {
 	async generate(): Promise<Session<T>> {
 		let newSessionId: string;
 		do {
-			newSessionId = await random.stringOfB64Chars(40);
-		} while (this.sessions.has(newSessionId));
+			newSessionId = base64urlSafe.pack(await randomBytes(ID_BYTES_LEN));
+		} while (this.sessions.has(strChunk(newSessionId)));
 		const params = this.makeDefaultSessionParams(newSessionId);
 		const session = this.makeSession(newSessionId, params);
 		return session;
 	}
 
 	protected async add(s: Session<T>): Promise<void> {
-		this.sessions.set(s.id, s);
+		const { key, idBytes } = idToChunks(s.id);
+		this.sessions.set(key, [idBytes, s]);
 		if (this.sessions.size === 1) {
 			this.timeoutCodeIntervalId = setInterval(
 				this.checkSessionsForTimeout, this.timeoutMillis/2);
@@ -67,7 +74,7 @@ export class InMemorySessions<T> extends BaseSessionFactory<T> {
 	}
 
 	protected async remove(s: Session<T>): Promise<void> {
-		if (this.sessions.delete(s.id)) {
+		if (this.sessions.delete(strChunk(s.id))) {
 			if (this.sessions.size === 0) {
 				clearInterval(this.timeoutCodeIntervalId!);
 				this.timeoutCodeIntervalId = undefined;
@@ -76,7 +83,9 @@ export class InMemorySessions<T> extends BaseSessionFactory<T> {
 	}
 
 	protected async get(sId: string): Promise<Session<T>|undefined> {
-		return this.sessions.get(sId);
+		const idAndSession = this.sessions.get(strChunk(sId));
+		return ((idAndSession && sameIdBytes(sId, idAndSession[0])) ?
+			idAndSession[1] : undefined);
 	}
 
 	/**
@@ -96,5 +105,26 @@ export class InMemorySessions<T> extends BaseSessionFactory<T> {
 }
 Object.freeze(InMemorySessions.prototype);
 Object.freeze(InMemorySessions);
+
+
+function sameIdBytes(idStr: string, idBytes: Uint8Array): boolean {
+	try {
+		const bytes = base64urlSafe.open(idStr);
+		return compareVectors(bytes, idBytes);
+	} catch (err) {
+		return false;
+	}
+}
+
+function idToChunks(sessionId: string): { key: string; idBytes: Uint8Array; } {
+	const idBytes = base64urlSafe.open(sessionId);
+	const key = sessionId.substring(0, ID_STR_CHUNK_LEN);
+	return { key, idBytes };
+}
+
+function strChunk(sessionId: string): string {
+	return sessionId.substring(0, ID_STR_CHUNK_LEN);
+}
+
 
 Object.freeze(exports);
