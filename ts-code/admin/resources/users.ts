@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016, 2020 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2020 - 2021 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -80,19 +80,23 @@ export function validateUserStorageParams(params: UserStorageParams): boolean {
 }
 
 /**
- * This returns a promise, resolvable to
- * - true, when given new id is available,
- * - false, when there is already a user with given id.
+ * This returns a promise, resolvable to an array of domains, that are
+ * available for a given token. Array may be empty, when there are no
+ * such domains.
+ * @param signupToken
+ * @return a promise, resolvable to available addresses for a given name.
+ * If array is empty, there are no available addresses for a given name.
  */
-export type IUserIdAvailable = (
-	newUserId: string, signupToken: string|undefined
-) => Promise<boolean>;
+export type IAvailableDomains = (
+	signupToken: string|undefined
+) => Promise<string[]>;
 
 /**
  * This returns a promise, resolvable to an array of addresses, that are
  * available for a given string. Array may be empty, when there are no
  * such addresses.
  * @param name is a name part of address, or not a domain part.
+ * @param signupToken
  * @return a promise, resolvable to available addresses for a given name.
  * If array is empty, there are no available addresses for a given name.
  */
@@ -107,6 +111,7 @@ export type IAvailableAddressesForName = (
  * but user-likable variant.
  * @param midParams MailerId parameters to save
  * @param storeParams storage parameters to save
+ * @param signupToken
  * @return a promise, resolvable, when user is added, and all parameters are
  * saved.
  */
@@ -116,6 +121,7 @@ export type IAdd = (
 ) => Promise<void>;
 
 export interface Factory {
+	getAvailableDomains: IAvailableDomains;
 	getAvailableAddresses: IAvailableAddressesForName;
 	add: IAdd;
 }
@@ -285,6 +291,50 @@ class Users {
 		throw SC.CREATION_UNAUTHORIZED;
 	}
 
+	async getAvailableDomains(signupToken: string|undefined): Promise<string[]> {
+		if (signupToken) {
+			const t = parseToken(signupToken);
+			if (!t) { return []; }
+			const ctxFilePath = join(this.tokens, t.tokenFile);
+			const str = await fs.readFile(ctxFilePath, { encoding: 'utf8' })
+			.catch((exc: fs.FileException) => {
+				if (exc.notFound) { return; }
+				else { throw exc; }
+			});
+			if (!str) {
+				return [];
+			}
+			try {
+				const ctx = JSON.parse(str) as SignupContext;
+				if ((ctx.type === 'single-user')
+				|| (ctx.token && !areTokensSame(t.tokenBytes, ctx.token))) {
+					return [];
+				} else {
+					return ctx.domains;
+				}
+			} catch (err) {
+				throw errWithCause(err, `Error occured in using file ${
+					ctxFilePath} as a signup context.`);
+			}
+		} else if (this.noTokenFile) {
+			try {
+				const str = await fs.readFile(
+					this.noTokenFile, { encoding: 'utf8' });
+				const ctx = JSON.parse(str) as MultiDomainSignupCtx;
+				return ctx.domains;
+			} catch (exc) {
+				if ((exc as fs.FileException).notFound) {
+					return [];
+				} else {
+					throw errWithCause(exc, `Error occured in using file ${
+						this.noTokenFile} as a no-token signup context.`);
+				}
+			}
+		} else {
+			return [];
+		}
+	}
+
 	async getAvailableAddresses(
 		name: string, signupToken: string|undefined
 	): Promise<string[]> {
@@ -359,6 +409,7 @@ class Users {
 
 	wrap(): Factory {
 		const wrap: Factory = {
+			getAvailableDomains: bind(this, this.getAvailableDomains),
 			getAvailableAddresses: bind(this, this.getAvailableAddresses),
 			add: bind(this, this.add),
 		};

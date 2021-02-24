@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016, 2020 3NSoft Inc.
+ Copyright (C) 2016, 2020 - 2021 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -73,6 +73,32 @@ describe('Admin', () => {
 			}
 			await expectNonAcceptanceOfBadJsonRequest(reqOpts,
 				REQ_SIZE_LIMIT, badJSONs);
+
+		});
+
+		itAsync('tells available domains', async () => {
+
+			const REQ_SIZE_LIMIT = 1024;
+
+			const reqOpts: RequestOpts= {
+				url: admin.signupUrl + signupApi.availableDomains.URL_END,
+				method: 'POST',
+				responseType: 'json'
+			};
+
+			const req: signupApi.availableDomains.Request = {};
+			const rep = await doJsonRequest<string[]>(reqOpts, req);
+			expect(rep.status).toBe(signupApi.availableDomains.SC.ok, 'status code for OK reply');
+			expect(Array.isArray(rep.data)).toBe(true, 'OK reply is an array');
+			expect(rep.data.length).toBe(signupDomains.length, 'with no users, all domains should used as options for available addresses');
+			for (const domain of signupDomains) {
+				expect(rep.data).toContain(domain);
+			}
+
+			// requests with bad json's
+			const badJSONs: any[] = [ { signupToken: 4 } ];
+			await expectNonAcceptanceOfBadJsonRequest(
+				reqOpts, REQ_SIZE_LIMIT, badJSONs);
 
 		});
 

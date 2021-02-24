@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2020 3NSoft Inc.
+ Copyright (C) 2020 - 2021 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -51,7 +51,7 @@ export function canCreateUser(userId: string, ctx: SignupContext): boolean {
 	if (ctx.type === 'single-user') {
 		return (cAddr === ctx.userId);
 	} else if (ctx.type === 'multi-domain') {
-		return !!ctx.domains.find(d => cAddr.endsWith(d));
+		return !!ctx.domains.find(d => cAddr.endsWith(`@${d}`));
 	} else {
 		return false;
 	}
@@ -71,7 +71,7 @@ export function addressesForName(
 		return ((toCanonicalAddress(userId) === ctx.userId) ?
 			[ userId ] : [] );
 	} else if (ctx.type === 'multi-domain') {
-		return ctx.domains.map(d => `${name}${d}`);
+		return ctx.domains.map(d => `${name}@${d}`);
 	} else {
 		throw Error(`Unknown signup context type ${(ctx as any).type}`);
 	}
@@ -98,7 +98,7 @@ export function makeMultiDomainSignupCtx(
 	const ctx: MultiDomainSignupCtx = {
 		token,
 		type: 'multi-domain',
-		domains: signupDomains.map(toCanonicalAddress)
+		domains: signupDomains.map(d => toCanonicalAddress(d).substring(1))
 	};
 	if (validitySecs) {
 		ctx.validTill = Math.floor(Date.now()/1000) + validitySecs;

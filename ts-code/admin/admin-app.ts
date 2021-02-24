@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016, 2020 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2020 - 2021 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -21,6 +21,7 @@ import { makeErrHandler } from '../lib-server/middleware/error-handler';
 import { Factory as usersFactory, makeFactory as makeUserFactory } from './resources/users';
 import { addUser } from './routes/add';
 import { availableAddresses } from './routes/get-available-addresses';
+import { availableDomains } from './routes/get-available-domains';
 import * as signupApi from '../lib-common/admin-api/signup';
 import { Configurations } from '../services';
 
@@ -28,6 +29,9 @@ function apiPart(users: usersFactory): express.Express {
 	const app = express();
 	app.disable('etag');
 	
+	app.post('/'+signupApi.availableDomains.URL_END,
+		parseJSON('1kb'),
+		availableDomains(users.getAvailableDomains));
 	app.post('/'+signupApi.availableAddressesForName.URL_END,
 		parseJSON('1kb'),
 		availableAddresses(users.getAvailableAddresses));
