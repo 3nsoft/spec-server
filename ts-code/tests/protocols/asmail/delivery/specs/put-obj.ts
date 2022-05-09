@@ -12,21 +12,16 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { beforeEachAsync, itAsync }
-	from '../../../../libs-for-tests/async-jasmine';
+import { beforeEachAsync, itAsync } from '../../../../libs-for-tests/async-jasmine';
 import { SpecDescribe, TestSetup, User, msg } from '../test-utils';
-import { doBinaryRequest, RequestOpts }
-	from '../../../../libs-for-tests/xhr-utils';
+import { doBinaryRequest, RequestOpts } from '../../../../libs-for-tests/xhr-utils';
 import { resolve as resolveUrl } from 'url';
-import { msgObj as api, ERR_SC }
-	from '../../../../../lib-common/service-api/asmail/delivery';
-import { expectNonAcceptanceOfBadSessionId, expectNonAcceptanceOfBadType,
-	expectNonAcceptanceOfLongBody }
-	from '../../../../shared-checks/requests';
-import { startMsgDelivery, startMsgDeliverySession }
-	from '../../../../libs-for-tests/asmail';
+import { msgObj as api, ERR_SC } from '../../../../../lib-common/service-api/asmail/delivery';
+import { expectNonAcceptanceOfBadSessionId, expectNonAcceptanceOfBadType, expectNonAcceptanceOfLongBody } from '../../../../shared-checks/requests';
+import { startMsgDelivery, startMsgDeliverySession } from '../../../../libs-for-tests/asmail';
 import { copy } from '../../../../libs-for-tests/json-copy';
 
 export const specs: SpecDescribe = {

@@ -12,19 +12,21 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { RequestHandler, Response, NextFunction } from 'express';
+import { RequestHandler } from 'express';
 import { ListObjArchive, SC as storeSC } from '../../resources/users';
 import { archiveObj as api } from '../../../lib-common/service-api/3nstorage/owner';
 import { Request } from '../../resources/sessions';
 
-export function listObjArchive(root: boolean,
-		listObjArchiveFunc: ListObjArchive): RequestHandler {
+export function listObjArchive(
+	root: boolean, listObjArchiveFunc: ListObjArchive
+): RequestHandler {
 	if ('function' !== typeof listObjArchiveFunc) { throw new TypeError(
 			"Given argument 'listObjArchiveFunc' must be function, but is not."); }
 
-	return async function(req: Request, res: Response, next: NextFunction) {
+	return async (req: Request, res, next) => {
 
 		next(new Error('Not implemented, yet.'));
 

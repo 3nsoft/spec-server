@@ -12,18 +12,17 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 import { User, doMailerIdLogin } from '../../../libs-for-tests/mailerid';
 import { resolve as resolveUrl } from 'url';
 import * as api from '../../../../lib-common/service-api/3nstorage/owner';
-import { StorageComponent }
-	from '../../../libs-for-tests/server-components/3nstorage';
+import { StorageComponent } from '../../../libs-for-tests/server-components/3nstorage';
 import { GenericSpecDescribe } from '../../../libs-for-tests/spec-assembly';
 
 export { User } from '../../../libs-for-tests/mailerid';
-export { StorageComponent }
-	from '../../../libs-for-tests/server-components/3nstorage';
+export { StorageComponent } from '../../../libs-for-tests/server-components/3nstorage';
 
 export interface TestSetup {
 	user: User;

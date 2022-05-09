@@ -12,9 +12,10 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { RequestHandler, Response, NextFunction } from 'express';
+import { RequestHandler, Response } from 'express';
 import { SC as recipSC, AllowedMaxMsgSize } from '../../resources/recipients';
 import { preFlight as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/asmail/delivery';
 import { Request } from '../../resources/delivery-sessions';
@@ -33,15 +34,18 @@ import { checkAndTransformAddress } from '../../../lib-common/canonical-address'
  * (1) string with URI for ASMail service, which is serving given recipient,
  * (2) undefined, if it is this server should service given recipient. 
  */
-export function preFlight(allowedMsgSizeFunc: AllowedMaxMsgSize,
-		redirectFunc?: Redirect): RequestHandler {
+export function preFlight(
+	allowedMsgSizeFunc: AllowedMaxMsgSize, redirectFunc?: Redirect
+): RequestHandler {
 	if (typeof allowedMsgSizeFunc !== 'function') { throw new TypeError(
 		`Given argument 'allowedMsgSizeFunc' must be function, but is not.`); }
 	if ((redirectFunc !== undefined) &&	(typeof redirectFunc !== 'function')) {
 		throw new TypeError(`Given argument 'redirectFunc' must either be function, or be undefined, but it is neither.`); }
 		
-	async function serveRequestHere(recipient: string, sender: string|undefined,
-			invitation: string|undefined, res: Response): Promise<void> {
+	async function serveRequestHere(
+		recipient: string, sender: string|undefined,
+		invitation: string|undefined, res: Response
+	): Promise<void> {
 		const msgSize = await allowedMsgSizeFunc(recipient, sender, invitation);
 		if (msgSize > 0) {
 			res.status(api.SC.ok).json( <api.Reply> {
@@ -60,7 +64,7 @@ export function preFlight(allowedMsgSizeFunc: AllowedMaxMsgSize,
 		}
 	}
 	
-	return async function(req: Request, res: Response, next: NextFunction) {
+	return async (req: Request, res, next) => {
 		
 		const rb: api.Request = req.body;
 		const recipient = checkAndTransformAddress(rb.recipient);
@@ -128,4 +132,5 @@ export function preFlight(allowedMsgSizeFunc: AllowedMaxMsgSize,
 		
 	};
 }
+
 Object.freeze(exports);

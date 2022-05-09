@@ -12,14 +12,15 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /**
  * This creates a public key login 'start-login-exchange' route handler
  * for POST method.
  */
 
-import { RequestHandler, Response, NextFunction } from 'express';
+import { RequestHandler } from 'express';
 import { secret_box as sbox, arrays, nonce as nonceMod } from 'ecma-nacl';
 import { base64 } from '../../../lib-common/buffer-utils';
 import { bytes as randomBytes } from '../../../lib-common/random-node';
@@ -41,8 +42,9 @@ export interface SessionParams extends UserParams {
 
 export type Request = SessReq<SessionParams>;
 
-function addEncryptorToSession(session: Session<SessionParams>,
-		sessionKey: Uint8Array, nonce: Uint8Array) {
+function addEncryptorToSession(
+	session: Session<SessionParams>, sessionKey: Uint8Array, nonce: Uint8Array
+): void {
 	const encryptor = makeSessionEncryptor(sessionKey, nonce);
 	session.params.encryptor = encryptor;
 	session.addCleanUp(() => {
@@ -74,17 +76,19 @@ export type CheckAndTransformUserId = (initUserId: string) => string|undefined;
  * @param kid is a key id that should be used at login. Undefined value
  * indicates that default key should be used.
  */
-export type GetUserPKeyAndKeyGenParams =
-	(userId: string, kid: string|undefined) =>
-		Promise<UserPKeyAndKeyGenParams|undefined>;
+export type GetUserPKeyAndKeyGenParams = (
+	userId: string, kid: string|undefined
+) => Promise<UserPKeyAndKeyGenParams|undefined>;
 
-export type ComputeDHSharedKey = (userKey: Uint8Array) =>
-	{ dhsharedKey: Uint8Array; serverPubKey: Uint8Array; };
+export type ComputeDHSharedKey = (userKey: Uint8Array) => {
+	dhsharedKey: Uint8Array; serverPubKey: Uint8Array;
+};
 
 export function startPKLogin(
-		findUserParamsAndKeyFunc: GetUserPKeyAndKeyGenParams,
-		sessionGenFunc: GenerateSession<SessionParams>,
-		computeDHSharedKeyFunc: ComputeDHSharedKey): RequestHandler {
+	findUserParamsAndKeyFunc: GetUserPKeyAndKeyGenParams,
+	sessionGenFunc: GenerateSession<SessionParams>,
+	computeDHSharedKeyFunc: ComputeDHSharedKey
+): RequestHandler {
 	if ('function' !== typeof findUserParamsAndKeyFunc) { throw new TypeError(
 			"Given argument 'findUserParamsAndKeyFunc' must be function, but is not."); }
 	if ('function' !== typeof sessionGenFunc) { throw new TypeError(
@@ -92,7 +96,7 @@ export function startPKLogin(
 	if ('function' !== typeof computeDHSharedKeyFunc) { throw new TypeError(
 			"Given argument 'computeDHSharedKeyFunc' must be function, but is not."); }
 
-	return async function(req: Request, res: Response, next: NextFunction) {
+	return async (req: Request, res, next) => {
 
 		const userId = checkAndTransformAddress((req.body as api.Request).userId);
 		const kid = (req.body as api.Request).kid;

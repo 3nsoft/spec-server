@@ -15,16 +15,13 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { afterAllAsync, beforeAllAsync, itAsync }
-	from '../../libs-for-tests/async-jasmine';
+import { afterAllAsync, beforeAllAsync, itAsync } from '../../libs-for-tests/async-jasmine';
 import { ASMailComponent } from '../../libs-for-tests/server-components/asmail';
 import { User, doMailerIdLogin } from '../../libs-for-tests/mailerid';
 import { midLoginSpecs } from '../../shared-checks/check-mid-login';
 import * as api from '../../../lib-common/service-api/asmail/config';
-import { doJsonRequest, RequestOpts, doBodylessRequest }
-	from '../../libs-for-tests/xhr-utils';
-import { expectNonAcceptanceOfBadJsonRequest, expectNonAcceptanceOfNonEmptyBody,
-	expectNonAcceptanceOfBadSessionId } from '../../shared-checks/requests';
+import { doJsonRequest, RequestOpts, doBodylessRequest } from '../../libs-for-tests/xhr-utils';
+import { expectNonAcceptanceOfBadJsonRequest, expectNonAcceptanceOfNonEmptyBody, expectNonAcceptanceOfBadSessionId } from '../../shared-checks/requests';
 import { resolve as resolveUrl } from 'url';
 import { deepEqual }  from '../../libs-for-tests/json-equal';
 
@@ -34,7 +31,6 @@ describe('ASMail configuration', () => {
 	const midServiceDomain = 'localhost';
 	const signupDomains = [ 'company.inc', 'personal.net' ];
 	let user1: User;
-	let user2: User;
 	let confUrl: string;
 	
 	beforeAllAsync(async () => {
@@ -44,8 +40,6 @@ describe('ASMail configuration', () => {
 		if (!confUrl.endsWith('/')) { confUrl += '/'; }
 		user1 = await asmailServer.addUser(
 			`Bob Johnson @${signupDomains[0]}`);
-		user2 = await asmailServer.addUser(
-			`William Young @${signupDomains[1]}`);
 	});
 	
 	afterAllAsync(async () => {

@@ -15,7 +15,7 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { RequestHandler, Response, NextFunction } from 'express';
+import { RequestHandler, Response } from 'express';
 import { SaveNewObjVersion, SC as saveSC, MismatchedObjVerException } from '../../resources/users';
 import { currentObj as api, ERR_SC, HTTP_HEADER, BIN_TYPE, PutObjFirstQueryOpts, PutObjSecondQueryOpts, DiffInfo, sanitizedDiff, ErrorReply } from '../../../lib-common/service-api/3nstorage/owner';
 import { stringToNumOfBytes } from '../../../lib-server/conf-util';
@@ -26,18 +26,20 @@ import { BytesFIFOBuffer } from '../../../lib-common/byte-streaming/common';
 import { defer, Deferred } from '../../../lib-common/processes';
 import { utf8, base64urlSafe } from '../../../lib-common/buffer-utils';
 
-export function saveCurrentObj(root: boolean, saveObjFunc: SaveNewObjVersion,
-		chunkLimit: string|number): RequestHandler {
+export function saveCurrentObj(
+	root: boolean, saveObjFunc: SaveNewObjVersion, chunkLimit: string|number
+): RequestHandler {
 	if ('function' !== typeof saveObjFunc) { throw new TypeError(
 		"Given argument 'saveObjFunc' must be function, but is not."); }
 	const maxChunkSize = stringToNumOfBytes(chunkLimit);
 
-	return async function(req: Request, res: Response, next: NextFunction) {
+	return async (req: Request, res, next) => {
 		
 		if (!req.is(BIN_TYPE)) {
 			attachByteDrainToRequest(req);
 			res.status(ERR_SC.wrongContentType).json( <ErrorReply> {
-				error: `Content-Type must be ${BIN_TYPE} for this call.` });
+				error: `Content-Type must be ${BIN_TYPE} for this call.`
+			});
 			return;
 		}
 	
@@ -60,7 +62,7 @@ export function saveCurrentObj(root: boolean, saveObjFunc: SaveNewObjVersion,
 
 		if (fstReq) {
 
-			if ((fstReq.ver === 1) && objId) {
+			if (fstReq.create && objId) {
 				if (!base64urlSafe.allCharsFromAlphabet(objId!)) {
 					return replyToMalformed(req, "Bad object id", res);
 				}
@@ -69,13 +71,13 @@ export function saveCurrentObj(root: boolean, saveObjFunc: SaveNewObjVersion,
 			// cross-check given lengths
 			const diffAndHeader = fstReq.header +
 				(fstReq.diff ? fstReq.diff : 0);
-			if (diffAndHeader > len) { return replyToMalformed(req,
-				"Bad query parameters", res); }
+			if (diffAndHeader > len) {
+				return replyToMalformed(req, "Bad query parameters", res);
+			}
 
 			// read diff, if it is expected
 			if (fstReq.diff) {
-				let diffBytes = await readChunkFrom(req, fstReq.diff).catch(
-					(err) => {});
+				let diffBytes = await readChunkFrom(req, fstReq.diff).catch(noop);
 				if (diffBytes) {
 					len -= fstReq.diff;
 				} else {
@@ -84,7 +86,9 @@ export function saveCurrentObj(root: boolean, saveObjFunc: SaveNewObjVersion,
 				try {
 					const diffFromReq = JSON.parse(utf8.open(diffBytes));
 					diff = sanitizedDiff(diffFromReq, fstReq.ver);
-					if (!diff) { return replyToMalformed(req, "Malformed diff info", res); }
+					if (!diff) {
+						return replyToMalformed(req, "Malformed diff info", res);
+					}
 				} catch (err) {
 					 return replyToMalformed(req, "Malformed diff info", res);
 				}
@@ -92,7 +96,9 @@ export function saveCurrentObj(root: boolean, saveObjFunc: SaveNewObjVersion,
 
 		} else if (sndReq) {
 
-			if ((len === 0) && !sndReq.last) { return replyToMalformed(req, "No segment bytes", res); }
+			if ((len === 0) && !sndReq.last) {
+				return replyToMalformed(req, "No segment bytes", res);
+			}
 
 		}
 
@@ -116,27 +122,34 @@ export function saveCurrentObj(root: boolean, saveObjFunc: SaveNewObjVersion,
 			} else if ((err === saveSC.OBJ_UNKNOWN)
 			|| (err === saveSC.OBJ_VER_UNKNOWN)) {
 				res.status(api.SC.unknownObj).json( <ErrorReply> {
-					error: `Unknown object ${objId}.` });
+					error: `Unknown object ${objId}.`
+				});
 			} else if (err === saveSC.TRANSACTION_UNKNOWN) {
 				res.status(api.SC.unknownTransaction).json( <ErrorReply> {
-					error: "Unknown transaction." });
+					error: "Unknown transaction."
+				});
 			} else if ((err === saveSC.OBJ_EXIST)
 			|| (err === saveSC.OBJ_VER_EXIST)) {
 				res.status(api.SC.objAlreadyExists).json( <ErrorReply> {
-					error: "Object already exists." });
+					error: "Object already exists."
+				});
 			} else if (err === saveSC.CONCURRENT_TRANSACTION) {
 				res.status(api.SC.concurrentTransaction).json( <ErrorReply> {
-					error: `Object ${objId} is currently under a transaction.` });
+					error: `Object ${objId} is currently under a transaction.`
+				});
 			} else if (err === saveSC.USER_UNKNOWN) {
 				res.status(ERR_SC.server).json( <ErrorReply> {
-					error: "Recipient disappeared from the system." });
+					error: "Recipient disappeared from the system."
+				});
 				req.session.close();
 			} else if (err === saveSC.NOT_ENOUGH_SPACE) {
 				res.status(ERR_SC.noSpace).json( <ErrorReply> {
-					error: "Reached storage limits." });
+					error: "Reached storage limits."
+				});
 			} else if (err === saveSC.OBJ_FILE_INCOMPLETE) {
 				res.status(api.SC.objIncomplete).json( <ErrorReply> {
-					error: "Object version file is incomplete." });
+					error: "Object version file is incomplete."
+				});
 			} else {
 				next(new Error(`Unhandled storage error code: ${err}`));
 			}
@@ -144,9 +157,9 @@ export function saveCurrentObj(root: boolean, saveObjFunc: SaveNewObjVersion,
 	};
 }
 
-function extractQueryOptions(
-	req: Request
-): undefined|{ fstReq?: PutObjFirstQueryOpts; sndReq?: PutObjSecondQueryOpts; } {
+function extractQueryOptions(req: Request): undefined|{
+	fstReq?: PutObjFirstQueryOpts; sndReq?: PutObjSecondQueryOpts;
+} {
 	if ((req.query as any as PutObjSecondQueryOpts).trans) {
 		// this is the second (not first) request
 		// query fields are string or undefined, yet, type info helps the show
@@ -166,6 +179,8 @@ function extractQueryOptions(
 		// query fields are string or undefined, yet, type info helps the show
 		const query = req.query as any as PutObjFirstQueryOpts;
 
+		const create = ((query.create as any) === 'true');
+
 		const ver = parseInt(query.ver as any);
 		if (isNaN(ver) || (ver < 1)) { return; }
 
@@ -179,7 +194,7 @@ function extractQueryOptions(
 
 		const last = ((query.last as any) === 'true');
 
-		return { fstReq: { diff, header, last, ver } };
+		return { fstReq: { diff, header, last, ver, create } };
 		
 	}
 }
@@ -249,7 +264,7 @@ function readChunkFrom(
 		complete(undefined, EARLY_END_OF_STREAM_ERR_STR);
 	};
 
-	const onError = (err) => {
+	const onError = (err?: any) => {
 		if (!deferred) { return; }
 		complete(undefined, err);
 	};
@@ -265,5 +280,7 @@ function replyToMalformed(req: Request, msg: string, res: Response): void {
 	attachByteDrainToRequest(req);
 	res.status(ERR_SC.malformed).json( <ErrorReply> { error: msg });
 }
+
+function noop() {}
 
 Object.freeze(exports);

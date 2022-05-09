@@ -20,7 +20,7 @@
  * express ASMail application.
  */
 
-import * as express from 'express';
+import { Express } from 'express';
 import { AppWithWSs } from '../lib-server/web-sockets/app';
 import { DeliverySessions } from './resources/delivery-sessions';
 import { makeSessionFactory } from './resources/sessions';
@@ -37,10 +37,10 @@ const PATHS = {
 	config: '/config/'
 };
 
-function setupStaticEntryRoute(app: express.Express): void {
+function setupStaticEntryRoute(app: Express): void {
 	
 	app.route('/')
-	.get((req: express.Request, res: express.Response) => {
+	.get((req, res) => {
 		let path = req.originalUrl;
 		if (path[path.length-1] !== '/') {
 			path = path+'/';

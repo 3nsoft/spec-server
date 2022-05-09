@@ -12,7 +12,8 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 import { signing } from 'ecma-nacl';
 import { relyingParty as midRP, idProvider as midIdP, KEY_USE } from '../../lib-common/mid-sigs-NaCl-Ed';
@@ -34,8 +35,9 @@ interface LogFn {
 	(msg: string): void;
 }
 
-function loadOrGenerateRootCert(domain: string, path: string):
-		{ certs: RootCerts; skey: JsonKey; } {
+function loadOrGenerateRootCert(
+	domain: string, path: string
+): { certs: RootCerts; skey: JsonKey; } {
 	let certsAndKey: { certs: RootCerts; skey: JsonKey; };
 	try {
 		certsAndKey = JSON.parse(
@@ -70,8 +72,9 @@ function loadOrGenerateRootCert(domain: string, path: string):
 	}
 }
 
-function createFirstCert(domain: string, path: string, log?: LogFn):
-		{ certs: RootCerts; skey: JsonKey; } {
+function createFirstCert(
+	domain: string, path: string, log?: LogFn
+): { certs: RootCerts; skey: JsonKey; } {
 	if (log) { log("\nMailerId service: Creating and saving new root certificate."); } 
 	const root = midIdP.generateRootKey(
 		domain, ROOT_CERT_VALIDITY, random.bytesSync);
@@ -87,8 +90,9 @@ function createFirstCert(domain: string, path: string, log?: LogFn):
 	return toSave;
 }
 
-function updateCert(domain: string, path: string, certs: RootCerts,
-		log?: LogFn): { certs: RootCerts; skey: JsonKey; } {
+function updateCert(
+	domain: string, path: string, certs: RootCerts, log?: LogFn
+): { certs: RootCerts; skey: JsonKey; } {
 	if (log) { log("\nMailerId service: Updating root certificate."); }
 	const root = midIdP.generateRootKey(
 		domain, ROOT_CERT_VALIDITY, random.bytesSync);
@@ -104,10 +108,9 @@ function updateCert(domain: string, path: string, certs: RootCerts,
 	return toSave;
 }
 
-export interface ICertify {
-	(userPKey: JsonKey, address: string, validFor?: number):
-		{ userCert: SignedLoad; provCert: SignedLoad; };
-}
+export type ICertify = (
+	userPKey: JsonKey, address: string, validFor?: number
+) => { userCert: SignedLoad; provCert: SignedLoad; };
 export interface Certifier {
 	certify: ICertify;
 	getRootCert(): SignedLoad;
@@ -121,15 +124,16 @@ if (UPDATE_PERIOD >= PROVIDER_CERT_VALIDITY) {
 		'or an update period is too long.');
 }
 
-export function makeSingleProcCertifier(domain: string, certsPath: string):
-		Certifier {
+export function makeSingleProcCertifier(
+	domain: string, certsPath: string
+): Certifier {
 	
 	let rootCerts: RootCerts;
 	let certifier: midIdP.IdProviderCertifier;
 	let provCert: SignedLoad;
 	let updateTime: number;
 	
-	function updateCertifier() {
+	function updateCertifier(): void {
 		if (certifier) {
 			if (updateTime > Date.now()) { return; }
 			certifier.destroy();
@@ -157,7 +161,7 @@ export function makeSingleProcCertifier(domain: string, certsPath: string):
 	timer.unref();
 	
 	const fact: Certifier = {
-		certify: (userPKey: JsonKey, address: string, validFor?: number) => {
+		certify: (userPKey, address, validFor) => {
 			return {
 				userCert: certifier.certify(userPKey, address, validFor),
 				provCert: provCert

@@ -12,20 +12,15 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { startSession, SpecDescribe, TestSetup, User, StorageComponent }
-	from '../test-utils';
-import { currentRootObj as api, ERR_SC }
-	from '../../../../../lib-common/service-api/3nstorage/owner';
-import { beforeEachAsync, itAsync }
-	from '../../../../libs-for-tests/async-jasmine';
-import { RequestOpts, doBinaryRequest }
-	from '../../../../libs-for-tests/xhr-utils';
+import { startSession, SpecDescribe, TestSetup, User, StorageComponent } from '../test-utils';
+import { currentRootObj as api } from '../../../../../lib-common/service-api/3nstorage/owner';
+import { beforeEachAsync, itAsync } from '../../../../libs-for-tests/async-jasmine';
+import { RequestOpts, doBinaryRequest } from '../../../../libs-for-tests/xhr-utils';
 import { Obj, getSessionParams } from '../../../../libs-for-tests/3nstorage';
-import { expectNonAcceptanceOfBadSessionId,
-	expectNonAcceptanceOfBadType, expectNonAcceptanceOfLongBody }
-	from '../../../../shared-checks/requests';
+import { expectNonAcceptanceOfBadSessionId, expectNonAcceptanceOfBadType, expectNonAcceptanceOfLongBody } from '../../../../shared-checks/requests';
 import { bytesSync as randomBytes } from '../../../../../lib-common/random-node';
 import { utf8 } from '../../../../../lib-common/buffer-utils';
 import { resolve as resolveUrl } from 'url';
@@ -54,15 +49,14 @@ let storageServer: StorageComponent;
 let user: User;
 let sessionId: string;
 
-async function setupSession(
-		setup: () => TestSetup): Promise<void> {
+async function setupSession(setup: () => TestSetup): Promise<void> {
 	storageServer = setup().storageServer;
 	user = setup().user;
 	await storageServer.restartAndClearStorageFor(user.id);
 	sessionId = await startSession(user);
 	fstReqOpts = {
 		url: resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd(
-			{ ver: 1, header: objV1.header.length })),
+			{ create: true, ver: 1, header: objV1.header.length })),
 		method: 'PUT',
 		responseType: 'json',
 		sessionId
@@ -145,17 +139,22 @@ specsForNonDiffSending.definition = (setup: () => TestSetup) => (() => {
 
 		// create object
 		const opts = copy(fstReqOpts);
-		opts.url = resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd(
-			{ ver: objV1.version, header: objV1.header.length, last: true }));
-		let rep = await doBinaryRequest<api.ReplyToPut>(opts, [ objV1.header, objV1.segs ]);
+		opts.url = resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd({
+			create: true, ver: objV1.version, header: objV1.header.length,
+			last: true
+		}));
+		let rep = await doBinaryRequest<api.ReplyToPut>(
+			opts, [ objV1.header, objV1.segs ]);
 		expect(rep.status).toBe(api.SC.okPut, 'status for successful writing of segments bytes');
 		expect(rep.data.transactionId).toBeUndefined();
 		expect(await storageServer.currentRootObjExists(user.id, objV1.version, objV1)).toBeTruthy('first version of object is present on the server');
 
 		// upload object's next version
-		opts.url = resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd(
-			{ ver: objV5.version, header: objV5.header.length, last: true }));
-		rep = await doBinaryRequest<api.ReplyToPut>(opts, [ objV5.header, objV5.segs ]);
+		opts.url = resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd({
+			ver: objV5.version, header: objV5.header.length, last: true
+		}));
+		rep = await doBinaryRequest<api.ReplyToPut>(
+			opts, [ objV5.header, objV5.segs ]);
 		expect(rep.status).toBe(api.SC.okPut, 'status for successful writing of segments bytes');
 		expect(rep.data.transactionId).toBeUndefined();
 		expect(await storageServer.currentRootObjExists(user.id, objV5.version, objV5)).toBeTruthy('fifth version of object is present on the server');
@@ -174,8 +173,9 @@ specsForNonDiffSending.definition = (setup: () => TestSetup) => (() => {
 
 		// first request, to start transmission
 		const opts = copy(fstReqOpts);
-		opts.url = resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd(
-			{ ver: objV1.version, header: objV1.header.length }));
+		opts.url = resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd({
+			create: true, ver: objV1.version, header: objV1.header.length
+		}));
 		let rep = await doBinaryRequest<api.ReplyToPut>(opts, objV1.header);
 		expect(rep.status).toBe(api.SC.okPut, 'status for successful writing of segments bytes');
 		expect(typeof rep.data.transactionId).toBe('string');
@@ -235,8 +235,10 @@ specsForDiffTransaction.definition = (setup: () => TestSetup) => (() => {
 		await setupSession(setup);
 		// upload first object version
 		const opts = copy(fstReqOpts);
-		opts.url = resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd(
-			{ ver: objV1.version, header: objV1.header.length, last: true }));
+		opts.url = resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd({
+			create: true, ver: objV1.version, header: objV1.header.length,
+			last: true
+		}));
 		await doBinaryRequest<api.ReplyToPut>(opts, [ objV1.header, objV1.segs ]);
 	});
 
@@ -264,8 +266,10 @@ specsForDiffTransaction.definition = (setup: () => TestSetup) => (() => {
 
 		// first request, to start transmission
 		const opts = copy(fstReqOpts);
-		opts.url = resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd(
-			{ ver: diffVer.version, diff: diffBytes.length, header: diffVer.header.length }));
+		opts.url = resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd({
+			ver: diffVer.version, diff: diffBytes.length,
+			header: diffVer.header.length
+		}));
 		let rep = await doBinaryRequest<api.ReplyToPut>(opts, [ diffBytes, diffVer.header ]);
 		expect(rep.status).toBe(api.SC.okPut, 'status for successful writing of segments bytes');
 		expect(typeof rep.data.transactionId).toBe('string');
@@ -287,8 +291,9 @@ specsForDiffTransaction.definition = (setup: () => TestSetup) => (() => {
 					dvOfs, dvOfs + Math.min(delta, len-ofsInSection));
 				if (last && ((ofsInSection+delta) >= len)) {
 					opts.url = resolveUrl(user.storageOwnerUrl,
-						api.secondPutReqUrlEnd(
-							{ trans: transactionId, ofs, last: true }));
+						api.secondPutReqUrlEnd({
+							trans: transactionId, ofs, last: true
+						}));
 					const rep = await doBinaryRequest<api.ReplyToPut>(opts, chunk);
 					expect(rep.status).toBe(api.SC.okPut, 'status for successful writing of segments bytes');
 					expect(rep.data.transactionId).toBeUndefined();

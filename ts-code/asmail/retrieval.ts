@@ -12,14 +12,13 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /**
  * This module gives a function that creates a mountable, or app.use()-able,
  * express ASMail application.
  */
-
-import * as express from 'express';
 
 // Internal libs
 import { json as parseJSON, emptyBody }
@@ -42,8 +41,10 @@ import { getMsgObj } from './routes/retrieval/get-message-obj';
 
 import * as api from '../lib-common/service-api/asmail/retrieval';
 
-export function makeApp(domain: string, sessions: SessionsFactory,
-		recipients: recipFactory, midAuthorizer: MidAuthorizer): AppWithWSs {
+export function makeApp(
+	domain: string, sessions: SessionsFactory, recipients: recipFactory,
+	midAuthorizer: MidAuthorizer
+): AppWithWSs {
 	
 	const app = new AppWithWSs();
 	
@@ -53,8 +54,9 @@ export function makeApp(domain: string, sessions: SessionsFactory,
 	return app;
 }
 
-function setWSPart(app: AppWithWSs, sessions: SessionsFactory,
-		recipients: recipFactory): void {
+function setWSPart(
+	app: AppWithWSs, sessions: SessionsFactory, recipients: recipFactory
+): void {
 	const sockets = new UserSockets(
 		sessions.ensureAuthorizedSessionForSocketStart());
 	
@@ -70,9 +72,10 @@ function setWSPart(app: AppWithWSs, sessions: SessionsFactory,
 	app.addWS(api.wsEventChannel.URL_END, sockets);
 }
 
-function setHttpPart(app: AppWithWSs, domain: string,
-		sessions: SessionsFactory, recipients: recipFactory,
-		midAuthorizer: MidAuthorizer): void {
+function setHttpPart(
+	app: AppWithWSs, domain: string, sessions: SessionsFactory,
+	recipients: recipFactory, midAuthorizer: MidAuthorizer
+): void {
 	app.http.disable('etag');
 	
 	app.http.post('/'+api.midLogin.START_URL_END,

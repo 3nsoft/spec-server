@@ -12,21 +12,19 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { afterAllAsync, beforeAllAsync, itAsync }
-	from '../../libs-for-tests/async-jasmine';
+import { afterAllAsync, beforeAllAsync, itAsync } from '../../libs-for-tests/async-jasmine';
 import { ASMailComponent } from '../../libs-for-tests/server-components/asmail';
-import { User, doMailerIdLogin } from '../../libs-for-tests/mailerid';
+import { User } from '../../libs-for-tests/mailerid';
 import { RequestOpts, doBodylessRequest } from '../../libs-for-tests/xhr-utils';
-import { expectNonAcceptanceOfBadSessionId, expectNonAcceptanceOfNonEmptyBody }
-	from '../../shared-checks/requests';
+import { expectNonAcceptanceOfBadSessionId, expectNonAcceptanceOfNonEmptyBody } from '../../shared-checks/requests';
 import { midLoginSpecs } from '../../shared-checks/check-mid-login';
 import { resolve as resolveUrl } from 'url';
 import * as api from '../../../lib-common/service-api/asmail/retrieval';
 import { bytesSync as randomBytes } from '../../../lib-common/random-node';
-import { Msg, sendMsg } from '../../libs-for-tests/asmail';
-import { bytesEqual } from '../../libs-for-tests/bytes-equal';
+import { Msg } from '../../libs-for-tests/asmail';
 import { addSpecsFrom } from '../../libs-for-tests/spec-assembly';
 import { join as joinPaths } from 'path';
 import { startSession } from './retrieval/test-utils';

@@ -70,15 +70,16 @@ function findMatchIn(lst: AddressToSizeMap, address: string): number|undefined {
  *     a given inbox;
  * (2) -1 (less than zero), if there is no free space in the inbox.
  */
-async function adaptToFreeSpaceLeft(inbox: Inbox, msgSize: number):
-		Promise<number> {
+async function adaptToFreeSpaceLeft(
+	inbox: Inbox, msgSize: number
+): Promise<number> {
 	const bytesFree = await inbox.freeSpace();
 	return ((bytesFree > 0) ? Math.min(bytesFree, msgSize) : -1);
 }
 
 /**
  * @param inbox
- * @param invitation is a string invitation token, or null.
+ * @param invitation is a string invitation token, or undefined.
  * @returns a promise, resolvable to
  * (1) zero (0), if leaving mail is forbidden,
  * (2) greater than zero maximum message length, and
@@ -86,7 +87,8 @@ async function adaptToFreeSpaceLeft(inbox: Inbox, msgSize: number):
  *     mail box.
  */
 async function allowedMsgSizeForAnonSender(
-		inbox: Inbox, invitation: string): Promise<number> {
+	inbox: Inbox, invitation: string|undefined
+): Promise<number> {
 	const policy = await inbox.getAnonSenderPolicy();
 	if (!policy.accept) { return 0; }
 	if (!invitation) {
@@ -103,15 +105,16 @@ async function allowedMsgSizeForAnonSender(
 /**
  * @param inbox
  * @param sender is sender string address
- * @param invitation is a string invitation token, or null.
+ * @param invitation is a string invitation token, or undefined.
  * @returns a promise, resolvable to
  * (1) zero (0), if leaving mail is forbidden,
  * (2) greater than zero maximum message length, and
  * (3) -1 (less than zero), if mail cannot be accepted due to full mail
  *     box.
  */
-async function allowedMsgSizeForAuthSender(inbox: Inbox, sender: string,
-		invitation: string): Promise<number> {
+async function allowedMsgSizeForAuthSender(
+	inbox: Inbox, sender: string, invitation: string|undefined
+): Promise<number> {
 	const results = await Promise.all<any>([
 		inbox.getAuthSenderPolicy(),
 		inbox.getAuthSenderWhitelist()])
@@ -152,48 +155,54 @@ export type UserExists = (userId: string) => Promise<boolean>;
  * (3) -1 (less than zero), if mail cannot be accepted due to full mail
  *     box.
  */
-export type AllowedMaxMsgSize = (recipient: string,
-	sender: string|undefined, invitation: string|undefined) => Promise<number>;
+export type AllowedMaxMsgSize = (
+	recipient: string, sender: string|undefined, invitation: string|undefined
+) => Promise<number>;
 
 /**
  * This allocates storage for a message returning a promise, resolvable to
  * (1) message id, when a folder for new message has been created,
  * (2) undefined, if recipient is unknown.
  */
-export type SetMsgStorage = (recipient: string,
-	msgMeta: deliveryApi.msgMeta.Request,
-	authSender: string|undefined, invite: string|undefined,
-	maxMsgLength: number) => Promise<string>;
+export type SetMsgStorage = (
+	recipient: string, msgMeta: deliveryApi.msgMeta.Request,
+	authSender: string|undefined, invite: string|undefined, maxMsgLength: number
+) => Promise<string>;
 
 /**
  * This saves object's bytes, returning a promise, resolvable when saving
  * is OK, otherwise, promise rejects with string error code from SC.
  */
-export type SaveObj = (recipient: string, msgId: string, objId: string,
+export type SaveObj = (
+	recipient: string, msgId: string, objId: string,
 	fstReq: deliveryApi.PutObjFirstQueryOpts|undefined,
 	sndReq: deliveryApi.PutObjSecondQueryOpts|undefined,
-	bytesLen: number, bytes: Readable) => Promise<void>;
+	bytesLen: number, bytes: Readable
+) => Promise<void>;
 
 /**
  * This finalizes delivery of a message, returning a promise.
  * Rejected promise may have a string error code from SC.
  */
-export type FinalizeDelivery = (recipient: string,
-	msgId: string) => Promise<void>;
+export type FinalizeDelivery = (
+	recipient: string, msgId: string
+) => Promise<void>;
 
 /**
  * This returns a promise, resolvable to array with ids of available messages.
  * Rejected promise may have a string error code from SC.
  */
-export type GetMsgIds = (userId: string) =>
-	Promise<retrievalApi.listMsgs.Reply>;
+export type GetMsgIds = (
+	userId: string
+) => Promise<retrievalApi.listMsgs.Reply>;
 
 /**
  * This returns a promise, resolvable to message meta.
  * Rejected promise may have a string error code from SC.
  */
-export type GetMsgMeta = (userId: string, msgId: string) =>
-	Promise<retrievalApi.MsgMeta>;
+export type GetMsgMeta = (
+	userId: string, msgId: string
+) => Promise<retrievalApi.MsgMeta>;
 
 /**
  * This deletes a message returning a promise, resolvable when message is
@@ -208,16 +217,18 @@ export type DeleteMsg = (userId: string, msgId: string) => Promise<void>;
  * already been delivered, error code is thrown.
  * Rejected promise may have a string error code from SC.
  */
-export type IncompleteMsgDeliveryParams = (recipient: string, msgId: string) =>
-	Promise<{ maxMsgLength: number; currentMsgLength: number; }>;
+export type IncompleteMsgDeliveryParams = (
+	recipient: string, msgId: string
+) => Promise<{ maxMsgLength: number; currentMsgLength: number; }>;
 
 /**
  * This returns a promise, resolvable to readable stream of object bytes.
  * Rejected promise may be passing string error code from SC.
  */
-export type GetObj = (userId: string, msgId: string, objId: string,
-	header: boolean, segsOffset: number, segsLimit: number|undefined) =>
-	Promise<ObjReader>;
+export type GetObj = (
+	userId: string, msgId: string, objId: string,
+	header: boolean, segsOffset: number, segsLimit: number|undefined
+) => Promise<ObjReader>;
 
 type GetParam<T> = (userId: string) => Promise<T>;
 type SetParam<T> = (userId: string, param: T) => Promise<boolean>;
@@ -246,6 +257,10 @@ export interface Factory {
 	setAnonSenderInvites: SetAnonSenderInvites;
 	setMailEventsSink(sink: EventsSink): void;
 }
+
+export type StaticSetter<T> = (
+	inbox: Inbox, param: T, setDefault: boolean
+) => Promise<boolean>;
 
 export function makeFactory(
 	rootFolder: string,
@@ -277,17 +292,18 @@ export function makeFactory(
 		}
 	}
 	
-	function makeParamGetter<T>(staticGetter: (inbox: Inbox) => Promise<T>):
-			(userId: string) => Promise<T> {
+	function makeParamGetter<T>(
+		staticGetter: (inbox: Inbox) => Promise<T>
+	): (userId: string) => Promise<T> {
 		return async (userId: string) => {
 			const inbox = await getInbox(userId);
 			return staticGetter(inbox);
 		};	
 	}
 	
-	function makeParamSetter<T>(staticSetter:
-			(inbox: Inbox, param: T, setDefault: boolean) => Promise<boolean>):
-			(userId: string, param: T, setDefault?: boolean) => Promise<boolean> {
+	function makeParamSetter<T>(
+		staticSetter: StaticSetter<T>
+	): (userId: string, param: T, setDefault?: boolean) => Promise<boolean> {
 		return async (userId: string, param: T, setDefault?: boolean) => {
 			const inbox = await getInbox(userId);
 			return staticSetter(inbox, param, !!setDefault);
@@ -296,7 +312,7 @@ export function makeFactory(
 	
 	const recipients: Factory = {
 
-		exists: async (userId: string) => {
+		exists: async userId => {
 			try {
 				await getInbox(userId);
 				return true;
@@ -315,8 +331,7 @@ export function makeFactory(
 			Inbox.setAnonSenderInvites),
 
 	
-		allowedMaxMsgSize: async (recipient: string,
-				sender: string, invitation: string) => {
+		allowedMaxMsgSize: async (recipient, sender, invitation) => {
 			const inbox = await getInbox(recipient);
 			// XXX move these two functions into inbox
 			if (sender) {
@@ -326,16 +341,16 @@ export function makeFactory(
 			}
 		},
 	
-		setMsgStorage: async (recipient: string,
-				msgMeta: deliveryApi.msgMeta.Request, authSender: string|undefined, invite: string|undefined, maxMsgLength: number) => {
+		setMsgStorage: async (
+			recipient, msgMeta, authSender, invite, maxMsgLength
+		) => {
 			const inbox = await getInbox(recipient);
 			return inbox.recordMsgMeta(msgMeta, authSender, invite, maxMsgLength);
 		},
 		
-		saveObj: async (recipient: string, msgId: string, objId: string,
-				fstReq: deliveryApi.PutObjFirstQueryOpts|undefined,
-				sndReq: deliveryApi.PutObjSecondQueryOpts|undefined,
-				bytesLen: number, bytes: Readable): Promise<void> => {
+		saveObj: async (
+			recipient, msgId, objId, fstReq, sndReq, bytesLen, bytes
+		) => {
 			const inbox = await getInbox(recipient);
 			if (fstReq) {
 				return inbox.startSavingObj(msgId, objId, bytes, bytesLen, fstReq);
@@ -346,34 +361,32 @@ export function makeFactory(
 			}
 		},
 	
-		finalizeDelivery: async (recipient: string, msgId: string) => {
+		finalizeDelivery: async (recipient, msgId) => {
 			const inbox = await getInbox(recipient);
 			return inbox.completeMsgDelivery(msgId);
 		},
 	
-		getMsgIds: async (userId: string) => {
+		getMsgIds: async userId => {
 			const inbox = await getInbox(userId);
 			return inbox.getMsgIds();
 		},
 	
-		getMsgMeta: async (userId: string, msgId: string) => {
+		getMsgMeta: async (userId, msgId) => {
 			const inbox = await getInbox(userId);
 			return inbox.getMsgMeta(msgId, true);
 		},
 	
-		deleteMsg: async (userId: string, msgId: string) => {
+		deleteMsg: async (userId, msgId) => {
 			const inbox = await getInbox(userId);
 			return inbox.rmMsg(msgId);
 		},
 
-		incompleteMsgDeliveryParams: async (recipient: string, msgId: string) => {
+		incompleteMsgDeliveryParams: async (recipient, msgId) => {
 			const inbox = await getInbox(recipient);
 			return inbox.getIncompleteMsgParams(msgId);
 		},
 		
-		getObj: async (userId: string, msgId: string, objId: string,
-				header: boolean, segsOffset: number, segsLimit: number|undefined):
-				Promise<ObjReader> => {
+		getObj: async (userId, msgId, objId, header, segsOffset, segsLimit) => {
 			const inbox = await getInbox(userId);
 			return inbox.getObj(msgId, objId, header, segsOffset, segsLimit);
 		},

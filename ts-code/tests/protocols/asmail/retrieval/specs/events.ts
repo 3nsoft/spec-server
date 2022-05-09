@@ -12,18 +12,15 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { beforeEachAsync, itAsync }
-	from '../../../../libs-for-tests/async-jasmine';
-import { SpecDescribe, TestSetup, User, msg, ASMailComponent, startSession,
-	sendMsg }
-	from '../test-utils';
+import { beforeEachAsync, itAsync } from '../../../../libs-for-tests/async-jasmine';
+import { SpecDescribe, TestSetup, User, msg, ASMailComponent, startSession, sendMsg } from '../test-utils';
 import { openSocket } from '../../../../libs-for-tests/ws-utils';
 import { sleep } from '../../../../../lib-common/processes';
 import { makeSubscriber } from '../../../../../lib-common/ipc/ws-ipc';
-import { msgRecievedCompletely, wsEventChannel as api, ERR_SC }
-	from '../../../../../lib-common/service-api/asmail/retrieval';
+import { msgRecievedCompletely, wsEventChannel as api, ERR_SC } from '../../../../../lib-common/service-api/asmail/retrieval';
 import { Observable } from 'rxjs';
 
 export const specs: SpecDescribe = {

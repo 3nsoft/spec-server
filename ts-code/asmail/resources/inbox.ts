@@ -58,8 +58,9 @@ type MsgMeta = retrievalApi.MsgMeta;
 export type MsgEvents = retrievalApi.msgMainObjRecieved.Event |
 	retrievalApi.msgRecievedCompletely.Event;
 
-export type MailEventsSink = (userId: string,
-	channel: string, event: MsgEvents) => void;
+export type MailEventsSink = (
+	userId: string, channel: string, event: MsgEvents
+) => void;
 
 export const SC = {
 	OBJ_EXIST: 'obj-already-exist',
@@ -81,8 +82,9 @@ const MSG_ID_LEN = 32;
  * @param delivPath
  * @param msgsFolder is an additional folder, checked against id-collision
  */
-async function genMsgIdAndMakeFolder(delivPath: string, msgsFolder: string):
-		Promise<string> {
+async function genMsgIdAndMakeFolder(
+	delivPath: string, msgsFolder: string
+): Promise<string> {
 	const msgId = await random.stringOfB64UrlSafeChars(MSG_ID_LEN);
 	// make msg folder among deliveries
 	try {
@@ -159,9 +161,10 @@ export class Inbox extends UserFiles {
 	 * @param authSender is an address of sender, if such was authenticated.
 	 * @param invite is an invitation token, if any were used.
 	 */
-	async recordMsgMeta(extMeta: deliveryApi.msgMeta.Request,
-			authSender: string|undefined, invite: string|undefined,
-			maxMsgLength: number): Promise<string> {
+	async recordMsgMeta(
+		extMeta: deliveryApi.msgMeta.Request, authSender: string|undefined,
+		invite: string|undefined, maxMsgLength: number
+	): Promise<string> {
 		const msgId = await genMsgIdAndMakeFolder(
 			this.metas.deliveryFolder, this.metas.readyMsgsFolder);
 		const meta: MsgMeta = {
@@ -182,13 +185,14 @@ export class Inbox extends UserFiles {
 	 * @param completeMsg flag, true for complete messages, and false for
 	 * incomplete (in-delivery) messages.
 	 */
-	async getMsgMeta(msgId: string, completeMsg): Promise<MsgMeta> {
+	async getMsgMeta(msgId: string, completeMsg: boolean): Promise<MsgMeta> {
 		return this.metas.get(msgId, completeMsg);
 	}
 
-	async startSavingObj(msgId: string, objId: string, bytes: Readable,
-			bytesLen: number, opts: deliveryApi.PutObjFirstQueryOpts):
-			Promise<void> {
+	async startSavingObj(
+		msgId: string, objId: string, bytes: Readable, bytesLen: number,
+		opts: deliveryApi.PutObjFirstQueryOpts
+	): Promise<void> {
 		// check meta
 		const meta = await this.metas.get(msgId, false);
 		if (meta.extMeta.objIds.indexOf(objId) < 0) { throw SC.OBJ_UNKNOWN; }
@@ -216,9 +220,10 @@ export class Inbox extends UserFiles {
 		await this.metas.set(msgId, meta);
 	}
 
-	async continueSavingObj(msgId: string, objId: string, bytes: Readable,
-			bytesLen: number, opts: deliveryApi.PutObjSecondQueryOpts):
-			Promise<void> {
+	async continueSavingObj(
+		msgId: string, objId: string, bytes: Readable, bytesLen: number,
+		opts: deliveryApi.PutObjSecondQueryOpts
+	): Promise<void> {
 		// check obj status
 		const meta = await this.metas.get(msgId, false);
 		const objStatus = meta.objs[objId];
@@ -294,8 +299,9 @@ export class Inbox extends UserFiles {
 	 * by a given id.
 	 * @param msgId
 	 */
-	async getIncompleteMsgParams(msgId: string):
-			Promise<{ maxMsgLength: number; currentMsgLength: number; }> {
+	async getIncompleteMsgParams(
+		msgId: string
+	): Promise<{ maxMsgLength: number; currentMsgLength: number; }> {
 		const msgMeta = await this.metas.get(msgId, false);
 		let currentMsgLength = 0;
 		for (const obj of Object.values(msgMeta.objs)) {
@@ -390,9 +396,10 @@ export class Inbox extends UserFiles {
 	 * @return a promise, resolvable to true, when certs are set, or
 	 * resolvable to false, when given certs do not pass sanitization. 
 	 */
-	static async setPubKey(inbox: Inbox,
-			initKeyCerts: deliveryApi.initPubKey.Reply,
-			setDefault: boolean): Promise<boolean> {
+	static async setPubKey(
+		inbox: Inbox, initKeyCerts: deliveryApi.initPubKey.Reply,
+		setDefault: boolean
+	): Promise<boolean> {
 		if (setDefault) {
 			initKeyCerts = (null as any);
 		} else {
@@ -418,8 +425,9 @@ export class Inbox extends UserFiles {
 	static getAnonSenderPolicy(inbox: Inbox): Promise<AnonSenderPolicy> {
 		return inbox.getParam<AnonSenderPolicy>('anonymous/policy');
 	}
-	static async setAnonSenderPolicy(inbox: Inbox, policy: AnonSenderPolicy,
-			setDefault: boolean): Promise<boolean> {
+	static async setAnonSenderPolicy(
+		inbox: Inbox, policy: AnonSenderPolicy, setDefault: boolean
+	): Promise<boolean> {
 		if (setDefault) {
 			policy = {
 				accept: true,
@@ -445,8 +453,9 @@ export class Inbox extends UserFiles {
 	static getAnonSenderInvites(inbox: Inbox): Promise<AnonSenderInvites> {
 		return inbox.getParam<AnonSenderInvites>('anonymous/invites');
 	}
-	static async setAnonSenderInvites(inbox: Inbox, invites: AnonSenderInvites,
-			setDefault: boolean): Promise<boolean> {
+	static async setAnonSenderInvites(
+		inbox: Inbox, invites: AnonSenderInvites, setDefault: boolean
+	): Promise<boolean> {
 		if (setDefault) {
 			invites = {};
 		} else {
@@ -468,8 +477,9 @@ export class Inbox extends UserFiles {
 	static getAuthSenderPolicy(inbox: Inbox): Promise<AuthSenderPolicy> {
 		return inbox.getParam<AuthSenderPolicy>('authenticated/policy');
 	}
-	static async setAuthSenderPolicy(inbox: Inbox, policy: AuthSenderPolicy,
-			setDefault: boolean): Promise<boolean> {
+	static async setAuthSenderPolicy(
+		inbox: Inbox, policy: AuthSenderPolicy, setDefault: boolean
+	): Promise<boolean> {
 		if (setDefault) {
 			policy = {
 				acceptWithInvitesOnly: false,
@@ -515,8 +525,9 @@ export class Inbox extends UserFiles {
 	static getAuthSenderWhitelist(inbox: Inbox): Promise<Whitelist> {
 		return inbox.getParam<Whitelist>('authenticated/whitelist');
 	}
-	static async setAuthSenderWhitelist(inbox: Inbox, list: Whitelist,
-			setDefault: boolean): Promise<boolean> {
+	static async setAuthSenderWhitelist(
+		inbox: Inbox, list: Whitelist, setDefault: boolean
+	): Promise<boolean> {
 		if (setDefault) {
 			list = {};
 		} else {
@@ -538,8 +549,9 @@ export class Inbox extends UserFiles {
 	static getAuthSenderInvites(inbox: Inbox): Promise<AuthSenderInvites> {
 		return inbox.getParam<AuthSenderInvites>('authenticated/invites');
 	}
-	static async setAuthSenderInvites(inbox: Inbox, invites: AuthSenderInvites,
-			setDefault: boolean): Promise<boolean> {
+	static async setAuthSenderInvites(
+		inbox: Inbox, invites: AuthSenderInvites, setDefault: boolean
+	): Promise<boolean> {
 		if (setDefault) {
 			invites = {};
 		} else {

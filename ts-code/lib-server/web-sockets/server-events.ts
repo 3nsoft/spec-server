@@ -12,7 +12,8 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 import { EventfulServer, makeEventfulServer, makeJsonCommPoint } from '../../lib-common/ipc/ws-ipc';
 import * as WebSocket from 'ws';
@@ -26,9 +27,10 @@ export class ServerEvents<T> implements SocketIPCs {
 	private socketToIPC = new WeakMap<WebSocket, EventfulServer>();
 
 	constructor(
-			public ipcChannel: string|undefined,
-			private eventChannels: string[],
-			private getSocket: (userId: string) => Set<WebSocket>|undefined) {
+		public ipcChannel: string|undefined,
+		private eventChannels: string[],
+		private getSocket: (userId: string) => Set<WebSocket>|undefined
+	) {
 		Object.seal(this);
 	}
 

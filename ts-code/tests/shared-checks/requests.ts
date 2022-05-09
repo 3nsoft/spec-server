@@ -12,10 +12,10 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { doJsonRequest, RequestOpts, request }
-	from '../libs-for-tests/xhr-utils';
+import { doJsonRequest, RequestOpts, request } from '../libs-for-tests/xhr-utils';
 import { randomBytes } from 'crypto';
 import { utf8 } from '../../lib-common/buffer-utils';
 import { copy } from '../libs-for-tests/json-copy';
@@ -33,8 +33,9 @@ export const UNAUTHORIZED_STATUS = 401;
  * @param badJSONs
  * @return a promise, resolvable when all checks are done.
  */
-export async function expectNonAcceptanceOfBadJsonRequest(opts: RequestOpts,
-		maxBodyLen: number, badJSONs: any[]): Promise<void> {
+export async function expectNonAcceptanceOfBadJsonRequest(
+	opts: RequestOpts, maxBodyLen: number, badJSONs: any[]
+): Promise<void> {
 	
 	// bad json
 	for (const badReq of badJSONs) {
@@ -66,8 +67,9 @@ export declare type BodyType =
 const bodyTypes = [ 'application/octet-stream',
 	'text/plain', 'application/json', undefined ];
 
-export async function expectNonAcceptanceOfBadType(opts: RequestOpts,
-		correctType: BodyType, body: Uint8Array): Promise<void> {
+export async function expectNonAcceptanceOfBadType(
+	opts: RequestOpts, correctType: BodyType, body: Uint8Array
+): Promise<void> {
 	for (const bt of bodyTypes) {
 		if (correctType === bt) { continue; }
 		const req = request<void>(bt, opts);
@@ -77,8 +79,9 @@ export async function expectNonAcceptanceOfBadType(opts: RequestOpts,
 	}
 }
 
-export async function expectNonAcceptanceOfLongBody(opts: RequestOpts,
-		bodyType: BodyType, maxBodyLen: number): Promise<void> {
+export async function expectNonAcceptanceOfLongBody(
+	opts: RequestOpts, bodyType: BodyType, maxBodyLen: number
+): Promise<void> {
 	const badReq = randomBytes(maxBodyLen+1);
 	const req = request<void>(bodyType, opts);
 	req.xhr.send(badReq);
@@ -92,8 +95,9 @@ export async function expectNonAcceptanceOfLongBody(opts: RequestOpts,
 	}
 }
 
-export async function expectNonAcceptanceOfNonEmptyBody(opts: RequestOpts):
-		Promise<void> {
+export async function expectNonAcceptanceOfNonEmptyBody(
+	opts: RequestOpts
+): Promise<void> {
 	const badReq = randomBytes(1);
 	const req = request<void>(undefined, opts);
 	req.xhr.send(badReq);
@@ -107,7 +111,8 @@ export async function expectNonAcceptanceOfNonEmptyBody(opts: RequestOpts):
  * Default value is false, for no body in request.
  */
 export async function expectNonAcceptanceOfBadSessionId(
-		opts: RequestOpts, hasBody = false): Promise<void> {
+	opts: RequestOpts, hasBody = false
+): Promise<void> {
 	opts = copy(opts);
 	
 	// missing session id

@@ -12,9 +12,10 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { RequestHandler, Response, NextFunction } from 'express';
+import { RequestHandler } from 'express';
 import { SC as recipSC, SetMsgStorage } from '../../resources/recipients';
 import { msgMeta as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/asmail/delivery';
 import * as confUtil from '../../../lib-server/conf-util';
@@ -52,7 +53,7 @@ export function saveMetadata(
 			"be function, but is not."); }
 	const maxChunkSize = confUtil.stringToNumOfBytes(maxChunk);
 
-	return async function(req: Request, res: Response, next: NextFunction) {
+	return async (req: Request, res, next) => {
 		const session = req.session;
 		const msgMeta: api.Request = req.body;
 		const recipient = session.params.recipient;

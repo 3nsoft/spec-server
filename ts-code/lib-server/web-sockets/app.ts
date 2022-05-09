@@ -12,7 +12,8 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 import * as http from 'http';
 import * as https from 'https';
@@ -74,8 +75,10 @@ class UserSocketsServer {
 		this.socksByPath.clear();
 	}
 
-	private verifyClient(info: { req: http.IncomingMessage },
-			cb: (res: boolean, code?: number, msg?: string) => void): void {
+	private verifyClient(
+		info: { req: http.IncomingMessage },
+		cb: (res: boolean, code?: number, msg?: string) => void
+	): void {
 		const path = parseUrl(info.req.url!).path!;
 		const socks = this.socksByPath.get(path);
 		if (!socks) {
@@ -91,8 +94,9 @@ class UserSocketsServer {
 		});
 	}
 
-	private handleConnection(client: WebSocket, req: HttpRequest<SessionParams>):
-			void {
+	private handleConnection(
+		client: WebSocket, req: HttpRequest<SessionParams>
+	): void {
 		const userId = req.session.params.userId;
 		const path = parseUrl(req.url!).path!;
 		const socks = this.socksByPath.get(path);
@@ -191,7 +195,7 @@ class PingSender {
 		this.fourMinCheck.unref();
 	}
 
-	private recurrentPing() {
+	private recurrentPing(): void {
 		if (!this.client) { return this.close(); }
 		if (this.outstandingPong === 0) {
 		} else if (this.outstandingPong === 1) {
@@ -204,18 +208,18 @@ class PingSender {
 		this.outstandingPong += 1;
 	}
 
-	additionalPing() {
+	additionalPing(): void {
 		if (!this.client) { return; }
 		if (this.outstandingPong === 0) { return; }
 		this.client.ping();
 		this.outstandingPong += 1;
 	}
 
-	onPong() {
+	onPong(): void {
 		this.outstandingPong = 0;
 	}
 	
-	close() {
+	close(): void {
 		if (!this.client) { return; }
 		this.client = undefined;
 		clearInterval(this.fourMinCheck);
@@ -277,8 +281,9 @@ export class AppWithWSs {
 		}
 	}
 
-	start(sslOts: https.ServerOptions|undefined,
-			port: number, hostname?: string): Promise<void> {
+	start(
+		sslOts: https.ServerOptions|undefined, port: number, hostname?: string
+	): Promise<void> {
 		if (this.server) { throw new Error(`Server is already set`); }
 
 		// setup server

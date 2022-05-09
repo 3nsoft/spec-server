@@ -14,11 +14,11 @@
  You should have received a copy of the GNU General Public License along with
  this program. If not, see <http://www.gnu.org/licenses/>. */
 
-import { RequestHandler, Response, NextFunction } from 'express';
+import { RequestHandler } from 'express';
 import { Request } from '../../resources/sessions';
 
 export function closeSession(): RequestHandler {
-	return (req: Request<any>, res: Response, next: NextFunction) => {
+	return (req: Request<any>, res, next) => {
 		req.session.close();
 		res.status(200).end();
 	};

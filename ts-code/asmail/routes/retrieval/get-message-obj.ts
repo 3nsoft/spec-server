@@ -12,17 +12,19 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { RequestHandler, Response, NextFunction } from 'express';
+import { RequestHandler } from 'express';
 import { SC as recipSC, GetObj, BIN_TYPE } from '../../resources/recipients';
 import { GetObjQueryOpts, ERR_SC, msgObj as api, HTTP_HEADER } from '../../../lib-common/service-api/asmail/retrieval';
 import { Request } from '../../resources/sessions';
 import { errWithCause } from '../../../lib-common/exceptions/error';
 import { EMPTY_BUFFER } from '../../../lib-common/buffer-utils';
 
-function extractQueryOptions(req: Request): undefined |
-		{ header: boolean; limit: number|undefined; ofs: number; } {
+function extractQueryOptions(req: Request): undefined|{
+	header: boolean; limit: number|undefined; ofs: number;
+} {
 	// query fields are string or undefined, yet, type info helps the show
 	const query: GetObjQueryOpts = req.query;
 
@@ -47,7 +49,7 @@ export function getMsgObj(getMsgObjFunc: GetObj): RequestHandler {
 	if ('function' !== typeof getMsgObjFunc) { throw new TypeError(
 			"Given argument 'getMsgObjFunc' must be function, but is not."); }
 
-	return async function(req: Request, res: Response, next: NextFunction) {
+	return async (req: Request, res, next) => {
 		
 		const userId = req.session.params.userId;
 		const msgId: string = req.params.msgId;

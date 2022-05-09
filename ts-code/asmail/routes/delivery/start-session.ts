@@ -12,9 +12,10 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { RequestHandler, Response, NextFunction } from 'express';
+import { RequestHandler, Response } from 'express';
 import { GenerateSession, Request } from '../../resources/delivery-sessions';
 import { SC as recipSC, AllowedMaxMsgSize } from '../../resources/recipients';
 import { sessionStart as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/asmail/delivery';
@@ -36,9 +37,10 @@ export type Redirect = (userId: string) => Promise<string>;
  * (1) string with URI for ASMail service, which is serving given recipient,
  * (2) undefined, if it is this server should service given recipient. 
  */
-export function startSession(allowedMsgSizeFunc: AllowedMaxMsgSize,
-		sessionGenFunc: GenerateSession, redirectFunc?: Redirect):
-		RequestHandler {
+export function startSession(
+	allowedMsgSizeFunc: AllowedMaxMsgSize, sessionGenFunc: GenerateSession,
+	redirectFunc?: Redirect
+): RequestHandler {
 	if (typeof allowedMsgSizeFunc !== 'function') { throw new TypeError(
 		`Given argument 'allowedMsgSizeFunc' must be function, but is not.`); }
 	if (typeof sessionGenFunc !== 'function') { throw new TypeError(
@@ -46,8 +48,10 @@ export function startSession(allowedMsgSizeFunc: AllowedMaxMsgSize,
 	if ((redirectFunc !== undefined) && (typeof redirectFunc !== 'function')) {
 		throw new TypeError(`Given argument 'redirectFunc' must either be function, or be undefined, but it is neither.`); }
 
-	async function serveRequestHere(recipient: string, sender: string|undefined,
-			invitation: string|undefined, res: Response): Promise<void> {
+	async function serveRequestHere(
+		recipient: string, sender: string|undefined,
+		invitation: string|undefined, res: Response
+	): Promise<void> {
 		const msgSize = await allowedMsgSizeFunc(recipient, sender, invitation);
 		if (msgSize > 0) {
 			const session = await sessionGenFunc();
@@ -77,7 +81,7 @@ export function startSession(allowedMsgSizeFunc: AllowedMaxMsgSize,
 		}
 	}
 	
-	return async function(req: Request, res: Response, next: NextFunction) {
+	return async (req: Request, res, next) => {
 		
 		const rb: api.Request = req.body;
 		const recipient = checkAndTransformAddress(rb.recipient);
@@ -146,4 +150,5 @@ export function startSession(allowedMsgSizeFunc: AllowedMaxMsgSize,
 		
 	};
 }
+
 Object.freeze(exports);

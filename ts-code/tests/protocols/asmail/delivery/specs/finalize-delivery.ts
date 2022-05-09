@@ -12,23 +12,16 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { beforeEachAsync, itAsync }
-	from '../../../../libs-for-tests/async-jasmine';
-import { SpecDescribe, TestSetup, User, msg, ASMailComponent,
-	startSessionAndSendMsgObjs }
-	from '../test-utils';
-import { doBodylessRequest, RequestOpts }
-	from '../../../../libs-for-tests/xhr-utils';
+import { beforeEachAsync, itAsync } from '../../../../libs-for-tests/async-jasmine';
+import { SpecDescribe, TestSetup, User, msg, ASMailComponent, startSessionAndSendMsgObjs } from '../test-utils';
+import { doBodylessRequest, RequestOpts } from '../../../../libs-for-tests/xhr-utils';
 import { resolve as resolveUrl } from 'url';
-import { completion as api }
-	from '../../../../../lib-common/service-api/asmail/delivery';
-import { expectNonAcceptanceOfBadSessionId, expectNonAcceptanceOfNonEmptyBody,
-	UNAUTHORIZED_STATUS }
-	from '../../../../shared-checks/requests';
-import { sendMsgObj, startMsgDelivery, DeliveryInfo, Msg }
-	from '../../../../libs-for-tests/asmail';
+import { completion as api } from '../../../../../lib-common/service-api/asmail/delivery';
+import { expectNonAcceptanceOfBadSessionId, expectNonAcceptanceOfNonEmptyBody, UNAUTHORIZED_STATUS } from '../../../../shared-checks/requests';
+import { DeliveryInfo } from '../../../../libs-for-tests/asmail';
 
 export const specs: SpecDescribe = {
 	description: `Request to complete message delivery`

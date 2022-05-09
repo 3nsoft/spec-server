@@ -12,24 +12,22 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 import { itAsync } from '../libs-for-tests/async-jasmine';
-import { authSession, startSession, ERR_SC }
-	from '../../lib-common/service-api/mailer-id/login';
+import { authSession, startSession, ERR_SC } from '../../lib-common/service-api/mailer-id/login';
 import { doJsonRequest, RequestOpts } from '../libs-for-tests/xhr-utils';
-import { startMidSession, provisionMidSigner, User }
-	from '../libs-for-tests/mailerid';
-import { expectNonAcceptanceOfBadJsonRequest,
-	expectNonAcceptanceOfBadSessionId } from './requests';
-import { utf8 } from '../../lib-common/buffer-utils';
+import { startMidSession, provisionMidSigner, User } from '../libs-for-tests/mailerid';
+import { expectNonAcceptanceOfBadJsonRequest, expectNonAcceptanceOfBadSessionId } from './requests';
 import * as mid from '../../lib-common/mid-sigs-NaCl-Ed';
 import { bytesSync as randomBytes } from '../../lib-common/random-node';
 import { parse as parseUrl, resolve as resolveUrl } from 'url';
 
 export function midLoginSpecs(
-		loginUrl: () => string,
-		user: () => User): () => void {
+	loginUrl: () => string,
+	user: () => User
+): () => void {
 	return () => {
 		
 		itAsync('first request starts session', async () => {

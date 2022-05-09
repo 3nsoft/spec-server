@@ -20,7 +20,7 @@
  * express 3NStorage application.
  */
 
-import * as express from 'express';
+import { Express } from 'express';
 import { makeFactory as makeUsersFactory } from './resources/users';
 import { makeSessionFactory } from './resources/sessions';
 import { MidAuthorizer } from '../lib-server/routes/sessions/mid-auth';
@@ -34,10 +34,10 @@ const PATHS = {
 	shared: '/shared/'
 };
 
-function setupStaticEntryRoute(app: express.Express): void {
+function setupStaticEntryRoute(app: Express): void {
 
 	app.route('/')
-	.get((req: express.Request, res: express.Response) => {
+	.get((req, res) => {
 		let path = req.originalUrl;
 		if (path[path.length-1] !== '/') {
 			path = path+'/';
@@ -69,7 +69,7 @@ export function makeApp(
 	app.http.use(PATHS.shared,
 		sharing.makeApp(sharingSessions, users));
 
-	app.http.use(makeErrHandler((err: any, req: any): void => {
+	app.http.use(makeErrHandler((err, req) => {
 		if (typeof err.status !== 'number') {
 			console.error(`\n --- Error occured in storage, when handling ${req.method} request to ${req.originalUrl}`);
 			console.error(err);

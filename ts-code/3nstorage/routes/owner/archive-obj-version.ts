@@ -12,22 +12,23 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import * as express from 'express';
+import { RequestHandler } from 'express';
 import { ArchiveObjCurrentVersion, SC as storeSC } from '../../resources/users';
 import { archiveObj as api } from '../../../lib-common/service-api/3nstorage/owner';
 import { Request } from '../../resources/sessions';
 
 const SC = api.SC;
 
-export function archiveCurrentObjVersion(root: boolean,
-		archiveObjVerFunc: ArchiveObjCurrentVersion): express.RequestHandler {
+export function archiveCurrentObjVersion(
+	root: boolean, archiveObjVerFunc: ArchiveObjCurrentVersion
+): RequestHandler {
 	if ('function' !== typeof archiveObjVerFunc) { throw new TypeError(
 			"Given argument 'archiveObjVerFunc' must be function, but is not."); }
 
-	return async function(req: Request, res: express.Response,
-			next: express.NextFunction) {
+	return async (req: Request, res, next) => {
 
 	next(new Error('Not implemented, yet.'));
 

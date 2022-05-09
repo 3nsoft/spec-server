@@ -12,20 +12,15 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { startSession, SpecDescribe, TestSetup, User, StorageComponent }
-	from '../test-utils';
-import { cancelRootTransaction as api, currentRootObj as rootApi }
-	from '../../../../../lib-common/service-api/3nstorage/owner';
-import { beforeAllAsync, itAsync }
-	from '../../../../libs-for-tests/async-jasmine';
-import { RequestOpts, doBodylessRequest, doBinaryRequest }
-	from '../../../../libs-for-tests/xhr-utils';
+import { startSession, SpecDescribe, TestSetup, User, StorageComponent } from '../test-utils';
+import { cancelRootTransaction as api, currentRootObj as rootApi } from '../../../../../lib-common/service-api/3nstorage/owner';
+import { beforeAllAsync, itAsync } from '../../../../libs-for-tests/async-jasmine';
+import { RequestOpts, doBodylessRequest, doBinaryRequest } from '../../../../libs-for-tests/xhr-utils';
 import { Obj }	from '../../../../libs-for-tests/3nstorage';
-import { expectNonAcceptanceOfBadSessionId,
-	expectNonAcceptanceOfNonEmptyBody }
-	from '../../../../shared-checks/requests';
+import { expectNonAcceptanceOfBadSessionId, expectNonAcceptanceOfNonEmptyBody } from '../../../../shared-checks/requests';
 import { bytesSync as randomBytes } from '../../../../../lib-common/random-node';
 import { resolve as resolveUrl } from 'url';
 
@@ -54,7 +49,8 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		const sessionId = await startSession(user);
 		const fstReqOpts: RequestOpts = {
 			url: resolveUrl(user.storageOwnerUrl, rootApi.firstPutReqUrlEnd({
-				ver: 1, header: obj.header.length })),
+				create: true, ver: 1, header: obj.header.length
+			})),
 			method: 'PUT',
 			sessionId
 		};

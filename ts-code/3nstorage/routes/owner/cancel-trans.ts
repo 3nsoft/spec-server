@@ -15,17 +15,18 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { RequestHandler, Response, NextFunction } from 'express';
+import { RequestHandler } from 'express';
 import { CancelTransaction, SC as storeSC } from '../../resources/users';
 import { cancelTransaction as api, ERR_SC } from '../../../lib-common/service-api/3nstorage/owner';
 import { Request } from '../../resources/sessions';
 
-export function cancelTransaction(root: boolean,
-		cancelTransFunc: CancelTransaction): RequestHandler {
+export function cancelTransaction(
+	root: boolean, cancelTransFunc: CancelTransaction
+): RequestHandler {
 	if ('function' !== typeof cancelTransFunc) { throw new TypeError(
 			"Given argument 'cancelTransFunc' must be function, but is not."); }
 
-	return async function(req: Request, res: Response, next: NextFunction) {
+	return async (req: Request, res, next) => {
 		
 		const userId = req.session.params.userId;
 		const objId: string = (root ? null as any : req.params.objId);

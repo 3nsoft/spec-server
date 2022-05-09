@@ -12,18 +12,15 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { beforeAllAsync, itAsync }
-	from '../../../../libs-for-tests/async-jasmine';
+import { beforeAllAsync, itAsync } from '../../../../libs-for-tests/async-jasmine';
 import { SpecDescribe, TestSetup, User } from '../test-utils';
-import { doJsonRequest, RequestOpts }
-	from '../../../../libs-for-tests/xhr-utils';
+import { doJsonRequest, RequestOpts } from '../../../../libs-for-tests/xhr-utils';
 import { resolve as resolveUrl } from 'url';
-import { sessionStart as api }
-	from '../../../../../lib-common/service-api/asmail/delivery';
-import { expectNonAcceptanceOfBadJsonRequest }
-	from '../../../../shared-checks/requests';
+import { sessionStart as api } from '../../../../../lib-common/service-api/asmail/delivery';
+import { expectNonAcceptanceOfBadJsonRequest } from '../../../../shared-checks/requests';
 
 export const specs: SpecDescribe = {
 	description: 'Request to start message delivery session'

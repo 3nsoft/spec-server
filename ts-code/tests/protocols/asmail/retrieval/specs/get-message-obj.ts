@@ -12,20 +12,15 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { beforeEachAsync, itAsync }
-	from '../../../../libs-for-tests/async-jasmine';
-import { SpecDescribe, TestSetup, User, msg, ASMailComponent, startSession,
-	sendMsg, Obj }
-	from '../test-utils';
+import { beforeEachAsync, itAsync } from '../../../../libs-for-tests/async-jasmine';
+import { SpecDescribe, TestSetup, User, msg, ASMailComponent, startSession, sendMsg, Obj } from '../test-utils';
 import { resolve as resolveUrl } from 'url';
-import { msgObj as api, HTTP_HEADER, ERR_SC }
-	from '../../../../../lib-common/service-api/asmail/retrieval';
-import { RequestOpts, Reply, doBodylessRequest }
-	from '../../../../libs-for-tests/xhr-utils';
-import { expectNonAcceptanceOfBadSessionId }
-	from '../../../../shared-checks/requests';
+import { msgObj as api, HTTP_HEADER, ERR_SC } from '../../../../../lib-common/service-api/asmail/retrieval';
+import { RequestOpts, Reply, doBodylessRequest } from '../../../../libs-for-tests/xhr-utils';
+import { expectNonAcceptanceOfBadSessionId } from '../../../../shared-checks/requests';
 import { copy } from '../../../../libs-for-tests/json-copy';
 import { bytesEqual } from '../../../../libs-for-tests/bytes-equal';
 

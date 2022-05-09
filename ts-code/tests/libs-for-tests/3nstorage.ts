@@ -12,17 +12,18 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { RequestOpts, doBodylessRequest, doBinaryRequest, doJsonRequest }
-	from './xhr-utils';
+import { RequestOpts, doBodylessRequest, doBinaryRequest } from './xhr-utils';
 import { resolve as resolveUrl } from 'url';
 import * as api from '../../lib-common/service-api/3nstorage/owner';
 import { utf8 } from '../../lib-common/buffer-utils';
 import { assert } from './assert';
 
-export async function get3NStorageServiceUrl(storageUrl: string,
-		service: 'owner'|'shared'): Promise<string> {
+export async function get3NStorageServiceUrl(
+	storageUrl: string, service: 'owner'|'shared'
+): Promise<string> {
 	let reqOpts: RequestOpts= {
 		url: storageUrl,
 		method: 'GET',
@@ -80,8 +81,10 @@ export async function getSessionParams(ownerUrl: string, sessionId: string):
  * @param obj
  * @return a promise, resolvable object is writen.
  */
-export async function saveObj(ownerUrl: string, sessionId: string,
-		objId: string|null, ver: number, obj: Obj): Promise<void> {
+export async function saveObj(
+	ownerUrl: string, sessionId: string,
+	newObj: boolean, objId: string|null, ver: number, obj: Obj
+): Promise<void> {
 
 	const header = obj.header.length;
 	const diffBytes = (obj.diff ?
@@ -116,11 +119,13 @@ export async function saveObj(ownerUrl: string, sessionId: string,
 			ofs += len;
 		}
 	} else {
+		const urlOpts: api.PutObjFirstQueryOpts = { ver, header, last: true };
+		if (newObj) {
+			urlOpts.create = true;
+		}
 		const urlEnd = (objId ?
-			api.currentObj.firstPutReqUrlEnd(
-				objId, { ver, header, last: true }) :
-			api.currentRootObj.firstPutReqUrlEnd(
-				{ ver, header, last: true }));
+			api.currentObj.firstPutReqUrlEnd(objId, urlOpts) :
+			api.currentRootObj.firstPutReqUrlEnd(urlOpts));
 		opts.url = resolveUrl(ownerUrl, urlEnd);
 		const rep = await doBinaryRequest<api.currentObj.ReplyToPut>(
 			opts, [ obj.header, obj.segs ]);

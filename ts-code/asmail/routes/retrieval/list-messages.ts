@@ -12,9 +12,10 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { RequestHandler, Response, NextFunction } from 'express';
+import { RequestHandler } from 'express';
 import { SC as recipSC, GetMsgIds } from '../../resources/recipients';
 import { listMsgs as api, ERR_SC } from '../../../lib-common/service-api/asmail/retrieval';
 import { Request } from '../../resources/sessions';
@@ -23,7 +24,7 @@ export function listMsgIds(listMsgIdsFunc: GetMsgIds): RequestHandler {
 	if ('function' !== typeof listMsgIdsFunc) { throw new TypeError(
 			"Given argument 'listMsgIdsFunc' must be function, but is not."); }
 
-	return async function(req: Request, res: Response, next: NextFunction) {
+	return async (req: Request, res, next) => {
 		const userId = req.session.params.userId;
 		
 		try {

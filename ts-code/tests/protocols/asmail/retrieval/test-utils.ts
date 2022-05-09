@@ -12,20 +12,18 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { ASMailComponent }
-	from '../../../libs-for-tests/server-components/asmail';
+import { ASMailComponent } from '../../../libs-for-tests/server-components/asmail';
 import { User, doMailerIdLogin } from '../../../libs-for-tests/mailerid';
 import { GenericSpecDescribe } from '../../../libs-for-tests/spec-assembly';
 import { bytesSync as randomBytes } from '../../../../lib-common/random-node';
-import { Msg, Obj, DeliveryInfo, sendMsg }
-	from '../../../libs-for-tests/asmail';
+import { Msg, Obj } from '../../../libs-for-tests/asmail';
 import { resolve as resolveUrl } from 'url';
 import * as api from '../../../../lib-common/service-api/asmail/retrieval';
 
-export { ASMailComponent }
-	from '../../../libs-for-tests/server-components/asmail';
+export { ASMailComponent } from '../../../libs-for-tests/server-components/asmail';
 export { User } from '../../../libs-for-tests/mailerid';
 export { sendMsg, Obj } from '../../../libs-for-tests/asmail';
 

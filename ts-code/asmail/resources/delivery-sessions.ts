@@ -12,7 +12,8 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /**
  * This module constructs memory-backed sessions factories.
@@ -83,8 +84,9 @@ export class DeliverySessions extends InMemorySessions<SessionParams>
 		this.msgToSessionMap.delete(`${s.params.recipient}:${s.params.msgId}`);
 	}
 
-	async getSessionForMsg(recipient: string, msgId: string):
-			Promise<Session<SessionParams>|undefined> {
+	async getSessionForMsg(
+		recipient: string, msgId: string
+	): Promise<Session<SessionParams>|undefined> {
 		const sessionId = this.msgToSessionMap.get(`${recipient}:${msgId}`);
 		if (sessionId) {
 			const session = await this.get(sessionId);

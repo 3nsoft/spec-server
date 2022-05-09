@@ -12,7 +12,8 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /**
  * This module is a test-grade function to calculate DH-shared keys for login.
@@ -27,7 +28,9 @@ const testLoginSecretKey = random.bytesSync(32);
 
 const testLoginPublicKey = box.generate_pubkey(testLoginSecretKey);
 
-export function calcNaClBoxSharedKey(userPubKey: Uint8Array) {
+export function calcNaClBoxSharedKey(userPubKey: Uint8Array): {
+	dhsharedKey: Uint8Array; serverPubKey: Uint8Array;
+} {
 	const dhsharedKey = box.calc_dhshared_key(userPubKey, testLoginSecretKey);
 	return {
 		dhsharedKey: dhsharedKey,

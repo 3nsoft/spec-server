@@ -12,18 +12,19 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { RequestHandler, Response, NextFunction } from 'express';
+import { RequestHandler } from 'express';
 import { SignedLoad } from '../../../lib-common/jwkeys';
 import { authSender as api, ERR_SC } from '../../../lib-common/service-api/asmail/delivery';
 import { Request } from '../../resources/delivery-sessions';
 
-export interface IMidAuthorizer {
-	(rpDomain: string, sessionId: string, userId: string,
-		mailerIdAssertion: SignedLoad, userCert: SignedLoad,
-		provCert: SignedLoad): Promise<boolean>;
-}
+export type IMidAuthorizer = (
+	rpDomain: string, sessionId: string, userId: string,
+	mailerIdAssertion: SignedLoad, userCert: SignedLoad, provCert: SignedLoad
+) => Promise<boolean>;
+
 
 /**
  * This creates an authorize-sender route handler.
@@ -32,12 +33,13 @@ export interface IMidAuthorizer {
  * resolves into boolean flag, with true value for authorization passing,
  * and false for failed authorization. 
  */
-export function authorize(relyingPartyDomain: string,
-		midAuthorizingFunc: IMidAuthorizer): RequestHandler {
+export function authorize(
+	relyingPartyDomain: string, midAuthorizingFunc: IMidAuthorizer
+): RequestHandler {
 	if ('function' !== typeof midAuthorizingFunc) { throw new TypeError(
 			"Given argument 'midAuthorizingFunc' must be function, but is not."); }
 	
-	return async function(req: Request, res: Response, next: NextFunction) {
+	return async (req: Request, res, next) => {
 		
 		if (req.session.isAuthorized) {
 			res.status(ERR_SC.duplicateReq).send(
@@ -81,4 +83,5 @@ export function authorize(relyingPartyDomain: string,
 		
 	};
 }
+
 Object.freeze(exports);

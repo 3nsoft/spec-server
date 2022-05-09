@@ -12,7 +12,8 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /**
  * This module gives a function that creates a mountable, or app.use()-able,
@@ -38,9 +39,9 @@ import { setParam } from './routes/config/param-setter';
 
 import * as api from '../lib-common/service-api/asmail/config';
 
-export function makeApp(domain: string, sessions: SessionsFactory,
-		recipients: usersFactory, midAuthorizer: MidAuthorizer):
-		express.Express {
+export function makeApp(
+	domain: string, sessions: SessionsFactory, recipients: usersFactory,midAuthorizer: MidAuthorizer
+): express.Express {
 	
 	const app = express();
 	app.disable('etag');
@@ -74,4 +75,5 @@ export function makeApp(domain: string, sessions: SessionsFactory,
 	
 	return app;
 }
+
 Object.freeze(exports);

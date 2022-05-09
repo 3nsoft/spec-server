@@ -12,18 +12,15 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { beforeAllAsync, itAsync }
-	from '../../../../libs-for-tests/async-jasmine';
+import { beforeAllAsync, itAsync } from '../../../../libs-for-tests/async-jasmine';
 import { SpecDescribe, TestSetup, User } from '../test-utils';
-import { doBodylessRequest, RequestOpts }
-	from '../../../../libs-for-tests/xhr-utils';
+import { doBodylessRequest, RequestOpts } from '../../../../libs-for-tests/xhr-utils';
 import { resolve as resolveUrl } from 'url';
-import { initPubKey as api }
-	from '../../../../../lib-common/service-api/asmail/delivery';
-import { expectNonAcceptanceOfBadSessionId, UNAUTHORIZED_STATUS }
-	from '../../../../shared-checks/requests';
+import { initPubKey as api } from '../../../../../lib-common/service-api/asmail/delivery';
+import { expectNonAcceptanceOfBadSessionId, UNAUTHORIZED_STATUS } from '../../../../shared-checks/requests';
 import { startMsgDeliverySession } from '../../../../libs-for-tests/asmail';
 import { copy } from '../../../../libs-for-tests/json-copy';
 

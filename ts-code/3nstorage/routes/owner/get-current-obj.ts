@@ -15,16 +15,17 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { RequestHandler, Response, NextFunction } from 'express';
+import { RequestHandler } from 'express';
 import { GetCurrentObj, SC as storeSC } from '../../resources/users';
 import { GetObjQueryOpts, ERR_SC, HTTP_HEADER, BIN_TYPE, currentObj as api } from '../../../lib-common/service-api/3nstorage/owner';
 import { Request } from '../../resources/sessions';
 import { errWithCause, stringifyErr } from '../../../lib-common/exceptions/error';
 import { EMPTY_BUFFER } from '../../../lib-common/buffer-utils';
 
-function extractQueryOptions(req: Request): undefined |
-		{ header: boolean; limit: number|undefined; ofs: number;
-			ver: number|undefined; } {
+function extractQueryOptions(req: Request): undefined|{
+	header: boolean; limit: number|undefined; ofs: number;
+	ver: number|undefined;
+} {
 	// query fields are string or undefined, yet, type info helps the show
 	const query: GetObjQueryOpts = req.query;
 
@@ -60,7 +61,7 @@ export function getCurrentObj(
 	if ('function' !== typeof getCurrentObjFunc) { throw new TypeError(
 			"Given argument 'getCurrentObjFunc' must be function, but is not."); }
 
-	return async function(req: Request, res: Response, next: NextFunction) {
+	return async (req: Request, res, next) => {
 		
 		const userId = req.session.params.userId;
 		const objId: string = (root ? null as any : req.params.objId);

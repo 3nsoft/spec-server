@@ -12,21 +12,22 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { RequestHandler, Response, NextFunction } from 'express';
+import { RequestHandler } from 'express';
 import { SC as recipSC } from '../../resources/recipients';
 import { PARAM_SC, ERR_SC } from '../../../lib-common/service-api/asmail/config';
 import { Request } from '../../resources/sessions';
 
 export function setParam<T>(
-		paramSetter: (userId: string, param: T) => Promise<boolean>):
-		RequestHandler {
+	paramSetter: (userId: string, param: T) => Promise<boolean>
+): RequestHandler {
 	
 	if ('function' !== typeof paramSetter) { throw new TypeError(
 			"Given argument 'paramSetter' must be function, but is not."); }
 	
-	return async function(req: Request, res: Response, next: NextFunction) {
+	return async (req: Request, res, next) => {
 		
 		const session = req.session;
 		const userId = session.params.userId;

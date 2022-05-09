@@ -12,29 +12,21 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { afterAllAsync, beforeAllAsync, itAsync }
-	from '../libs-for-tests/async-jasmine';
-import { MailerIdComponent }
-	from '../libs-for-tests/server-components/mailerid';
+import { afterAllAsync, beforeAllAsync, itAsync } from '../libs-for-tests/async-jasmine';
+import { MailerIdComponent } from '../libs-for-tests/server-components/mailerid';
 import { getMidRoot } from '../libs-for-tests/mailerid';
-import { doJsonRequest, RequestOpts, doBodylessRequest, doBinaryRequest }
-	from '../libs-for-tests/xhr-utils';
-import { certify as certApi }
-	from '../../lib-common/service-api/mailer-id/provisioning';
+import { doJsonRequest, RequestOpts, doBodylessRequest, doBinaryRequest } from '../libs-for-tests/xhr-utils';
+import { certify as certApi } from '../../lib-common/service-api/mailer-id/provisioning';
 import * as pklApi from '../../lib-common/service-api/pub-key-login';
 import { isLikeSignedKeyCert } from '../../lib-common/jwkeys';
-import { expectNonAcceptanceOfBadJsonRequest,
-	expectNonAcceptanceOfBadSessionId, UNAUTHORIZED_STATUS,
-	expectNonAcceptanceOfBadType, expectNonAcceptanceOfLongBody }
-	from '../shared-checks/requests';
-import { utf8, base64 } from '../../lib-common/buffer-utils';
+import { expectNonAcceptanceOfBadJsonRequest, expectNonAcceptanceOfBadSessionId, UNAUTHORIZED_STATUS, expectNonAcceptanceOfBadType, expectNonAcceptanceOfLongBody } from '../shared-checks/requests';
+import { base64 } from '../../lib-common/buffer-utils';
 import { secret_box as sbox } from 'ecma-nacl';
-import { decryptSessionParamsForCurve25519, startPKLSession, doPubKeyLogin,
-	User } from '../libs-for-tests/pkl';
-import { user as midUser, relyingParty }
-	from '../../lib-common/mid-sigs-NaCl-Ed';
+import { decryptSessionParamsForCurve25519, startPKLSession, doPubKeyLogin, User } from '../libs-for-tests/pkl';
+import { user as midUser, relyingParty } from '../../lib-common/mid-sigs-NaCl-Ed';
 import { bytesSync as randomBytes } from '../../lib-common/random-node';
 import { toCanonicalAddress } from '../../lib-common/canonical-address';
 import { deepEqual } from '../libs-for-tests/json-equal';

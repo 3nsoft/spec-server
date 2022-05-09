@@ -12,18 +12,15 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { beforeEachAsync, itAsync }
-	from '../../../../libs-for-tests/async-jasmine';
-import { SpecDescribe, TestSetup, User, startSession, StorageComponent }
-	from '../test-utils';
-import { resolve as resolveUrl } from 'url';
+import { beforeEachAsync, itAsync } from '../../../../libs-for-tests/async-jasmine';
+import { SpecDescribe, TestSetup, User, startSession, StorageComponent } from '../test-utils';
 import { openSocket } from '../../../../libs-for-tests/ws-utils';
-import { defer, sleep } from '../../../../../lib-common/processes';
+import { sleep } from '../../../../../lib-common/processes';
 import { makeSubscriber } from '../../../../../lib-common/ipc/ws-ipc';
-import { wsEventChannel as api, ERR_SC, objChanged, objRemoved }
-	from '../../../../../lib-common/service-api/3nstorage/owner';
+import { wsEventChannel as api, ERR_SC, objChanged, objRemoved } from '../../../../../lib-common/service-api/3nstorage/owner';
 import { Obj, saveObj, removeObj }	from '../../../../libs-for-tests/3nstorage';
 import { bytesSync as randomBytes } from '../../../../../lib-common/random-node';
 import { Observable } from 'rxjs';
@@ -77,10 +74,10 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		await sleep(10);
 		
 		// create first version of an object
-		await saveObj(user.storageOwnerUrl, sessionId, obj.objId, 1, obj);
+		await saveObj(user.storageOwnerUrl, sessionId, true, obj.objId, 1, obj);
 		
 		// create second version
-		await saveObj(user.storageOwnerUrl, sessionId, obj.objId, 2, obj);
+		await saveObj(user.storageOwnerUrl, sessionId, false, obj.objId, 2, obj);
 
 		(await eventPromise).forEach((event, index) => {
 			expect(typeof event).toBe('object');
@@ -108,7 +105,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		const objId ='bbbb';
 		
 		// create an object
-		await saveObj(user.storageOwnerUrl, sessionId, objId, 1, obj);
+		await saveObj(user.storageOwnerUrl, sessionId, true, objId, 1, obj);
 		
 		// create second version
 		await removeObj(user.storageOwnerUrl, sessionId, objId);

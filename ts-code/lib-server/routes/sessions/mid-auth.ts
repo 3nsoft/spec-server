@@ -12,9 +12,10 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { RequestHandler, Response, NextFunction } from 'express';
+import { RequestHandler } from 'express';
 import { Request } from './start';
 import { SignedLoad, isLikeSignedMailerIdAssertion, isLikeSignedKeyCert } from '../../../lib-common/jwkeys';
 import { authSession as api, ERR_SC } from '../../../lib-common/service-api/mailer-id/login';
@@ -25,9 +26,10 @@ import { authSession as api, ERR_SC } from '../../../lib-common/service-api/mail
  * Autherization failure may be due to either, invalid MailerId credentials, or
  * due to other service's restriction(s) on users.
  */
-export type MidAuthorizer = (rpDomain: string, sessionId: string,
-	userId: string, mailerIdAssertion: SignedLoad, userCert: SignedLoad,
-	provCert: SignedLoad) => Promise<boolean>;
+export type MidAuthorizer = (
+	rpDomain: string, sessionId: string, userId: string,
+	mailerIdAssertion: SignedLoad, userCert: SignedLoad, provCert: SignedLoad
+) => Promise<boolean>;
 
 /**
  * @param relyingPartyDomain is a domain of service, for which this assertion
@@ -35,12 +37,13 @@ export type MidAuthorizer = (rpDomain: string, sessionId: string,
  * @param midAuthorizingFunc
  * This creates an authorize-sender route handler.
  */
-export function midLogin(relyingPartyDomain: string,
-		midAuthorizingFunc: MidAuthorizer): RequestHandler {
+export function midLogin(
+	relyingPartyDomain: string, midAuthorizingFunc: MidAuthorizer
+): RequestHandler {
 	if ('function' !== typeof midAuthorizingFunc) { throw new TypeError(
 			"Given argument 'midAuthorizingFunc' must be function, but is not."); }
-	
-	return async function(req: Request, res: Response, next: NextFunction) {
+
+	return async (req: Request, res, next) => {
 		
 		if (req.session.isAuthorized) {
 			res.status(ERR_SC.duplicate).send(

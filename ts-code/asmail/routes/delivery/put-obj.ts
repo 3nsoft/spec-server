@@ -15,20 +15,21 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { RequestHandler, Response, NextFunction } from 'express';
+import { RequestHandler, Response } from 'express';
 import { SC as recipSC, SaveObj, BIN_TYPE } from '../../resources/recipients';
 import { msgObj as api, ERR_SC, HTTP_HEADER, PutObjFirstQueryOpts, PutObjSecondQueryOpts } from '../../../lib-common/service-api/asmail/delivery';
 import * as confUtil from '../../../lib-server/conf-util';
 import { Request } from '../../resources/delivery-sessions';
 import { attachByteDrainToRequest } from '../../../lib-server/middleware/body-parsers';
 
-export function saveMsgObj(saveObjFunc: SaveObj, chunkLimit: string|number):
-		RequestHandler {
+export function saveMsgObj(
+	saveObjFunc: SaveObj, chunkLimit: string|number
+): RequestHandler {
 	if ('function' !== typeof saveObjFunc) { throw new TypeError(
 		"Given argument 'saveObjFunc' must be function, but is not."); }
 	const maxChunkSize = confUtil.stringToNumOfBytes(chunkLimit);
 
-	return async function(req: Request, res: Response, next: NextFunction) {
+	return async (req: Request, res, next) => {
 		
 		if (!req.is(BIN_TYPE)) {
 			attachByteDrainToRequest(req);
@@ -113,8 +114,9 @@ export function saveMsgObj(saveObjFunc: SaveObj, chunkLimit: string|number):
 	};
 }
 
-function extractQueryOptions(req: Request): undefined |
-		{ fstReq?: PutObjFirstQueryOpts; sndReq?: PutObjSecondQueryOpts; } {
+function extractQueryOptions(req: Request): undefined|{
+	fstReq?: PutObjFirstQueryOpts; sndReq?: PutObjSecondQueryOpts;
+} {
 	if ((req.query as any as PutObjFirstQueryOpts).header) {
 		// this is the first request
 		// query fields are string or undefined, yet, type info helps the show
@@ -142,8 +144,9 @@ function extractQueryOptions(req: Request): undefined |
 	}
 }
 
-function getContentLenOrSendError(req: Request, res: Response,
-		maxChunkSize: number): number|undefined {
+function getContentLenOrSendError(
+	req: Request, res: Response, maxChunkSize: number
+): number|undefined {
 	const contentLength = parseInt(req.get(HTTP_HEADER.contentLength)!);
 	if (isNaN(contentLength)) {
 		res.status(ERR_SC.contentLenMissing).send(

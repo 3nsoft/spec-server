@@ -12,9 +12,10 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { RequestHandler, Response, NextFunction } from 'express';
+import { RequestHandler, Response } from 'express';
 import { GenerateSession, Request as SessionReq, SessionParams } from '../../resources/sessions';
 import { startSession as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/mailer-id/login';
 import { checkAndTransformAddress } from '../../../lib-common/canonical-address';
@@ -43,9 +44,9 @@ export type Redirect = (userId: string) => Promise<string>;
  * @param redirectFunc (optional)
  */
 export function startSession(
-		userExistsFunc: UserExists,
-		sessionGenFunc: GenerateSession<any>,
-		redirectFunc?: Redirect): RequestHandler {
+	userExistsFunc: UserExists, sessionGenFunc: GenerateSession<any>,
+	redirectFunc?: Redirect
+): RequestHandler {
 	if ('function' !== typeof userExistsFunc) { throw new TypeError(
 			"Given argument 'userExistsFunc' must be function, but is not."); }
 	if ('function' !== typeof sessionGenFunc) { throw new TypeError(
@@ -55,8 +56,9 @@ export function startSession(
 			"Given argument 'redirectFunc' must either be function, " +
 			"or be undefined, but it is neither."); }
 		
-	async function serveRequestHere(userId: string, res: Response):
-			Promise<void> {
+	async function serveRequestHere(
+		userId: string, res: Response
+	): Promise<void> {
 		const userExists = await userExistsFunc(userId);
 		if (userExists) {
 			const session = await sessionGenFunc();
@@ -71,7 +73,7 @@ export function startSession(
 		}
 	}
 	
-	return async function(req: Request, res: Response, next: NextFunction) {
+	return async (req: Request, res, next) => {
 		
 		const session = req.session;
 		const userId = checkAndTransformAddress((req.body as api.Request).userId);
@@ -110,4 +112,5 @@ export function startSession(
 		}
 	};
 }
+
 Object.freeze(exports);

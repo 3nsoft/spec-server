@@ -215,7 +215,7 @@ export class Store extends UserFiles {
 		}
 
 		const params: TransactionParams = {
-			isNewObj: (opts.ver === 1),
+			isNewObj: opts.create,
 			version: opts.ver,
 			baseVersion: (diff ? diff.baseVersion : undefined)
 		};
@@ -246,10 +246,10 @@ export class Store extends UserFiles {
 
 		} catch (err) {
 			await spaceTracker.change(this, -byteLen);
-			await this.transactions.cancel(objId, trans.transactionId).catch(() => {});
+			await this.transactions.cancel(objId, trans.transactionId).catch(noop);
 			throw err;
 		}
-}
+	}
 
 	/**
 	 * This method continues object saving transaction. If this request is the
@@ -861,6 +861,8 @@ Object.freeze(ObjStatuses);
 function toFName(version: number): string {
 	return `${version}.`;
 }
+
+function noop () {}
 
 
 Object.freeze(exports);

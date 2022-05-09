@@ -12,20 +12,15 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { beforeEachAsync, itAsync }
-	from '../../../../libs-for-tests/async-jasmine';
-import { SpecDescribe, TestSetup, User, msg, ASMailComponent, startSession,
-	sendMsg }
-	from '../test-utils';
+import { beforeEachAsync, itAsync } from '../../../../libs-for-tests/async-jasmine';
+import { SpecDescribe, TestSetup, User, msg, ASMailComponent, startSession, sendMsg } from '../test-utils';
 import { resolve as resolveUrl } from 'url';
-import { msgMetadata as api }
-	from '../../../../../lib-common/service-api/asmail/retrieval';
-import { RequestOpts, doBodylessRequest }
-	from '../../../../libs-for-tests/xhr-utils';
-import { expectNonAcceptanceOfBadSessionId }
-	from '../../../../shared-checks/requests';
+import { msgMetadata as api } from '../../../../../lib-common/service-api/asmail/retrieval';
+import { RequestOpts, doBodylessRequest } from '../../../../libs-for-tests/xhr-utils';
+import { expectNonAcceptanceOfBadSessionId } from '../../../../shared-checks/requests';
 import { copy } from '../../../../libs-for-tests/json-copy';
 
 export const specs: SpecDescribe = {

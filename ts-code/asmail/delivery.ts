@@ -12,7 +12,8 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /**
  * This module gives a function that creates a mountable, or app.use()-able,
@@ -42,9 +43,10 @@ import * as api from '../lib-common/service-api/asmail/delivery';
 
 const MAX_CHUNK_SIZE = '0.5mb';
 
-export function makeApp(domain: string, sessions: SessionsFactory,
-		recipients: recipFactory, midAuthorizer: IMidAuthorizer):
-		express.Express {
+export function makeApp(
+	domain: string, sessions: SessionsFactory, recipients: recipFactory,
+	midAuthorizer: IMidAuthorizer
+): express.Express {
 	
 	const app = express();
 	app.disable('etag');

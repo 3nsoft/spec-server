@@ -12,7 +12,8 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 import { RequestHandler, Response, NextFunction } from 'express';
 import { SC as recipSC, IncompleteMsgDeliveryParams } from '../../resources/recipients';
@@ -35,11 +36,11 @@ import * as confUtil from '../../../lib-server/conf-util';
  * (1) string with URI for ASMail service, which is serving given recipient,
  * (2) undefined, if it is this server should service given recipient. 
  */
-export function restartSession(sessionGenFunc: GenerateSession,
-		sessionForMsgFunc: GetSessionForMsg,
-		incompleteMsgFunc: IncompleteMsgDeliveryParams,
-		maxChunk: string|number,
-		redirectFunc?: Redirect): RequestHandler {
+export function restartSession(
+	sessionGenFunc: GenerateSession,sessionForMsgFunc: GetSessionForMsg,
+	incompleteMsgFunc: IncompleteMsgDeliveryParams, maxChunk: string|number,
+	redirectFunc?: Redirect
+): RequestHandler {
 	if (typeof sessionGenFunc !== 'function') { throw new TypeError(
 		`Given argument 'sessionGenFunc' must be function, but is not.`); }
 	if (typeof sessionForMsgFunc !== 'function') { throw new TypeError(
@@ -50,8 +51,9 @@ export function restartSession(sessionGenFunc: GenerateSession,
 		throw new TypeError(`Given argument 'redirectFunc' must either be function, or be undefined, but it is neither.`); }
 	const maxChunkSize = confUtil.stringToNumOfBytes(maxChunk);
 		
-	async function serveRequestHere(recipient: string, msgId: string,
-			res: Response): Promise<void> {
+	async function serveRequestHere(
+		recipient: string, msgId: string, res: Response
+	): Promise<void> {
 		let session = await sessionForMsgFunc(recipient, msgId);
 		if (!session) {
 			const msgParams = await incompleteMsgFunc(recipient, msgId);
@@ -69,7 +71,7 @@ export function restartSession(sessionGenFunc: GenerateSession,
 		});
 	}
 	
-	return async function(req: Request, res: Response, next: NextFunction) {
+	return async (req: Request, res, next) => {
 		
 		const rb: api.Request = req.body;
 		const recipient = checkAndTransformAddress(rb.recipient);
@@ -131,4 +133,5 @@ export function restartSession(sessionGenFunc: GenerateSession,
 
 	};
 }
+
 Object.freeze(exports);

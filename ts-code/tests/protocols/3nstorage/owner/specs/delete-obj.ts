@@ -12,19 +12,15 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { startSession, SpecDescribe, TestSetup, User, StorageComponent }
-	from '../test-utils';
-import { currentObj as api }
-	from '../../../../../lib-common/service-api/3nstorage/owner';
-import { beforeAllAsync, itAsync, xitAsync }
-	from '../../../../libs-for-tests/async-jasmine';
-import { RequestOpts, doBodylessRequest }
-	from '../../../../libs-for-tests/xhr-utils';
+import { startSession, SpecDescribe, TestSetup, User, StorageComponent } from '../test-utils';
+import { currentObj as api } from '../../../../../lib-common/service-api/3nstorage/owner';
+import { beforeAllAsync, itAsync, xitAsync } from '../../../../libs-for-tests/async-jasmine';
+import { RequestOpts, doBodylessRequest } from '../../../../libs-for-tests/xhr-utils';
 import { Obj, saveObj }	from '../../../../libs-for-tests/3nstorage';
-import { expectNonAcceptanceOfBadSessionId }
-	from '../../../../shared-checks/requests';
+import { expectNonAcceptanceOfBadSessionId } from '../../../../shared-checks/requests';
 import { bytesSync as randomBytes } from '../../../../../lib-common/random-node';
 import { resolve as resolveUrl } from 'url';
 import { copy } from '../../../../libs-for-tests/json-copy';
@@ -69,8 +65,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 	});
 
 	itAsync('does remove it', async () => {
-		await saveObj(user.storageOwnerUrl, sessionId,
-			obj.objId, 1, obj);
+		await saveObj(user.storageOwnerUrl, sessionId, true, obj.objId, 1, obj);
 		expect(await storageServer.currentObjExists(user.id, obj.objId)).toBeTruthy();
 		const rep = await doBodylessRequest(reqOpts);
 		expect(rep.status).toBe(api.SC.okDelete);

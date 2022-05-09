@@ -12,7 +12,8 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /**
  * This creates a public key login 'complete-login-exchange' route handler
@@ -26,7 +27,7 @@ import { complete as api, ERR_SC, ErrorReply } from '../../../lib-common/service
 import { toBuffer } from '../../../lib-common/buffer-utils';
 
 export function completePKLogin(): RequestHandler {
-	return (req: Request, res: Response, next: NextFunction) => {
+	return (req: Request, res, next) => {
 		
 		const session = req.session;
 		
@@ -53,8 +54,8 @@ export function completePKLogin(): RequestHandler {
 			});
 		} finally {
 			arrays.wipe(session.params.sessionKey);
-			delete session.params.sessionKey;
-			delete session.params.serverVerificationBytes;
+			delete (session.params as any).sessionKey;
+			delete (session.params as any).serverVerificationBytes;
 		}
 	};
 }

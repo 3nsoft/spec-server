@@ -12,9 +12,10 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { RequestHandler, Response, NextFunction } from 'express';
+import { RequestHandler } from 'express';
 import { SC as recipSC, GetPubKey } from '../../resources/recipients';
 import { initPubKey as api, ERR_SC } from '../../../lib-common/service-api/asmail/delivery';
 import { Request } from '../../resources/delivery-sessions';
@@ -24,12 +25,13 @@ import { Request } from '../../resources/delivery-sessions';
  * @param pkeyProvidingFunc is a function that provides recipient's public key
  * for use in this communication. 
  */
-export function getRecipientPubKey(pkeyProvidingFunc: GetPubKey):
-		RequestHandler {
+export function getRecipientPubKey(
+	pkeyProvidingFunc: GetPubKey
+): RequestHandler {
 	if ('function' !== typeof pkeyProvidingFunc) { throw new TypeError(
 			"Given argument 'pkeyProvidingFunc' must be function, but is not."); }
 	
-	return async function(req: Request, res: Response, next: NextFunction) {
+	return async (req: Request, res, next) => {
 		
 		const session = req.session;
 		
