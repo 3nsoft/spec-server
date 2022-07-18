@@ -36,7 +36,7 @@ const obj: Obj = {
 	header: randomBytes(100),
 	segs: randomBytes(2345)
 };
-	
+
 let reqOpts: RequestOpts
 let storageServer: StorageComponent;
 let user: User;
@@ -60,8 +60,10 @@ async function setStage(setup: () => TestSetup): Promise<void> {
 	};
 }
 
-function checkReplyExpectation(rep: Reply<Uint8Array>, obj: Obj,
-		headerPresent: boolean, expectedSegsBytes: Uint8Array): void {
+function checkReplyExpectation(
+	rep: Reply<Uint8Array>, obj: Obj, headerPresent: boolean,
+	expectedSegsBytes: Uint8Array
+): void {
 	// status
 	expect(rep.status).toBe(api.SC.okGet, 'status for returned bytes');
 

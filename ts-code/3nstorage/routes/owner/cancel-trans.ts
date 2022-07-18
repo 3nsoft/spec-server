@@ -27,11 +27,11 @@ export function cancelTransaction(
 			"Given argument 'cancelTransFunc' must be function, but is not."); }
 
 	return async (req: Request, res, next) => {
-		
+
 		const userId = req.session.params.userId;
 		const objId: string = (root ? null as any : req.params.objId);
 		const transactionId: string = req.params.transactionId;
-		
+
 		try {
 			await cancelTransFunc(userId, objId,
 				((transactionId === '-') ? undefined : transactionId));
@@ -52,7 +52,7 @@ export function cancelTransaction(
 				next(new Error("Unhandled storage error code: "+err));
 			}
 		}
-		
+
 	};
 };
 

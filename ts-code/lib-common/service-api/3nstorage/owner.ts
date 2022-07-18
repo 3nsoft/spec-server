@@ -46,7 +46,7 @@ Object.freeze(HTTP_HEADER);
 export const BIN_TYPE = 'application/octet-stream';
 
 export namespace midLogin {
-	
+
 	export const MID_URL_PART = 'login/mailerid/';
 	export const START_URL_END = MID_URL_PART + midApi.startSession.URL_END;
 	export const AUTH_URL_END = MID_URL_PART + midApi.authSession.URL_END;
@@ -62,18 +62,18 @@ export namespace closeSession {
 Object.freeze(closeSession);
 
 export namespace sessionParams {
-	
+
 	export const URL_END = 'session/params';
-	
+
 	export interface Reply {
 		maxChunkSize: number;
 	}
-	
+
 	export const SC = {
 		ok: 200,
 	};
 	Object.freeze(SC);
-	
+
 }
 Object.freeze(sessionParams);
 
@@ -83,9 +83,9 @@ export const PARAM_SC = {
 Object.freeze(PARAM_SC);
 
 export namespace keyDerivParams {
-	
+
 	export const URL_END = 'param/key-deriv';
-	
+
 }
 Object.freeze(keyDerivParams);
 
@@ -173,19 +173,19 @@ export interface PutObjSecondQueryOpts {
 }
 
 export namespace currentObj {
-	
+
 	export const EXPRESS_URL_END = 'obj/:objId/current';
-	
+
 	export function getReqUrlEnd(objId: string, opts?: GetObjQueryOpts): string {
 		return `obj/${objId}/current${opts ? `?${stringifyOpts(opts as any)}`: ''}`;
 	}
-	
+
 	export function firstPutReqUrlEnd(
 		objId: string, opts: PutObjFirstQueryOpts
 	): string {
 		return `obj/${objId}/current?${stringifyOpts(opts as any)}`;
 	}
-	
+
 	export function secondPutReqUrlEnd(
 		objId: string, opts: PutObjSecondQueryOpts
 	): string {
@@ -200,7 +200,7 @@ export namespace currentObj {
 		 */
 		transactionId?: string;
 	}
-	
+
 	export const SC = {
 		okGet: 200,
 		okDelete: 200,
@@ -218,76 +218,64 @@ export namespace currentObj {
 	export interface MismatchedObjVerReply extends ErrorReply {
 		current_version: number;
 	}
-	
+
 }
 Object.freeze(currentObj);
 
 export namespace currentRootObj {
-	
+
 	export const EXPRESS_URL_END = 'root/current';
-	
+
 	export function getReqUrlEnd(opts?: GetObjQueryOpts): string {
 		return `root/current${opts ? `?${stringifyOpts(opts as any)}`: ''}`;
 	}
-	
+
 	export function firstPutReqUrlEnd(opts: PutObjFirstQueryOpts): string {
 		return `root/current?${stringifyOpts(opts as any)}`;
 	}
-	
+
 	export function secondPutReqUrlEnd(opts: PutObjSecondQueryOpts): string {
 		return `root/current?${stringifyOpts(opts as any)}`;
 	}
-	
+
 	export type ReplyToPut = currentObj.ReplyToPut;
 
 	export const SC = currentObj.SC;
 
 	export type MismatchedObjVerReply = currentObj.MismatchedObjVerReply;
-	
+
 }
 Object.freeze(currentRootObj);
 
 export namespace archivedObjVersion {
-	
+
 	export const EXPRESS_URL_END = '/obj/:objId/archived';
-	
+
 	export function getReqUrlEnd(
-		objId: string, version: number, opts?: GetObjQueryOpts
+		objId: string, opts: GetObjQueryOpts
 	): string {
-		if (opts) {
-			opts.ver = version;
-		}
-		const query = (opts ? `?${stringifyOpts(opts as any)}`: '');
-		return `/obj/${objId}/archived${query}`;
+		return `/obj/${objId}/archived?${stringifyOpts(opts as any)}`;
 	}
-	
+
 	export const SC = {
 		okGet: 200,
-		okDelete: 200,
-		missing: 474,
-		concurrentTransaction: 483,
-		incompatibleObjState: 484
+		unknownObj: 474,
+		unknownObjVer: 494
 	};
-	
+
 }
 Object.freeze(archivedObjVersion);
 
 export namespace archivedRootVersion {
-	
+
 	export const EXPRESS_URL_END = 'root/archived';
-	
-	export function getReqUrlEnd(
-		version: number, opts?: GetObjQueryOpts
-	): string {
-		if (opts) {
-			opts.ver = version;
-		}
-		const query = (opts ? `?${stringifyOpts(opts as any)}`: '');
-		return `root/archived${query}`;
+
+	export function getReqUrlEnd(opts: GetObjQueryOpts): string {
+		return `root/archived?${stringifyOpts(opts as any)}`;
 	}
-	
+
 	export const SC = archivedObjVersion.SC;
-	
+
 }
 Object.freeze(archivedRootVersion);
 
@@ -349,60 +337,78 @@ export function addDiffSectionTo(
 } 
 
 export namespace cancelTransaction {
-	
+
 	export const EXPRESS_URL_END = 'obj/:objId/current/cancel-transaction/:transactionId';
-	
+
 	export function getReqUrlEnd(objId: string, transactionId?: string): string {
 		return (transactionId ?
 			`obj/${objId}/current/cancel-transaction/${transactionId}` :
 			`obj/${objId}/current/cancel-transaction/-`);
 	}
-	
+
 	export const SC = {
 		ok: 200,
 		missing: 474
 	};
 	Object.freeze(SC);
-	
+
 }
 Object.freeze(cancelTransaction);
 
 export namespace cancelRootTransaction {
-	
+
 	export const EXPRESS_URL_END = 'root/current/cancel-transaction/:transactionId';
-	
+
 	export function getReqUrlEnd(transactionId?: string): string {
 		return (transactionId ?
 			`root/current/cancel-transaction/${transactionId}` :
 			`root/current/cancel-transaction/-`);
 	}
-	
+
 	export const SC = cancelTransaction.SC;
-	
+
 }
 Object.freeze(cancelRootTransaction);
 
 export namespace archiveObj {
-	
+
 	export const EXPRESS_URL_END = 'obj/:objId/archive';
-	
+
 	export function getReqUrlEnd(objId: string): string {
 		return `obj/${objId}/archive`;
 	}
-	
+
+	export function postAndDelReqUrlEnd(objId: string, version: number): string {
+		return `obj/${objId}/archive?ver=${version}`;
+	}
+
+	export type VersionsList = number[];
+
 	export const SC = {
 		okGet: 200,
-		okPut: 201,
-		missing: 474
+		okPost: 200,
+		okDelete: 200,
+		unknownObj: 474,
+		unknownObjVer: 494
 	};
 
 }
 Object.freeze(archiveObj);
 
 export namespace archiveRoot {
-	
+
 	export const URL_END = 'root/archive';
-	
+
+	export function getReqUrlEnd(): string {
+		return `root/archive`;
+	}
+
+	export function postAndDelReqUrlEnd(version: number): string {
+		return `root/archive?ver=${version}`;
+	}
+
+	export type VersionsList = archiveObj.VersionsList;
+
 	export const SC = archiveObj.SC;
 
 }
@@ -415,7 +421,7 @@ export interface ErrorReply {
 export namespace wsEventChannel {
 
 	export const URL_END = 'events';
-	
+
 	export const SC = {
 		ok: 200,
 	};
@@ -441,7 +447,7 @@ export namespace objChanged {
 Object.freeze(objChanged);
 
 export namespace objRemoved {
-	
+
 	export const EVENT_NAME = 'obj-removed';
 
 	export interface Event {

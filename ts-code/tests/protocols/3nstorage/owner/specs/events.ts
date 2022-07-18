@@ -65,7 +65,10 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		const eventSrc = makeSubscriber(rep.data, undefined);
 
 		const eventPromise = (Observable.create(
-			obs => eventSrc.subscribe<objChanged.Event>(objChanged.EVENT_NAME, obs)) as Observable<objChanged.Event>)
+			obs => eventSrc.subscribe<objChanged.Event>(
+				objChanged.EVENT_NAME, obs
+			))
+		)
 		.take(2)
 		.toArray()
 		.toPromise();

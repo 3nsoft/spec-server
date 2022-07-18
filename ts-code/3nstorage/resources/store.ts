@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017, 2019 - 2020 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2019 - 2020, 2022 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -161,10 +161,12 @@ class SpaceTracker {
 Object.freeze(SpaceTracker.prototype);
 Object.freeze(SpaceTracker);
 
+
 const spaceTracker = new SpaceTracker();
 
 const SINGLE_BYTE_BUF = Buffer.alloc(1);
 SINGLE_BYTE_BUF[0] = 0;
+
 
 export class Store extends UserFiles {
 
@@ -410,53 +412,63 @@ export class Store extends UserFiles {
 			});
 	};
 
-	/**
-	 * @param objId is a string object id for non-root objects, and null for
-	 * root object.
-	 * @param archVersion is an optional parameter, identifying archived version
-	 * to delete. Default null value indicates that an object should be removed.
-	 * If an object has any archived versions (even if current), these will not
-	 * be removed, and such object state will be labeled as archived.
-	 */
-	async deleteObj(
-		objId: string, archVersion: number|null = null
+	async deleteCurrentObjVer(
+		objId: string, version: number|null = null
 	): Promise<void> {
+		if (!objId) { throw new Error('Root object is not removable.'); }
 		const status = await this.statuses.get(objId);
-		const arch = status.archivedVersions;
+		if (status.state !== 'current') { throw SC.OBJ_UNKNOWN; }
+		if (version && (version !== status.currentVersion)) {
+			throw SC.OBJ_VER_UNKNOWN;
+		}
+
 		// XXX need to put removal transaction, closing it in a finally clause
 
-		if (archVersion === null) {
-			if (objId === null) { throw new Error(
-				'Root object is not removable.'); }
-			if (status.state !== 'current') { throw SC.OBJ_UNKNOWN; }
-			if (!Array.isArray(arch) || (arch.length === 0)) {
-				await this.statuses.deleteWithObj(objId);
-			} else {
-				const currVer = status.currentVersion;
-				delete status.currentVersion;
-				status.state = 'archived';
-				await this.statuses.set(objId, status);
-				if (typeof currVer !== 'number') { throw new Error(`Illegal state of object status file for ${objId}: state is current, while current version is missing.`); }
-				if (arch.indexOf(currVer) < 0) {
-					await this.rmObjFiles(objId, currVer);
-				}
-			}
+		const arch = status.archivedVersions;
+		if (!Array.isArray(arch) || (arch.length === 0)) {
+			// remove everything related to this object
+			await this.statuses.deleteWithObj(objId);
 		} else {
-			if (!Array.isArray(arch)) { throw SC.OBJ_UNKNOWN; }
-			const indInArch = arch.indexOf(archVersion);
-			if (indInArch < 0) { throw SC.OBJ_UNKNOWN; }
-			arch.splice(indInArch, 1);
-			if (arch.length === 0) {
-				delete status.archivedVersions;
-			}
+			// set status and remove version if it isn't archived
+			version = status.currentVersion!;
+			delete status.currentVersion;
+			status.state = 'archived';
 			await this.statuses.set(objId, status);
-			if (status.currentVersion !== archVersion) {
-				await this.rmObjFiles(objId, archVersion);
+			if (arch.indexOf(version) < 0) {
+				await this.rmObjFiles(objId, version);
 			}
 		}
+
 		this.storageEventsSink(this.userId, objRemoved.EVENT_NAME, {
 			objId,
 		});
+	}
+
+	async deleteArchivedObjVer(
+		objId: string|null, version: number
+	): Promise<void> {
+		const status = await this.statuses.get(objId);
+		const arch = status.archivedVersions;
+
+		// XXX need to put removal transaction, closing it in a finally clause
+
+		if (!Array.isArray(arch)) { throw SC.OBJ_VER_UNKNOWN; }
+		const indInArch = arch.indexOf(version);
+		if (indInArch < 0) { throw SC.OBJ_VER_UNKNOWN; }
+		arch.splice(indInArch, 1);
+		if (arch.length === 0) {
+			delete status.archivedVersions;
+		}
+		await this.statuses.set(objId, status);
+		if (!status.archivedVersions && !status.currentVersion) {
+			await this.rmObjFiles(objId!, version);
+		} else if (status.currentVersion !== version) {
+			await this.statuses.deleteWithObj(objId);
+		}
+
+		// this.storageEventsSink(this.userId, objRemoved.EVENT_NAME, {
+		// 	objId,
+		// });
 	}
 
 	/**
@@ -474,7 +486,7 @@ export class Store extends UserFiles {
 		});
 		const verPart = toFName(version);
 		objFiles = objFiles.filter(fName => fName.startsWith(verPart));
-		if (objFiles.length === 0) { throw SC.OBJ_UNKNOWN; }
+		if (objFiles.length === 0) { throw SC.OBJ_VER_UNKNOWN; }
 		for (const fName of objFiles) {
 			await fs.unlink(join(objFolder, fName)).catch(() => {});
 		}
@@ -490,10 +502,11 @@ export class Store extends UserFiles {
 		objId: string, version: number
 	): Promise<void> {
 		// XXX need to put archiving transaction, closing it in a finally clause
+		//  - make in memory transactions for archival and removal, or chaining(?)
 
 		const status = await this.statuses.get(objId);
 		if (status.state !== 'current') { throw SC.OBJ_UNKNOWN; }
-		if (typeof status.currentVersion !== 'number') { throw new Error(`Illegal state of object status file for ${objId}: state is current, while current version is missing.`); }
+		if (status.currentVersion !== version) { throw SC.OBJ_VER_UNKNOWN; }
 		const arch = status.archivedVersions;
 		if (Array.isArray(arch)) {
 			arch.push(status.currentVersion);
@@ -534,6 +547,7 @@ export class Store extends UserFiles {
 }
 Object.freeze(Store.prototype);
 Object.freeze(Store);
+
 
 class ObjVerFiles {
 
@@ -586,6 +600,7 @@ class ObjVerFiles {
 }
 Object.freeze(ObjVerFiles.prototype);
 Object.freeze(ObjVerFiles);
+
 
 class ObjStatuses {
 
@@ -679,6 +694,7 @@ class ObjStatuses {
 }
 Object.freeze(ObjStatuses.prototype);
 Object.freeze(ObjStatuses);
+
 
 class ObjTransactions {
 
@@ -857,6 +873,7 @@ class ObjTransactions {
 }
 Object.freeze(ObjStatuses.prototype);
 Object.freeze(ObjStatuses);
+
 
 function toFName(version: number): string {
 	return `${version}.`;

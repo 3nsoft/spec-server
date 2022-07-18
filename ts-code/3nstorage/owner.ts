@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2022 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -40,7 +40,7 @@ import { cancelTransaction } from './routes/owner/cancel-trans';
 import { saveCurrentObj } from './routes/owner/put-current-obj';
 import { getCurrentObj } from './routes/owner/get-current-obj';
 import { getArchivedObjVersion } from './routes/owner/get-archived-obj-ver';
-import { deleteObj } from './routes/owner/delete-obj';
+import { deleteArchivedObjVer, deleteCurrentObjVer } from './routes/owner/delete-obj';
 import { archiveCurrentObjVersion } from './routes/owner/archive-obj-version';
 import { listObjArchive } from './routes/owner/list-obj-archive';
 
@@ -117,38 +117,38 @@ function setHttpPart(app: AppWithWSs, domain: string,
 			emptyBody(),
 			cancelTransaction(true, users.cancelTransaction));
 	
-	// Getting current root object
+	// Getting and updating current root object
 	app.http.route('/'+api.currentRootObj.EXPRESS_URL_END)
 	.get(getCurrentObj(true, users.getCurrentRootObj))
 	.put(saveCurrentObj(true, users.saveNewRootVersion, MAX_CHUNK_SIZE));
 	
-	// Getting current non-root objects
+	// Getting, updating and removing current non-root objects
 	app.http.route('/'+api.currentObj.EXPRESS_URL_END)
 	.get(getCurrentObj(false, users.getCurrentObj))
-	.delete(deleteObj(false, true, users.deleteObj))
+	.delete(deleteCurrentObjVer(users.deleteCurrentObjVersion))
 	.put(saveCurrentObj(false, users.saveNewObjVersion, MAX_CHUNK_SIZE));
+
+	// Getting root archived versions
+	app.http.route('/'+api.archivedRootVersion.EXPRESS_URL_END)
+	.get(getArchivedObjVersion(true, users.getArchivedRootVersion));
+
+	// Getting non-root object archived versions
+	app.http.route('/'+api.archivedObjVersion.EXPRESS_URL_END)
+	.get(getArchivedObjVersion(false, users.getArchivedObjVersion));
 
 	// Archive root's current version
 	app.http.route('/'+api.archiveRoot.URL_END)
 	.get(listObjArchive(true, users.listObjArchive))
-	.put(emptyBody(),
-		archiveCurrentObjVersion(true, users.archiveObjVersion));
+	.post(emptyBody(),
+		archiveCurrentObjVersion(true, users.archiveObjVersion))
+	.delete(deleteArchivedObjVer(true, users.deleteArchivedObjVersion));
 
 	// Archive non-root object's current version
 	app.http.route('/'+api.archiveObj.EXPRESS_URL_END)
 	.get(listObjArchive(false, users.listObjArchive))
-	.put(emptyBody(),
-		archiveCurrentObjVersion(false, users.archiveObjVersion));
-
-	// Archived root versions
-	app.http.route('/'+api.archivedRootVersion.EXPRESS_URL_END)
-	.get(getArchivedObjVersion(true, users.getArchivedRootVersion))
-	.delete(deleteObj(true, false, users.deleteObj));
-
-	// Removing archived and current versions of non-root object 
-	app.http.route('/'+api.archivedObjVersion.EXPRESS_URL_END)
-	.get(getArchivedObjVersion(true, users.getArchivedObjVersion))
-	.delete(deleteObj(false, false, users.deleteObj));
+	.post(emptyBody(),
+		archiveCurrentObjVersion(false, users.archiveObjVersion))
+	.delete(deleteArchivedObjVer(false, users.deleteArchivedObjVersion));
 	
 }
 

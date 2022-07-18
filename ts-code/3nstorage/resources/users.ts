@@ -30,30 +30,42 @@ export { SC, ObjReader, MismatchedObjVerException } from './store';
 
 export type UserExists = (userId: string) => Promise<boolean>;
 
-export type GetCurrentObj = (userId: string, objId: string|null,
-	header: boolean, segsOffset: number, segsLimit: number|undefined) =>
-	Promise<{ version: number; reader: ObjReader; }>;
+export type GetCurrentObj = (
+	userId: string, objId: string|null,
+	header: boolean, segsOffset: number, segsLimit: number|undefined
+) => Promise<{ version: number; reader: ObjReader; }>;
 
-export type SaveNewObjVersion = (userId: string, objId: string|null,
+export type SaveNewObjVersion = (
+	userId: string, objId: string|null,
 	fstReq: PutObjFirstQueryOpts|undefined, diff: DiffInfo|undefined,
-	sndReq: PutObjSecondQueryOpts|undefined, bytesLen: number,
-	bytes: ReadableStream) => Promise<string|undefined>;
+	sndReq: PutObjSecondQueryOpts|undefined,
+	bytesLen: number, bytes: ReadableStream
+) => Promise<string|undefined>;
 
-export type GetArchivedObjVersion = (userId: string, objId: string|null,
-	version: number, header: boolean, segsOffset: number,
-	segsLimit: number|undefined) => Promise<ObjReader>;
+export type GetArchivedObjVersion = (
+	userId: string, objId: string|null, version: number,
+	header: boolean, segsOffset: number, segsLimit: number|undefined
+) => Promise<ObjReader>;
 
-export type CancelTransaction = (userId: string,
-	objId: string, transactionId?: string) => Promise<void>;
+export type CancelTransaction = (
+	userId: string, objId: string, transactionId?: string
+) => Promise<void>;
 
-export type ArchiveObjCurrentVersion = (userId: string,
-	objId: string, version: number) => Promise<void>;
+export type ArchiveObjCurrentVersion = (
+	userId: string, objId: string, version: number
+) => Promise<void>;
 
-export type ListObjArchive = (userId: string,
-	objId: string) => Promise<number[]>;
+export type ListObjArchive = (
+	userId: string, objId: string
+) => Promise<number[]>;
 
-export type DeleteObj = (userId: string,
-	objId: string, version: number) => Promise<void>;
+export type DeleteCurrentObjVersion = (
+	userId: string, objId: string, version?: number
+) => Promise<void>;
+
+export type DeleteArchivedObjVersion = (
+	userId: string, objId: string|null, version: number
+) => Promise<void>;
 
 
 type GetParam<T> = (userId: string) => Promise<T>;
@@ -82,7 +94,8 @@ export interface Factory {
 	archiveObjVersion: ArchiveObjCurrentVersion;
 	getArchivedRootVersion: GetArchivedObjVersion;
 	getArchivedObjVersion: GetArchivedObjVersion;
-	deleteObj: DeleteObj;
+	deleteCurrentObjVersion: DeleteCurrentObjVersion;
+	deleteArchivedObjVersion: DeleteArchivedObjVersion;
 	setStorageEventsSink(sink: EventsSink): void;
 }
 
@@ -188,7 +201,7 @@ export function makeFactory(
 	
 	const factory: Factory = {
 		
-		exists: async (userId: string): Promise<boolean> => {
+		exists: async (userId) => {
 			try {
 				const store = await getStore(userId);
 				return true;
@@ -213,22 +226,24 @@ export function makeFactory(
 
 		cancelTransaction: makeTransactionCanceller(),
 		
-		deleteObj: async (userId: string, objId: string, version: number):
-				Promise<void> => {
+		deleteCurrentObjVersion: async (userId, objId, version) => {
 			const store = await getStore(userId);
-			await store.deleteObj(objId, version);
+			await store.deleteCurrentObjVer(objId, version);
 		},
 
-		archiveObjVersion: async (userId: string, objId: string,
-				version: number): Promise<void> => {
+		archiveObjVersion: async (userId, objId, version) => {
 			const store = await getStore(userId);
 			await store.archiveCurrentObjVersion(objId, version);
 		},
 
-		listObjArchive: async (userId: string, objId: string):
-				Promise<number[]> => {
+		listObjArchive: async (userId, objId) => {
 			const store = await getStore(userId);
 			return store.listObjArchive(objId);
+		},
+
+		deleteArchivedObjVersion: async (userId, objId, version) => {
+			const store = await getStore(userId);
+			await store.deleteArchivedObjVer(objId, version);
 		},
 
 		setStorageEventsSink(sink: EventsSink): void {

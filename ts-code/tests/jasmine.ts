@@ -26,7 +26,8 @@ jas.loadConfig({
 		'protocols/mailerid.js',
 		'protocols/3nstorage/*.js',
 		'protocols/asmail/*.js',
-	]
+	],
+	random: false
 });
 
 jas.configureDefaultReporter({

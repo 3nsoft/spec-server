@@ -89,12 +89,16 @@ export function getArchivedObjVersion(
 		} catch (err) {
 			if ("string" !== typeof err) {
 				next(err);
-			} else if ((err === storeSC.OBJ_UNKNOWN)
-			|| (err === storeSC.OBJ_VER_UNKNOWN)) {
-				res.status(api.SC.missing).send(objId ?
-					`Object ${objId}, version ${opts.ver} is unknown.` : `Root object version ${opts.ver} is not known.`);
+			} else if (err === storeSC.OBJ_UNKNOWN) {
+				res.status(api.SC.unknownObj).send(objId ?
+					`Object ${objId}is unknown.` : `Root object is not set`);
+			} else if (err === storeSC.OBJ_VER_UNKNOWN) {
+				res.status(api.SC.unknownObjVer).send(objId ?
+					`Object ${objId}, version ${opts.ver} is unknown.` :
+					`Root object version ${opts.ver} is not known.`);
 			} else if (err === storeSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).send(`Recipient disappeared from the system.`);
+				res.status(ERR_SC.server).send(
+					`Recipient disappeared from the system.`);
 				req.session.close();
 			} else {
 				next(new Error(`Unhandled storage error code: ${err}`));
