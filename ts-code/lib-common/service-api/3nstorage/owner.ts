@@ -430,34 +430,99 @@ export namespace wsEventChannel {
 }
 Object.freeze(wsEventChannel);
 
-export namespace objChanged {
+export namespace events {
 
-	export const EVENT_NAME = 'obj-changed';
+	export namespace objChanged {
 
-	export interface Event {
-		/**
-		 * This indentifies a non-root object by its string id, while null value
-		 * identifies root object.
-		 */
-		objId: string|null;
-		newVer: number;
+		export const EVENT_NAME = 'obj-changed';
+
+		export interface Event {
+			/**
+			 * This indentifies a non-root object by its string id, while null
+			 * value identifies root object.
+			 */
+			objId: string|null;
+			/**
+			 * New current version on the server.
+			 */
+			newVer: number;
+		}
+
 	}
+	Object.freeze(objChanged);
+
+	export namespace objRemoved {
+
+		export const EVENT_NAME = 'obj-removed';
+
+		export interface Event {
+			/**
+			 * This indentifies a removed non-root object by its string id.
+			 */
+			objId: string;
+		}
+
+	}
+	Object.freeze(objRemoved);
+
+	export namespace objVersionArchived {
+
+		export const EVENT_NAME = 'obj-ver-archived';
+
+		export interface Event {
+			/**
+			 * This indentifies a non-root object by its string id, while null
+			 * value identifies root object.
+			 */
+			objId: string|null;
+			/**
+			 * Version that was set archived on the server.
+			 */
+			archivedVer: number;
+		}
+
+	}
+	Object.freeze(objVersionArchived);
+
+	export namespace objArchivedVersionRemoved {
+
+		export const EVENT_NAME = 'obj-ver-removed';
+
+		export interface Event {
+			/**
+			 * This indentifies a non-root object by its string id, while null
+			 * value identifies root object.
+			 */
+			objId: string|null;
+			/**
+			 * Archived version that was removed on the server.
+			 */
+			archivedVer: number;
+		}
+
+	}
+	Object.freeze(objArchivedVersionRemoved);
+
+	export const all = [
+		objChanged.EVENT_NAME,
+		objRemoved.EVENT_NAME,
+		objVersionArchived.EVENT_NAME,
+		objArchivedVersionRemoved.EVENT_NAME,
+	];
+
+	export type EventNameType =
+		(typeof objChanged.EVENT_NAME) |
+		(typeof objRemoved.EVENT_NAME) |
+		(typeof objVersionArchived.EVENT_NAME) |
+		(typeof objArchivedVersionRemoved.EVENT_NAME);
+
+	export type AllTypes =
+		objChanged.Event |
+		objRemoved.Event |
+		objVersionArchived.Event |
+		objArchivedVersionRemoved.Event;
 
 }
-Object.freeze(objChanged);
+Object.freeze(events);
 
-export namespace objRemoved {
-
-	export const EVENT_NAME = 'obj-removed';
-
-	export interface Event {
-		/**
-		 * This indentifies a removed non-root object by its string id.
-		 */
-		objId: string;
-	}
-
-}
-Object.freeze(objChanged);
-	
 Object.freeze(exports);

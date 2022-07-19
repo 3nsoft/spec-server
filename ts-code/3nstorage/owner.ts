@@ -63,8 +63,7 @@ function setWSPart(app: AppWithWSs, sessions: SessionsFactory,
 		sessions.ensureAuthorizedSessionForSocketStart());
 	
 	const storageEvents = new ServerEvents(undefined,
-		[ api.objChanged.EVENT_NAME,
-			api.objRemoved.EVENT_NAME ],
+		api.events.all,
 		sockets.socketGetter);
 	
 	// give events ipc to both ends

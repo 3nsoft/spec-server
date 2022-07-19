@@ -20,7 +20,7 @@ import { SpecDescribe, TestSetup, User, startSession, StorageComponent } from '.
 import { openSocket } from '../../../../libs-for-tests/ws-utils';
 import { sleep } from '../../../../../lib-common/processes';
 import { makeSubscriber } from '../../../../../lib-common/ipc/ws-ipc';
-import { wsEventChannel as api, ERR_SC, objChanged, objRemoved } from '../../../../../lib-common/service-api/3nstorage/owner';
+import { wsEventChannel as api, ERR_SC, events } from '../../../../../lib-common/service-api/3nstorage/owner';
 import { Obj, saveObj, removeObj }	from '../../../../libs-for-tests/3nstorage';
 import { bytesSync as randomBytes } from '../../../../../lib-common/random-node';
 import { Observable } from 'rxjs';
@@ -65,8 +65,8 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		const eventSrc = makeSubscriber(rep.data, undefined);
 
 		const eventPromise = (Observable.create(
-			obs => eventSrc.subscribe<objChanged.Event>(
-				objChanged.EVENT_NAME, obs
+			obs => eventSrc.subscribe<events.objChanged.Event>(
+				events.objChanged.EVENT_NAME, obs
 			))
 		)
 		.take(2)
@@ -98,7 +98,10 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		const eventSrc = makeSubscriber(rep.data, undefined);
 
 		const eventPromise = (Observable.create(
-			obs => eventSrc.subscribe<objChanged.Event>(objRemoved.EVENT_NAME, obs)) as Observable<objChanged.Event>)
+			obs => eventSrc.subscribe<events.objChanged.Event>(
+				events.objRemoved.EVENT_NAME, obs
+			))
+		)
 		.take(1)
 		.toPromise();
 		

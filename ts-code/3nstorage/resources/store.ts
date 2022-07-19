@@ -43,7 +43,7 @@ import { Readable } from 'stream';
 import { PutObjFirstQueryOpts, PutObjSecondQueryOpts } from '../../lib-common/service-api/3nstorage/owner';
 import { stringOfB64UrlSafeChars } from '../../lib-common/random-node';
 import { UserFiles, SC as ufSC, ObjReader } from '../../lib-server/resources/user-files';
-import { DiffInfo, objChanged, objRemoved } from '../../lib-common/service-api/3nstorage/owner';
+import { DiffInfo, events } from '../../lib-common/service-api/3nstorage/owner';
 import { streamToObjFile, diffToLayout, chunksInOrderedStream, makeObjPipe, GetObjFile } from '../../lib-common/objs-on-disk/utils';
 import { TimeWindowCache } from '../../lib-common/time-window-cache';
 import { ObjVersionFile } from '../../lib-common/objs-on-disk/obj-file';
@@ -54,10 +54,9 @@ import { NamedProcs } from '../../lib-common/processes';
 export { DiffInfo } from '../../lib-common/service-api/3nstorage/owner';
 export { ObjPipe, ObjReader } from '../../lib-server/resources/user-files';
 
-export type MsgEvents = objChanged.Event | objRemoved.Event;
-
-export type StorageEventsSink = (userId: string,
-	channel: string, event: MsgEvents) => void;
+export type StorageEventsSink = (
+	userId: string, channel: events.EventNameType, event: events.AllTypes
+) => void;
 
 export const SC = {
 	USER_UNKNOWN: ufSC.USER_UNKNOWN,
@@ -238,10 +237,11 @@ export class Store extends UserFiles {
 			if (opts.last) {
 				if (!file.isFileComplete()) { throw SC.OBJ_FILE_INCOMPLETE; }
 				await this.transactions.complete(objId, trans, file);
-				this.storageEventsSink(this.userId, objChanged.EVENT_NAME, {
-					objId,
-					newVer: opts.ver
-				});
+				this.storageEventsSink(
+					this.userId,
+					events.objChanged.EVENT_NAME,
+					{ objId, newVer: opts.ver }
+				);
 			} else {
 				return trans.transactionId;
 			}
@@ -286,10 +286,11 @@ export class Store extends UserFiles {
 			if (opts.last) {
 				if (!file.isFileComplete()) { throw SC.OBJ_FILE_INCOMPLETE; }
 				await this.transactions.complete(objId, trans, file);
-				this.storageEventsSink(this.userId, objChanged.EVENT_NAME, {
-					objId,
-					newVer: trans.version
-				});
+				this.storageEventsSink(
+					this.userId,
+					events.objChanged.EVENT_NAME,
+					{ objId, newVer: trans.version }
+				);
 			} else {
 				return opts.trans;
 			}
@@ -439,9 +440,11 @@ export class Store extends UserFiles {
 			}
 		}
 
-		this.storageEventsSink(this.userId, objRemoved.EVENT_NAME, {
-			objId,
-		});
+		this.storageEventsSink(
+			this.userId,
+			events.objRemoved.EVENT_NAME,
+			{ objId }
+		);
 	}
 
 	async deleteArchivedObjVer(
@@ -466,9 +469,11 @@ export class Store extends UserFiles {
 			await this.statuses.deleteWithObj(objId);
 		}
 
-		// this.storageEventsSink(this.userId, objRemoved.EVENT_NAME, {
-		// 	objId,
-		// });
+		this.storageEventsSink(
+			this.userId,
+			events.objArchivedVersionRemoved.EVENT_NAME,
+			{ objId, archivedVer: version }
+		);
 	}
 
 	/**
@@ -514,6 +519,11 @@ export class Store extends UserFiles {
 			status.archivedVersions = [ status.currentVersion ];
 		}
 		await this.statuses.set(objId, status);
+		this.storageEventsSink(
+			this.userId,
+			events.objVersionArchived.EVENT_NAME,
+			{ objId, archivedVer: version }
+		);
 	}
 
 	async listObjArchive(objId: string): Promise<number[]> {
