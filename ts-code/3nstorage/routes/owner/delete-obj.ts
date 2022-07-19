@@ -19,7 +19,7 @@ import { RequestHandler } from 'express';
 import { DeleteArchivedObjVersion, DeleteCurrentObjVersion, SC as storeSC } from '../../resources/users';
 import { ERR_SC, currentObj as api } from '../../../lib-common/service-api/3nstorage/owner';
 import { Request } from '../../resources/sessions';
-import { assert } from '../../../tests/libs-for-tests/assert';
+import { assert } from '../../../lib-common/assert';
 
 function deleteObj(
 	root: boolean, delCurrent: boolean,
