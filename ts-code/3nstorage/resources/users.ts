@@ -23,7 +23,7 @@
 
 import { Readable as ReadableStream } from 'stream';
 import { Store, SC, ObjReader, StorageEventsSink } from './store';
-import { PutObjFirstQueryOpts, PutObjSecondQueryOpts, DiffInfo } from '../../lib-common/service-api/3nstorage/owner';
+import { PutObjFirstQueryOpts, PutObjSecondQueryOpts, DiffInfo, ObjStatus } from '../../lib-common/service-api/3nstorage/owner';
 import { userDataInRootFolder } from '../../lib-server/resources/server-data-folders';
 
 export { SC, ObjReader, MismatchedObjVerException } from './store';
@@ -55,9 +55,9 @@ export type ArchiveObjCurrentVersion = (
 	userId: string, objId: string, version: number
 ) => Promise<void>;
 
-export type ListObjArchive = (
+export type GetObjStatus = (
 	userId: string, objId: string
-) => Promise<number[]>;
+) => Promise<ObjStatus>;
 
 export type DeleteCurrentObjVersion = (
 	userId: string, objId: string, version?: number
@@ -90,7 +90,7 @@ export interface Factory {
 	saveNewObjVersion: SaveNewObjVersion;
 	saveNewRootVersion: SaveNewObjVersion;
 	getCurrentRootObj: GetCurrentObj;
-	listObjArchive: ListObjArchive;
+	getObjStatus: GetObjStatus;
 	archiveObjVersion: ArchiveObjCurrentVersion;
 	getArchivedRootVersion: GetArchivedObjVersion;
 	getArchivedObjVersion: GetArchivedObjVersion;
@@ -236,9 +236,9 @@ export function makeFactory(
 			await store.archiveCurrentObjVersion(objId, version);
 		},
 
-		listObjArchive: async (userId, objId) => {
+		getObjStatus: async (userId, objId) => {
 			const store = await getStore(userId);
-			return store.listObjArchive(objId);
+			return store.getObjStatus(objId);
 		},
 
 		deleteArchivedObjVersion: async (userId, objId, version) => {

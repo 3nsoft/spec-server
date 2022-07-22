@@ -43,7 +43,7 @@ import { Readable } from 'stream';
 import { PutObjFirstQueryOpts, PutObjSecondQueryOpts } from '../../lib-common/service-api/3nstorage/owner';
 import { stringOfB64UrlSafeChars } from '../../lib-common/random-node';
 import { UserFiles, SC as ufSC, ObjReader } from '../../lib-server/resources/user-files';
-import { DiffInfo, events } from '../../lib-common/service-api/3nstorage/owner';
+import { DiffInfo, events, ObjStatus } from '../../lib-common/service-api/3nstorage/owner';
 import { streamToObjFile, diffToLayout, chunksInOrderedStream, makeObjPipe, GetObjFile } from '../../lib-common/objs-on-disk/utils';
 import { TimeWindowCache } from '../../lib-common/time-window-cache';
 import { ObjVersionFile } from '../../lib-common/objs-on-disk/obj-file';
@@ -526,10 +526,12 @@ export class Store extends UserFiles {
 		);
 	}
 
-	async listObjArchive(objId: string): Promise<number[]> {
+	async getObjStatus(objId: string): Promise<ObjStatus> {
 		const status = await this.statuses.get(objId);
-		const arch = status.archivedVersions;
-		return (Array.isArray(arch) ? arch : []);
+		return {
+			current: status.currentVersion,
+			archived: status.archivedVersions
+		};
 	}
 	
 	static getSpaceQuota(store: Store): Promise<number> {

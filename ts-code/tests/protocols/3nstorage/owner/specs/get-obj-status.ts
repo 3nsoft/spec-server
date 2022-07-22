@@ -15,9 +15,9 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { startSession, SpecDescribe, TestSetup, User, StorageComponent } from '../test-utils';
-import { archiveRoot as api } from '../../../../../lib-common/service-api/3nstorage/owner';
-import { beforeAllAsync, itAsync, xitAsync } from '../../../../libs-for-tests/async-jasmine';
+import { startSession, SpecDescribe, TestSetup, User, StorageComponent, archiveObjVer } from '../test-utils';
+import { objStatus as api, ObjStatus } from '../../../../../lib-common/service-api/3nstorage/owner';
+import { beforeAllAsync, itAsync } from '../../../../libs-for-tests/async-jasmine';
 import { RequestOpts, doBodylessRequest } from '../../../../libs-for-tests/xhr-utils';
 import { Obj, saveObj }	from '../../../../libs-for-tests/3nstorage';
 import { expectNonAcceptanceOfBadSessionId } from '../../../../shared-checks/requests';
@@ -30,7 +30,7 @@ export const specs: SpecDescribe = {
 };
 
 const obj: Obj = {
-	objId: null as any,
+	objId: 'aaaa',
 	version: 1,
 	header: randomBytes(100),
 	segs: randomBytes(573)
@@ -49,7 +49,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		await storageServer.restartAndClearStorageFor(user.id);
 		sessionId = await startSession(user);
 		reqOpts = {
-			url: resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd()),
+			url: resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd(obj.objId)),
 			method: 'GET',
 			responseType: 'json',
 			sessionId
@@ -61,11 +61,25 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		await expectNonAcceptanceOfBadSessionId(opts);
 	});
 
-	itAsync('shows archived versions', async () => {
+	itAsync('fails when object does not exist', async () => {
+		const unknownObj = 'unknown-obj';
+		const opts = copy(reqOpts);
+		opts.url = resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd(unknownObj));
+		const rep = await doBodylessRequest(opts);
+		expect(rep.status).toBe(api.SC.unknownObj);
+	});
+
+	itAsync(`shows obj status with versions' info`, async () => {
 		await saveObj(user.storageOwnerUrl, sessionId, true, obj.objId, 1, obj);
-		const rep = await doBodylessRequest<api.VersionsList>(reqOpts);
-		expect(rep.status).toBe(api.SC.okGet);
-		expect(Array.isArray(rep.data)).toBeTrue();
+		let rep = await doBodylessRequest<ObjStatus>(reqOpts);
+		expect(rep.status).toBe(api.SC.ok);
+		expect(rep.data.current).toBe(1);
+		expect(rep.data.archived).toBeUndefined();
+		await archiveObjVer(user, obj.objId, 1, sessionId);
+		rep = await doBodylessRequest<ObjStatus>(reqOpts);
+		expect(rep.status).toBe(api.SC.ok);
+		expect(rep.data.current).toBe(1);
+		expect(rep.data.archived).toContain(1);
 	});
 
 });

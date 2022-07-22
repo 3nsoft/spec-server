@@ -42,7 +42,7 @@ import { getCurrentObj } from './routes/owner/get-current-obj';
 import { getArchivedObjVersion } from './routes/owner/get-archived-obj-ver';
 import { deleteArchivedObjVer, deleteCurrentObjVer } from './routes/owner/delete-obj';
 import { archiveCurrentObjVersion } from './routes/owner/archive-obj-version';
-import { listObjArchive } from './routes/owner/list-obj-archive';
+import { getObjStatus } from './routes/owner/get-obj-status';
 
 import * as api from '../lib-common/service-api/3nstorage/owner';
 
@@ -136,19 +136,25 @@ function setHttpPart(app: AppWithWSs, domain: string,
 	.get(getArchivedObjVersion(false, users.getArchivedObjVersion));
 
 	// Archive root's current version
-	app.http.route('/'+api.archiveRoot.URL_END)
-	.get(listObjArchive(true, users.listObjArchive))
+	app.http.route('/'+api.archiveRoot.EXPRESS_URL_END)
 	.post(emptyBody(),
 		archiveCurrentObjVersion(true, users.archiveObjVersion))
 	.delete(deleteArchivedObjVer(true, users.deleteArchivedObjVersion));
 
 	// Archive non-root object's current version
 	app.http.route('/'+api.archiveObj.EXPRESS_URL_END)
-	.get(listObjArchive(false, users.listObjArchive))
 	.post(emptyBody(),
 		archiveCurrentObjVersion(false, users.archiveObjVersion))
 	.delete(deleteArchivedObjVer(false, users.deleteArchivedObjVersion));
-	
+
+	// Getting root object status
+	app.http.get('/'+api.rootStatus.EXPRESS_URL_END,
+		getObjStatus(true, users.getObjStatus));
+
+	// Getting object status
+	app.http.get('/'+api.objStatus.EXPRESS_URL_END,
+		getObjStatus(false, users.getObjStatus));
+
 }
 
 Object.freeze(exports);

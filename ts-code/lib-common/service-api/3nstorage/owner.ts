@@ -180,6 +180,12 @@ export namespace currentObj {
 		return `obj/${objId}/current${opts ? `?${stringifyOpts(opts as any)}`: ''}`;
 	}
 
+	export function delReqUrlEnd(
+		objId: string, ver?: number
+	): string {
+		return `obj/${objId}/current${ver ? `?${stringifyOpts({ ver })}`: ''}`;
+	}
+
 	export function firstPutReqUrlEnd(
 		objId: string, opts: PutObjFirstQueryOpts
 	): string {
@@ -370,13 +376,47 @@ export namespace cancelRootTransaction {
 }
 Object.freeze(cancelRootTransaction);
 
+export interface ObjStatus {
+	current?: number;
+	archived?: number[];
+}
+
+export namespace objStatus {
+
+	export const EXPRESS_URL_END = 'obj/:objId/status';
+
+	export function getReqUrlEnd(objId: string): string {
+		return `obj/${objId}/status`;
+	}
+
+	export type Reply = ObjStatus;
+
+	export const SC = {
+		ok: 200,
+		unknownObj: 474,
+	};
+
+}
+Object.freeze(objStatus);
+
+export namespace rootStatus {
+
+	export const EXPRESS_URL_END = 'root/status';
+
+	export function getReqUrlEnd(): string {
+		return 'root/status';
+	}
+
+	export type Reply = ObjStatus;
+
+	export const SC = objStatus.SC;
+
+}
+Object.freeze(rootStatus);
+
 export namespace archiveObj {
 
 	export const EXPRESS_URL_END = 'obj/:objId/archive';
-
-	export function getReqUrlEnd(objId: string): string {
-		return `obj/${objId}/archive`;
-	}
 
 	export function postAndDelReqUrlEnd(objId: string, version: number): string {
 		return `obj/${objId}/archive?ver=${version}`;
@@ -385,7 +425,6 @@ export namespace archiveObj {
 	export type VersionsList = number[];
 
 	export const SC = {
-		okGet: 200,
 		okPost: 200,
 		okDelete: 200,
 		unknownObj: 474,
@@ -397,11 +436,7 @@ Object.freeze(archiveObj);
 
 export namespace archiveRoot {
 
-	export const URL_END = 'root/archive';
-
-	export function getReqUrlEnd(): string {
-		return `root/archive`;
-	}
+	export const EXPRESS_URL_END = 'root/archive';
 
 	export function postAndDelReqUrlEnd(version: number): string {
 		return `root/archive?ver=${version}`;

@@ -15,7 +15,7 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { startSession, SpecDescribe, TestSetup, User, StorageComponent, listArchived } from '../test-utils';
+import { startSession, SpecDescribe, TestSetup, User, StorageComponent, getObjStatus } from '../test-utils';
 import { archiveRoot as api } from '../../../../../lib-common/service-api/3nstorage/owner';
 import { beforeEachAsync, itAsync } from '../../../../libs-for-tests/async-jasmine';
 import { RequestOpts, doBodylessRequest } from '../../../../libs-for-tests/xhr-utils';
@@ -75,12 +75,12 @@ specs.definition = (setup: () => TestSetup) => (() => {
 
 	itAsync('sets current version archived', async () => {
 		await saveObj(user.storageOwnerUrl, sessionId, true, obj.objId, 1, obj);
-		let lst = await listArchived(user, null, sessionId);
-		expect(lst.length).toBe(0);
+		let archived = (await getObjStatus(user, obj.objId, sessionId)).archived;
+		expect(archived).toBeUndefined();
 		const rep = await doBodylessRequest(reqOpts);
-		expect(rep.status).toBe(api.SC.okGet);
-		lst = await listArchived(user, null, sessionId);
-		expect(lst).toContain(1);
+		expect(rep.status).toBe(api.SC.okPost);
+		archived = (await getObjStatus(user, obj.objId, sessionId)).archived;
+		expect(archived).toContain(1);
 	});
 
 });

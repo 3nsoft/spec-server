@@ -16,15 +16,15 @@
 */
 
 import { RequestHandler } from 'express';
-import { ListObjArchive, SC as storeSC } from '../../resources/users';
-import { archiveObj as api, ERR_SC } from '../../../lib-common/service-api/3nstorage/owner';
+import { GetObjStatus, SC as storeSC } from '../../resources/users';
+import { objStatus as api, ERR_SC } from '../../../lib-common/service-api/3nstorage/owner';
 import { Request } from '../../resources/sessions';
 
-export function listObjArchive(
-	root: boolean, listObjArchiveFunc: ListObjArchive
+export function getObjStatus(
+	root: boolean, getObjStatusFunc: GetObjStatus
 ): RequestHandler {
-	if ('function' !== typeof listObjArchiveFunc) { throw new TypeError(
-			"Given argument 'listObjArchiveFunc' must be function, but is not."); }
+	if ('function' !== typeof getObjStatusFunc) { throw new TypeError(
+			"Given argument 'getObjStatusFunc' must be function, but is not."); }
 
 	return async (req: Request, res, next) => {
 
@@ -32,8 +32,8 @@ export function listObjArchive(
 		const objId: string = (root ? null as any : req.params.objId);
 		
 		try {
-			const lst = await listObjArchiveFunc(userId, objId);
-			res.status(api.SC.okGet).json(lst);
+			const lst = await getObjStatusFunc(userId, objId);
+			res.status(api.SC.ok).json(lst);
 		} catch (err) {
 			if ("string" !== typeof err) {
 				next(err);

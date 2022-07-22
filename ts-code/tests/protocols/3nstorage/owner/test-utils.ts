@@ -39,17 +39,17 @@ export async function startSession(user: User): Promise<string> {
 		user);
 }
 
-export async function listArchived(
+export async function getObjStatus(
 	user: User, objId: string|null, sessionId: string
-): Promise<api.archiveObj.VersionsList> {
-	const rep = await doBodylessRequest<api.archiveObj.VersionsList>({
+): Promise<api.ObjStatus> {
+	const rep = await doBodylessRequest<api.ObjStatus>({
 		url: resolveUrl(user.storageOwnerUrl, (objId ?
-			api.archiveObj.getReqUrlEnd(objId) : api.archiveRoot.getReqUrlEnd())),
+			api.objStatus.getReqUrlEnd(objId) : api.rootStatus.getReqUrlEnd())),
 		method: 'GET',
 		sessionId,
 		responseType: 'json'
 	});
-	assert(rep.status === api.archiveObj.SC.okGet, `Unexpected status ${rep.status} with data ${rep.data}, when listing archived versions of object ${objId}`);
+	assert(rep.status === api.objStatus.SC.ok, `Unexpected status ${rep.status} with data ${rep.data}, when listing archived versions of object ${objId}`);
 	return rep.data;
 }
 

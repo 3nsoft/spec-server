@@ -15,7 +15,7 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { startSession, SpecDescribe, TestSetup, User, StorageComponent, archiveObjVer, listArchived } from '../test-utils';
+import { startSession, SpecDescribe, TestSetup, User, StorageComponent, archiveObjVer, getObjStatus } from '../test-utils';
 import { archiveRoot as api } from '../../../../../lib-common/service-api/3nstorage/owner';
 import { beforeEachAsync, itAsync } from '../../../../libs-for-tests/async-jasmine';
 import { RequestOpts, doBodylessRequest } from '../../../../libs-for-tests/xhr-utils';
@@ -76,12 +76,12 @@ specs.definition = (setup: () => TestSetup) => (() => {
 	itAsync('Removes archived version', async () => {
 		await saveObj(user.storageOwnerUrl, sessionId, true, obj.objId, 1, obj);
 		await archiveObjVer(user, obj.objId, 1, sessionId);
-		let lst = await listArchived(user, obj.objId, sessionId);
-		expect(lst).toContain(1);
+		let archived = (await getObjStatus(user, obj.objId, sessionId)).archived;
+		expect(archived).toContain(1);
 		const rep = await doBodylessRequest(reqOpts);
 		expect(rep.status).toBe(api.SC.okDelete);
-		lst = await listArchived(user, obj.objId, sessionId);
-		expect(lst).not.toContain(1);
+		archived = (await getObjStatus(user, obj.objId, sessionId)).archived;
+		expect(archived).toBeUndefined();
 	});
 
 });

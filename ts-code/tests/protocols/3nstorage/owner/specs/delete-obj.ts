@@ -49,7 +49,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		await storageServer.restartAndClearStorageFor(user.id);
 		sessionId = await startSession(user);
 		reqOpts = {
-			url: resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd(obj.objId)),
+			url: resolveUrl(user.storageOwnerUrl, api.delReqUrlEnd(obj.objId)),
 			method: 'DELETE',
 			sessionId
 		};
@@ -59,7 +59,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		const unknownObj = 'unknown-obj';
 		expect(await storageServer.currentObjExists(user.id, unknownObj)).toBeFalsy();
 		const opts = copy(reqOpts);
-		opts.url = resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd(unknownObj));
+		opts.url = resolveUrl(user.storageOwnerUrl, api.delReqUrlEnd(unknownObj));
 		const rep = await doBodylessRequest(opts);
 		expect(rep.status).toBe(api.SC.unknownObj);
 	});
