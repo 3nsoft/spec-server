@@ -133,7 +133,7 @@ export class StorageComponent extends Component {
 		const currVer = status.currentVersion;
 		if ((ver !== undefined) && (currVer !== ver)) { return false; }
 		if (obj) {
-			const filePath = join(objFolder, `${currVer}.`);
+			const filePath = join(objFolder, `${currVer}.v`);
 			const file = await ObjVersionFile.forExisting(filePath)
 			.catch((exc: fs.FileException) => {
 				if (exc.notFound) { return undefined; }
