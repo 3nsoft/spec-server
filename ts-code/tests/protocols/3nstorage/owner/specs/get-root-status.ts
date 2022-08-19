@@ -62,7 +62,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 	});
 
 	itAsync(`shows obj status with versions' info`, async () => {
-		await saveObj(user.storageOwnerUrl, sessionId, true, obj.objId, 1, obj);
+		await saveObj(user.storageOwnerUrl, sessionId, obj.objId, 1, obj);
 		let rep = await doBodylessRequest<ObjStatus>(reqOpts);
 		expect(rep.status).toBe(api.SC.ok);
 		expect(rep.data.current).toBe(1);

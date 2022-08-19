@@ -73,7 +73,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 	});
 
 	itAsync('fails when object version does not exist', async () => {
-		await saveObj(user.storageOwnerUrl, sessionId, true, obj.objId, 1, obj);
+		await saveObj(user.storageOwnerUrl, sessionId, obj.objId, 1, obj);
 		const opts = copy(reqOpts);
 		opts.url = resolveUrl(
 			user.storageOwnerUrl,
@@ -83,7 +83,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 	});
 
 	itAsync('sets current version archived', async () => {
-		await saveObj(user.storageOwnerUrl, sessionId, true, obj.objId, 1, obj);
+		await saveObj(user.storageOwnerUrl, sessionId, obj.objId, 1, obj);
 		let archived = (await getObjStatus(user, obj.objId, sessionId)).archived;
 		expect(archived).toBeUndefined();
 		const rep = await doBodylessRequest(reqOpts);

@@ -47,7 +47,7 @@ async function setStage(setup: () => TestSetup): Promise<void> {
 	user = setup().user;
 	await storageServer.restartAndClearStorageFor(user.id);
 	sessionId = await startSession(user);
-	await saveObj(user.storageOwnerUrl, sessionId, true, obj.objId, 1, obj);
+	await saveObj(user.storageOwnerUrl, sessionId, obj.objId, 1, obj);
 	reqOpts = {
 		url: resolveUrl(
 			user.storageOwnerUrl, api.getReqUrlEnd({ header: true })),
@@ -229,7 +229,7 @@ accessDiffedObjVersion.definition = (setup: () => TestSetup) => (() => {
 		await setStage(setup);
 		await saveObj(
 			user.storageOwnerUrl, sessionId,
-			false, diffVer.objId, diffVer.version, diffVer);
+			diffVer.objId, diffVer.version, diffVer);
 		reqOpts = {
 			url: resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd({ header: true })),
 			method: 'GET',

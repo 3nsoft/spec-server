@@ -62,7 +62,7 @@ export function saveCurrentObj(
 
 		if (fstReq) {
 
-			if (fstReq.create && objId) {
+			if (!root && objId) {
 				if (!base64urlSafe.allCharsFromAlphabet(objId!)) {
 					return replyToMalformed(req, "Bad object id", res);
 				}
@@ -179,8 +179,6 @@ function extractQueryOptions(req: Request): undefined|{
 		// query fields are string or undefined, yet, type info helps the show
 		const query = req.query as any as PutObjFirstQueryOpts;
 
-		const create = ((query.create as any) === 'true');
-
 		const ver = parseInt(query.ver as any);
 		if (isNaN(ver) || (ver < 1)) { return; }
 
@@ -194,7 +192,7 @@ function extractQueryOptions(req: Request): undefined|{
 
 		const last = ((query.last as any) === 'true');
 
-		return { fstReq: { diff, header, last, ver, create } };
+		return { fstReq: { diff, header, last, ver } };
 		
 	}
 }

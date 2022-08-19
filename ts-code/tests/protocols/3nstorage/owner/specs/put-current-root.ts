@@ -19,7 +19,7 @@ import { startSession, SpecDescribe, TestSetup, User, StorageComponent } from '.
 import { currentRootObj as api } from '../../../../../lib-common/service-api/3nstorage/owner';
 import { beforeEachAsync, itAsync } from '../../../../libs-for-tests/async-jasmine';
 import { RequestOpts, doBinaryRequest } from '../../../../libs-for-tests/xhr-utils';
-import { Obj, getSessionParams } from '../../../../libs-for-tests/3nstorage';
+import { Obj, getSessionParams, saveObj } from '../../../../libs-for-tests/3nstorage';
 import { expectNonAcceptanceOfBadSessionId, expectNonAcceptanceOfBadType, expectNonAcceptanceOfLongBody } from '../../../../shared-checks/requests';
 import { bytesSync as randomBytes } from '../../../../../lib-common/random-node';
 import { utf8 } from '../../../../../lib-common/buffer-utils';
@@ -36,9 +36,9 @@ const objV1: Obj = {
 	header: randomBytes(100),
 	segs: randomBytes(2345)
 };
-const objV5: Obj = {
+const objV2: Obj = {
 	objId: objV1.objId,
-	version: 5,	// recording 5-th version after the 1-st shows version leap
+	version: objV1.version + 1,
 	header: randomBytes(110),
 	segs: randomBytes(6543)
 };
@@ -56,7 +56,7 @@ async function setupSession(setup: () => TestSetup): Promise<void> {
 	sessionId = await startSession(user);
 	fstReqOpts = {
 		url: resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd(
-			{ create: true, ver: 1, header: objV1.header.length })),
+			{ ver: 1, header: objV1.header.length })),
 		method: 'PUT',
 		responseType: 'json',
 		sessionId
@@ -92,6 +92,19 @@ fuzzingSpec.definition = (setup: () => TestSetup) => (() => {
 			{ trans, ofs: 0 }));
 		const rep = await doBinaryRequest<any>(opts, objV1.segs);
 		expect(rep.status).toBe(api.SC.unknownTransaction, 'status for unknown transaction');
+	});
+
+	itAsync('fails write for incorrect version', async () => {
+		await saveObj(
+			user.storageOwnerUrl, sessionId, null, objV1.version, objV1);
+		const opts = copy(fstReqOpts);
+		opts.url = resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd(
+			{ ver: objV1.version + 5, header: objV1.header.length }));
+		const rep = await doBinaryRequest<api.MismatchedObjVerReply>(
+			opts, [ objV1.header, objV1.segs ]);
+		expect(rep.status).toBe(api.SC.mismatchedObjVer);
+		expect(typeof rep.data).toBe('object');
+		expect(rep.data.current_version).toBe(objV1.version);
 	});
 
 	itAsync('will not accept bad type', async () => {
@@ -140,8 +153,7 @@ specsForNonDiffSending.definition = (setup: () => TestSetup) => (() => {
 		// create object
 		const opts = copy(fstReqOpts);
 		opts.url = resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd({
-			create: true, ver: objV1.version, header: objV1.header.length,
-			last: true
+			ver: objV1.version, header: objV1.header.length, last: true
 		}));
 		let rep = await doBinaryRequest<api.ReplyToPut>(
 			opts, [ objV1.header, objV1.segs ]);
@@ -151,20 +163,20 @@ specsForNonDiffSending.definition = (setup: () => TestSetup) => (() => {
 
 		// upload object's next version
 		opts.url = resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd({
-			ver: objV5.version, header: objV5.header.length, last: true
+			ver: objV2.version, header: objV2.header.length, last: true
 		}));
 		rep = await doBinaryRequest<api.ReplyToPut>(
-			opts, [ objV5.header, objV5.segs ]);
+			opts, [ objV2.header, objV2.segs ]);
 		expect(rep.status).toBe(api.SC.okPut, 'status for successful writing of segments bytes');
 		expect(rep.data.transactionId).toBeUndefined();
-		expect(await storageServer.currentRootObjExists(user.id, objV5.version, objV5)).toBeTruthy('fifth version of object is present on the server');
+		expect(await storageServer.currentRootObjExists(user.id, objV2.version, objV2)).toBeTruthy('second version of object is present on the server');
 		expect(await storageServer.rootTransactionExists(user.id)).toBeFalsy();
 
 		// returns current version, when trying to upload incorrect version,
 		// like uploading existing version, or smaller
-		const errRep = await doBinaryRequest<api.MismatchedObjVerReply>(opts, [ objV5.header, objV5.segs ]);
+		const errRep = await doBinaryRequest<api.MismatchedObjVerReply>(opts, [ objV2.header, objV2.segs ]);
 		expect(errRep.status).toBe(api.SC.mismatchedObjVer, 'status for mismatched upload version');
-		expect(errRep.data.current_version).toBe(objV5.version, 'current object version on server');
+		expect(errRep.data.current_version).toBe(objV2.version, 'current object version on server');
 
 	});
 
@@ -174,7 +186,7 @@ specsForNonDiffSending.definition = (setup: () => TestSetup) => (() => {
 		// first request, to start transmission
 		const opts = copy(fstReqOpts);
 		opts.url = resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd({
-			create: true, ver: objV1.version, header: objV1.header.length
+			ver: objV1.version, header: objV1.header.length
 		}));
 		let rep = await doBinaryRequest<api.ReplyToPut>(opts, objV1.header);
 		expect(rep.status).toBe(api.SC.okPut, 'status for successful writing of segments bytes');
@@ -236,8 +248,7 @@ specsForDiffTransaction.definition = (setup: () => TestSetup) => (() => {
 		// upload first object version
 		const opts = copy(fstReqOpts);
 		opts.url = resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd({
-			create: true, ver: objV1.version, header: objV1.header.length,
-			last: true
+			ver: objV1.version, header: objV1.header.length, last: true
 		}));
 		await doBinaryRequest<api.ReplyToPut>(opts, [ objV1.header, objV1.segs ]);
 	});

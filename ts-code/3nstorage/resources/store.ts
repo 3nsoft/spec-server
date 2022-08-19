@@ -216,10 +216,12 @@ export class Store extends UserFiles {
 		}
 
 		const params: TransactionParams = {
-			isNewObj: opts.create,
 			version: opts.ver,
 			baseVersion: (diff ? diff.baseVersion : undefined)
 		};
+		if (opts.ver === 1) {
+			params.isNewObj = true;
+		}
 		const trans = await this.transactions.startNew(objId, params);
 
 		let file: ObjVersionFile;
@@ -808,7 +810,7 @@ class ObjTransactions {
 				const status = await this.statuses.get(objId);
 				if (status.state !== 'current') {
 					throw SC.OBJ_UNKNOWN;
-				} else if (trans.version <= status.currentVersion!) {
+				} else if (trans.version !== (status.currentVersion! + 1)) {
 					throw makeMismatchedObjVerException(status.currentVersion!);
 				}
 			}

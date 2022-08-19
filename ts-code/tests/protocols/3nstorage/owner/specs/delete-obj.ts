@@ -65,7 +65,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 	});
 
 	itAsync('does remove it', async () => {
-		await saveObj(user.storageOwnerUrl, sessionId, true, obj.objId, 1, obj);
+		await saveObj(user.storageOwnerUrl, sessionId, obj.objId, 1, obj);
 		expect(await storageServer.currentObjExists(user.id, obj.objId)).toBeTruthy();
 		const rep = await doBodylessRequest(reqOpts);
 		expect(rep.status).toBe(api.SC.okDelete);

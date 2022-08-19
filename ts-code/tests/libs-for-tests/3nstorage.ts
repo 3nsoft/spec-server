@@ -83,7 +83,7 @@ export async function getSessionParams(ownerUrl: string, sessionId: string):
  */
 export async function saveObj(
 	ownerUrl: string, sessionId: string,
-	newObj: boolean, objId: string|null, ver: number, obj: Obj
+	objId: string|null, ver: number, obj: Obj
 ): Promise<void> {
 
 	const header = obj.header.length;
@@ -120,9 +120,6 @@ export async function saveObj(
 		}
 	} else {
 		const urlOpts: api.PutObjFirstQueryOpts = { ver, header, last: true };
-		if (newObj) {
-			urlOpts.create = true;
-		}
 		const urlEnd = (objId ?
 			api.currentObj.firstPutReqUrlEnd(objId, urlOpts) :
 			api.currentRootObj.firstPutReqUrlEnd(urlOpts));

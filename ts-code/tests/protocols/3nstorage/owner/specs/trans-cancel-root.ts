@@ -49,7 +49,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		const sessionId = await startSession(user);
 		const fstReqOpts: RequestOpts = {
 			url: resolveUrl(user.storageOwnerUrl, rootApi.firstPutReqUrlEnd({
-				create: true, ver: 1, header: obj.header.length
+				ver: 1, header: obj.header.length
 			})),
 			method: 'PUT',
 			sessionId

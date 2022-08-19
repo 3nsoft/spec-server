@@ -77,10 +77,10 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		await sleep(10);
 		
 		// create first version of an object
-		await saveObj(user.storageOwnerUrl, sessionId, true, obj.objId, 1, obj);
+		await saveObj(user.storageOwnerUrl, sessionId, obj.objId, 1, obj);
 		
 		// create second version
-		await saveObj(user.storageOwnerUrl, sessionId, false, obj.objId, 2, obj);
+		await saveObj(user.storageOwnerUrl, sessionId, obj.objId, 2, obj);
 
 		(await eventPromise).forEach((event, index) => {
 			expect(typeof event).toBe('object');
@@ -111,7 +111,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		const objId ='bbbb';
 		
 		// create an object
-		await saveObj(user.storageOwnerUrl, sessionId, true, objId, 1, obj);
+		await saveObj(user.storageOwnerUrl, sessionId, objId, 1, obj);
 		
 		// create second version
 		await removeObj(user.storageOwnerUrl, sessionId, objId);
