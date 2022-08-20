@@ -16,8 +16,8 @@
 */
 
 import { RequestHandler } from 'express';
-import { ArchiveObjCurrentVersion, SC as storeSC } from '../../resources/users';
-import { archiveObj as api, ERR_SC } from '../../../lib-common/service-api/3nstorage/owner';
+import { ArchiveObjCurrentVersion, MismatchedObjVerException, SC as storeSC } from '../../resources/users';
+import { archiveObj as api, ERR_SC, HTTP_HEADER } from '../../../lib-common/service-api/3nstorage/owner';
 import { Request } from '../../resources/sessions';
 
 const SC = api.SC;
@@ -39,16 +39,21 @@ export function archiveCurrentObjVersion(
 			return;
 		}
 
-		
 		try {
 			await archiveObjVerFunc(userId, objId, version);
 			res.status(SC.okPost).end();
 		} catch (err) {
 			if ("string" !== typeof err) {
-				next(err);
-			} else if (err === storeSC.OBJ_VER_UNKNOWN) {
-				res.status(SC.unknownObjVer).send(
-					`Object ${objId} version ${version} is not current.`);
+				if ((err as MismatchedObjVerException).type === 'mismatched-obj-ver') {
+					const rep: api.MismatchedObjVerReply = {
+						error: "Current object version doesn't match assumed one.",
+						current_version: (err as MismatchedObjVerException).current_version
+					};
+					res.set(HTTP_HEADER.objVersion, `${(err as MismatchedObjVerException).current_version}`);
+					res.status(api.SC.mismatchedObjVer).json(rep);
+				} else {
+					next(err);
+				}
 			} else if (err === storeSC.OBJ_UNKNOWN) {
 				res.status(SC.unknownObj).send(root ?
 					`Root object is not set.` :
@@ -61,7 +66,7 @@ export function archiveCurrentObjVersion(
 				next(new Error("Unhandled storage error code: "+err));
 			}
 		}
-		
+
 	};
 };
 

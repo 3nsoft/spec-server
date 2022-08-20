@@ -513,7 +513,9 @@ export class Store extends UserFiles {
 
 		const status = await this.statuses.get(objId);
 		if (status.state !== 'current') { throw SC.OBJ_UNKNOWN; }
-		if (status.currentVersion !== version) { throw SC.OBJ_VER_UNKNOWN; }
+		if (status.currentVersion !== version) {
+			throw makeMismatchedObjVerException(status.currentVersion!);
+		}
 		const arch = status.archivedVersions;
 		if (Array.isArray(arch)) {
 			arch.push(status.currentVersion);

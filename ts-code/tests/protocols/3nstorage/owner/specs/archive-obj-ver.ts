@@ -78,8 +78,10 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		opts.url = resolveUrl(
 			user.storageOwnerUrl,
 			api.postAndDelReqUrlEnd(obj.objId, 42));
-		const rep = await doBodylessRequest(opts);
-		expect(rep.status).toBe(api.SC.unknownObjVer);
+		opts.responseType = 'json';
+		const rep = await doBodylessRequest<api.MismatchedObjVerReply>(opts);
+		expect(rep.status).toBe(api.SC.mismatchedObjVer);
+		expect(rep.data.current_version).toBe(1);
 	});
 
 	itAsync('sets current version archived', async () => {

@@ -56,7 +56,7 @@ export async function getObjStatus(
 export async function archiveObjVer(
 	user: User, objId: string|null, version: number, sessionId: string
 ): Promise<void> {
-	const rep = await doBodylessRequest<api.archiveObj.VersionsList>({
+	const rep = await doBodylessRequest<void>({
 		url: resolveUrl(user.storageOwnerUrl, (objId ?
 			api.archiveObj.postAndDelReqUrlEnd(objId, version) :
 			api.archiveRoot.postAndDelReqUrlEnd(version))),

@@ -46,8 +46,10 @@ import { getObjStatus } from './routes/owner/get-obj-status';
 
 import * as api from '../lib-common/service-api/3nstorage/owner';
 
-export function makeApp(domain: string, sessions: SessionsFactory,
-		users: usersFactory, midAuthorizer: MidAuthorizer): AppWithWSs {
+export function makeApp(
+	domain: string, sessions: SessionsFactory, users: usersFactory,
+	midAuthorizer: MidAuthorizer
+): AppWithWSs {
 	
 	const app = new AppWithWSs();
 	
@@ -57,8 +59,9 @@ export function makeApp(domain: string, sessions: SessionsFactory,
 	return app;
 }
 
-function setWSPart(app: AppWithWSs, sessions: SessionsFactory,
-		users: usersFactory): void {
+function setWSPart(
+	app: AppWithWSs, sessions: SessionsFactory, users: usersFactory
+): void {
 	const sockets = new UserSockets(
 		sessions.ensureAuthorizedSessionForSocketStart());
 	
@@ -75,52 +78,53 @@ function setWSPart(app: AppWithWSs, sessions: SessionsFactory,
 
 const MAX_CHUNK_SIZE = '0.5mb';
 
-function setHttpPart(app: AppWithWSs, domain: string,
-		sessions: SessionsFactory, users: usersFactory,
-		midAuthorizer: MidAuthorizer): void {
-	
+function setHttpPart(
+	app: AppWithWSs, domain: string, sessions: SessionsFactory,
+	users: usersFactory, midAuthorizer: MidAuthorizer
+): void {
+
 	app.http.disable('etag');
-	
+
 	// Login
 	app.http.post('/'+api.midLogin.START_URL_END,
-			sessions.checkSession(),
-			parseJSON('1kb'),
-			startSession(users.exists, sessions.generate));
+		sessions.checkSession(),
+		parseJSON('1kb'),
+		startSession(users.exists, sessions.generate));
 	app.http.post('/'+api.midLogin.AUTH_URL_END,
-			sessions.ensureOpenedSession(),
-			parseJSON('4kb'),
-			midLogin(domain, midAuthorizer));
-	
+		sessions.ensureOpenedSession(),
+		parseJSON('4kb'),
+		midLogin(domain, midAuthorizer));
+
 	// *** Require authorized session for everything below ***
 	app.http.use(sessions.ensureAuthorizedSession());
 
 	app.http.post('/'+api.closeSession.URL_END,
-			emptyBody(),
-			closeSession());
-	
+		emptyBody(),
+		closeSession());
+
 	// Session params
 	app.http.get('/'+api.sessionParams.URL_END,
-			sessionParams(MAX_CHUNK_SIZE));
-	
+		sessionParams(MAX_CHUNK_SIZE));
+
 	// Key derivation params
 	app.http.route('/'+api.keyDerivParams.URL_END)
 	.get(getParam(users.getKeyDerivParams))
 	.put(parseJSON('1kb'),
 		setParam(users.setKeyDerivParams));
-	
+
 	// Transaction canceling
 	app.http.post('/'+api.cancelTransaction.EXPRESS_URL_END,
-			emptyBody(),
-			cancelTransaction(false, users.cancelTransaction));
+		emptyBody(),
+		cancelTransaction(false, users.cancelTransaction));
 	app.http.post('/'+api.cancelRootTransaction.EXPRESS_URL_END,
-			emptyBody(),
-			cancelTransaction(true, users.cancelTransaction));
-	
+		emptyBody(),
+		cancelTransaction(true, users.cancelTransaction));
+
 	// Getting and updating current root object
 	app.http.route('/'+api.currentRootObj.EXPRESS_URL_END)
 	.get(getCurrentObj(true, users.getCurrentRootObj))
 	.put(saveCurrentObj(true, users.saveNewRootVersion, MAX_CHUNK_SIZE));
-	
+
 	// Getting, updating and removing current non-root objects
 	app.http.route('/'+api.currentObj.EXPRESS_URL_END)
 	.get(getCurrentObj(false, users.getCurrentObj))
