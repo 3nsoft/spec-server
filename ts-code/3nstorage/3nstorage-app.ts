@@ -24,7 +24,7 @@ import { Express } from 'express';
 import { makeFactory as makeUsersFactory } from './resources/users';
 import { makeSessionFactory } from './resources/sessions';
 import { MidAuthorizer } from '../lib-server/routes/sessions/mid-auth';
-import { makeErrHandler } from '../lib-server/middleware/error-handler';
+import { ErrLogger, makeErrHandler } from '../lib-server/middleware/error-handler';
 import { AppWithWSs } from '../lib-server/web-sockets/app';
 import * as owners from './owner';
 import * as sharing from './shared';
@@ -53,7 +53,8 @@ function setupStaticEntryRoute(app: Express): void {
 }
 
 export function makeApp(
-	dataFolder: string, domain: string, midAuthorizer: MidAuthorizer
+	dataFolder: string, domain: string, midAuthorizer: MidAuthorizer,
+	errLogger?: ErrLogger
 ): AppWithWSs {
 
 	const app = new AppWithWSs();
@@ -69,12 +70,7 @@ export function makeApp(
 	app.http.use(PATHS.shared,
 		sharing.makeApp(sharingSessions, users));
 
-	app.http.use(makeErrHandler((err, req) => {
-		if (typeof err.status !== 'number') {
-			console.error(`\n --- Error occured in storage, when handling ${req.method} request to ${req.originalUrl}`);
-			console.error(err);
-		}
-	}));
+	app.http.use(makeErrHandler(errLogger));
 
 	return app;
 }

@@ -27,6 +27,7 @@ import { makeApp as makeMailerIdApp } from './mailerId/mailerId-app';
 import { makeApp as makeMailApp } from './asmail/asmail-app';
 import { makeApp as makeStoreApp } from './3nstorage/3nstorage-app';
 import { makeApp as makeAdminApp } from './admin/admin-app';
+import { ErrLogger, makeErrLoggerToConsole } from "./lib-server/middleware/error-handler";
 
 export interface Configurations {
 	enabledServices: {
@@ -49,7 +50,9 @@ export interface Configurations {
 	};
 }
 
-export function servicesApp(conf: Configurations): AppWithWSs {
+export function servicesApp(
+	conf: Configurations, errLogger?: ErrLogger|'console'
+): AppWithWSs {
 
 	if (!conf.enabledServices || (typeof conf.enabledServices !== 'object')) {
 		throw new Error('Missing enabled-services sections in confs.');
@@ -59,24 +62,35 @@ export function servicesApp(conf: Configurations): AppWithWSs {
 	const midAuthorizer = validator();	// share, allowing for caching of certs
 
 	if (conf.enabledServices.mailerId) {
-		app.http.use('/mailerid',
-			makeMailerIdApp(conf.rootFolder, conf.domain, conf.mailerId!.certs));
+		app.http.use('/mailerid', makeMailerIdApp(
+			conf.rootFolder, conf.domain, conf.mailerId!.certs,
+			(errLogger === 'console') ? makeErrLoggerToConsole('mailerid') : errLogger
+		));
 	}
 
 	if (conf.enabledServices.asmail) {
-		app.use('/asmail',
-		makeMailApp(conf.rootFolder, conf.domain, midAuthorizer));
+		app.use('/asmail', makeMailApp(
+			conf.rootFolder, conf.domain, midAuthorizer,
+			(errLogger === 'console') ? makeErrLoggerToConsole('asmail') : errLogger
+		));
 	}
 
 	if (conf.enabledServices.storage) {
-		app.use('/3nstorage',
-			makeStoreApp(conf.rootFolder, conf.domain, midAuthorizer));
+		app.use('/3nstorage', makeStoreApp(
+			conf.rootFolder, conf.domain, midAuthorizer,
+			(errLogger === 'console') ? makeErrLoggerToConsole('storage') : errLogger
+		));
 	}
 	return app;
 }
 
-export function adminApp(conf: Configurations): AppWithWSs {
-	return new AppWithWSs(makeAdminApp(conf));
+export function adminApp(
+	conf: Configurations, errLogger?: ErrLogger|'console'
+): AppWithWSs {
+	if (errLogger === 'console') {
+		errLogger = makeErrLoggerToConsole('3NWeb server admin');
+	}
+	return new AppWithWSs(makeAdminApp(conf, errLogger));
 }
 
 Object.freeze(exports);

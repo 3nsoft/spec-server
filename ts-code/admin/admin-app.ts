@@ -17,7 +17,7 @@
 
 import * as express from 'express';
 import { json as parseJSON } from '../lib-server/middleware/body-parsers';
-import { makeErrHandler } from '../lib-server/middleware/error-handler';
+import { ErrLogger, makeErrHandler } from '../lib-server/middleware/error-handler';
 import { Factory as usersFactory, makeFactory as makeUserFactory } from './resources/users';
 import { addUser } from './routes/add';
 import { availableAddresses } from './routes/get-available-addresses';
@@ -42,7 +42,9 @@ function apiPart(users: usersFactory): express.Express {
 	return app;
 }
 
-export function makeApp(conf: Configurations): express.Express {
+export function makeApp(
+	conf: Configurations, errLogger?: ErrLogger
+): express.Express {
 	const app = express();
 	const noTokenFile = (conf.signup ? conf.signup.noTokenFile : undefined);
 	const users = makeUserFactory(conf.rootFolder, noTokenFile);
@@ -51,7 +53,7 @@ export function makeApp(conf: Configurations): express.Express {
 		app.use('/signup', apiPart(users));
 	}
 
-	app.use(makeErrHandler());
+	app.use(makeErrHandler(errLogger));
 	
 	return app;
 }

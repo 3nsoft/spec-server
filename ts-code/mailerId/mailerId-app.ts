@@ -30,7 +30,7 @@ import { makeSessionFactory, SessionsFactory } from './resources/sessions';
 import { makeFactory as makeUserFactory, Factory as userFactory } from './resources/users';
 import { makeSingleProcCertifier } from './resources/certifier';
 import { calcNaClBoxSharedKey } from './resources/compute-login-dhshared-key';
-import { makeErrHandler } from '../lib-server/middleware/error-handler';
+import { ErrLogger, makeErrHandler } from '../lib-server/middleware/error-handler';
 import * as api from '../lib-common/service-api/mailer-id/provisioning';
 
 // Constant url parts of MailerId provisioning requests
@@ -63,7 +63,8 @@ function provisioningApp(
 }
 
 export function makeApp(
-	rootFolder: string, domain: string, certFile: string
+	rootFolder: string, domain: string, certFile: string,
+	errLogger?: ErrLogger
 ): express.Express {
 
 	const app = express();
@@ -89,7 +90,7 @@ export function makeApp(
 		res.status(200).json(json);	// content type application/json
 	});
 
-	app.use(makeErrHandler());
+	app.use(makeErrHandler(errLogger));
 
 	return app;
 }

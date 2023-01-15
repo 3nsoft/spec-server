@@ -26,7 +26,7 @@ import { DeliverySessions } from './resources/delivery-sessions';
 import { makeSessionFactory } from './resources/sessions';
 import { makeFactory as makeUsersFactory } from './resources/recipients';
 import { MidAuthorizer } from '../lib-server/routes/sessions/mid-auth';
-import { makeErrHandler } from '../lib-server/middleware/error-handler';
+import { ErrLogger, makeErrHandler } from '../lib-server/middleware/error-handler';
 import { makeApp as makeConfApp } from './config';
 import { makeApp as makeDeliveryApp } from './delivery';
 import { makeApp as makeRetrievalApp } from './retrieval';
@@ -57,7 +57,8 @@ function setupStaticEntryRoute(app: Express): void {
 }
 
 export function makeApp(
-	rootFolder: string, domain: string, midAuthorizer: MidAuthorizer
+	rootFolder: string, domain: string, midAuthorizer: MidAuthorizer,
+	errLogger?: ErrLogger
 ): AppWithWSs {
 	
 	const app = new AppWithWSs();
@@ -77,12 +78,7 @@ export function makeApp(
 	app.http.use(PATHS.config, makeConfApp(domain,
 		userSettingSessions, recipients, midAuthorizer));
 	
-	app.http.use(makeErrHandler((err: any, req: any): void => {
-		if (typeof err.status !== 'number') {
-			console.error(`\n --- Error occured in asmail, when handling ${req.method} request to ${req.originalUrl}`);
-			console.error(err);
-		}
-	}));
+	app.http.use(makeErrHandler(errLogger));
 	
 	return app;
 }

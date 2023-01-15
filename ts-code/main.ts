@@ -12,14 +12,14 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /*
  * This script starts server, according to settings, given in config file.
  */
 
-import { Configurations, servicesApp, adminApp } from './services';
-import { AppWithWSs } from './lib-server/web-sockets/app';
+import { Configurations, servicesApp, adminApp, AppWithWSs } from './lib';
 import { readFileSync, writeFileSync } from 'fs';
 import { unlink, readFile, FileException } from './lib-common/async-fs-node';
 import { execSync } from 'child_process';

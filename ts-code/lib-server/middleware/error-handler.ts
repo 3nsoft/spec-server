@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016, 2020 3NSoft Inc.
+ Copyright (C) 2016, 2020, 2023 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -65,5 +65,15 @@ export function makeErrHandler(log?: ErrLogger): ErrorRequestHandler {
 		}
 	};
 }
+
+export function makeErrLoggerToConsole(srvName: string): ErrLogger {
+	return (err, req) => {
+		if (typeof err.status !== 'number') {
+			console.error(`\n --- Error occured in ${srvName}, when handling ${req.method} request to ${req.originalUrl}`);
+			console.error(err);
+		}
+	};
+}
+
 
 Object.freeze(exports);

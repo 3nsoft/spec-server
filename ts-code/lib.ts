@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2020 3NSoft Inc.
+ Copyright (C) 2020, 2023 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -15,13 +15,15 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-export import services = require('./services');
+export { AppWithWSs } from './lib-server/web-sockets/app';
 
-export import confs = require('./run-config');
+export { Configurations, servicesApp, adminApp } from './services';
 
-export import appUtils = require('./lib-server/web-sockets/app');
+export { addSingleUserSignup, getConfsFromEnv, getBindParamsFromEnv } from './run-config';
 
-export import mock = require('./mock/run-in-proc');
+export import errors = require('./lib-server/middleware/error-handler');
+
+export * as mock from './mock/run-in-proc';
 
 
 Object.freeze(exports);
