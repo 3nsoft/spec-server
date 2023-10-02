@@ -15,13 +15,11 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { Configurations } from "./services";
-import { existsFolderSync, writeFile, FileException, mkdir } from './lib-common/async-fs-node';
+import { Configurations } from "../services";
+import { existsFolderSync } from '../lib-common/async-fs-node';
 import { join } from "path";
 import { realpathSync, mkdirSync } from "fs";
 import { ServerOptions } from "https";
-import { makeSingleUserSignupCtx, generateToken, tokenPath } from "./admin/signup-tokens";
-import { tokensInRootFolder } from "./lib-server/resources/server-data-folders";
 
 const DOMAIN_VAR = 'W3N_DOMAIN';
 const DATA_DIR_VAR = 'W3N_DATA_DIR';
@@ -118,31 +116,6 @@ function getTLSParamsFromEnv(): ServerOptions|undefined {
 		return;
 	} else {
 		throw new Error(`Both ${TLS_CERT_VAR} and ${TLS_KEY_VAR} environment parameters should be present, but one is missing.`);
-	}
-}
-
-export async function addSingleUserSignup(
-	rootFolder: string, userId: string
-): Promise<string> {
-	const token = await generateToken();
-	const ctx = makeSingleUserSignupCtx(token, userId);
-	const fPath = tokenPath(rootFolder, token);
-	try {
-		await writeFile(
-			fPath, JSON.stringify(ctx), { encoding: 'utf8', flag: 'wx' });
-		return token;
-	} catch(exc) {
-		if ((exc as FileException).alreadyExists) {
-			return addSingleUserSignup(rootFolder, userId);
-		} else if ((exc as FileException).notFound) {
-			await mkdir(tokensInRootFolder(rootFolder))
-			.catch((exc: FileException) => {
-				if (!exc.alreadyExists) { throw exc; }
-			});
-			return addSingleUserSignup(rootFolder, userId);
-		} else {
-			throw exc;
-		}
 	}
 }
 

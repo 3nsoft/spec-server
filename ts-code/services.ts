@@ -39,6 +39,8 @@ export interface Configurations {
 		hostname?: string;
 		port: number;
 		sslOpts?: https.ServerOptions;
+		letsencrypt?: string;
+		skipReloadOnCertsChange?: boolean;
 	};
 	rootFolder: string;
 	domain: string;
@@ -51,7 +53,7 @@ export interface Configurations {
 }
 
 export function servicesApp(
-	conf: Configurations, errLogger?: ErrLogger|'console'
+	conf: Configurations, errLogger?: ErrLogger|'console', logSetup?: 'console'
 ): AppWithWSs {
 
 	if (!conf.enabledServices || (typeof conf.enabledServices !== 'object')) {
@@ -64,33 +66,42 @@ export function servicesApp(
 	if (conf.enabledServices.mailerId) {
 		app.http.use('/mailerid', makeMailerIdApp(
 			conf.rootFolder, conf.domain, conf.mailerId!.certs,
-			(errLogger === 'console') ? makeErrLoggerToConsole('mailerid') : errLogger
+			(errLogger === 'console') ? makeErrLoggerToConsole('MailerId') : errLogger
 		));
+		if (logSetup === 'console') {
+			console.log(`Enabled MailerId service with provider domain ${conf.domain}`);
+		}
 	}
 
 	if (conf.enabledServices.asmail) {
 		app.use('/asmail', makeMailApp(
 			conf.rootFolder, conf.domain, midAuthorizer,
-			(errLogger === 'console') ? makeErrLoggerToConsole('asmail') : errLogger
+			(errLogger === 'console') ? makeErrLoggerToConsole('ASMail') : errLogger
 		));
+		if (logSetup === 'console') {
+			console.log(`Enabled ASMail service with provider domain ${conf.domain}`);
+		}
 	}
 
 	if (conf.enabledServices.storage) {
 		app.use('/3nstorage', makeStoreApp(
 			conf.rootFolder, conf.domain, midAuthorizer,
-			(errLogger === 'console') ? makeErrLoggerToConsole('storage') : errLogger
+			(errLogger === 'console') ? makeErrLoggerToConsole('3NStorage') : errLogger
 		));
+		if (logSetup === 'console') {
+			console.log(`Enabled 3NStorage service with provider domain ${conf.domain}`);
+		}
 	}
 	return app;
 }
 
 export function adminApp(
-	conf: Configurations, errLogger?: ErrLogger|'console'
+	conf: Configurations, errLogger?: ErrLogger|'console', logSetup?: 'console'
 ): AppWithWSs {
 	if (errLogger === 'console') {
 		errLogger = makeErrLoggerToConsole('3NWeb server admin');
 	}
-	return new AppWithWSs(makeAdminApp(conf, errLogger));
+	return new AppWithWSs(makeAdminApp(conf, errLogger, logSetup));
 }
 
 Object.freeze(exports);

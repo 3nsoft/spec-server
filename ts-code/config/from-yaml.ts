@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2020, 2023 3NSoft Inc.
+ Copyright (C) 2023 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -15,16 +15,17 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-export { AppWithWSs } from './lib-server/web-sockets/app';
+import { readFileSync } from 'fs';
+import * as yaml from 'js-yaml';
+import { Configurations } from '../services';
 
-export { Configurations, servicesApp, adminApp } from './services';
 
-export { getConfsFromEnv, getBindParamsFromEnv } from './config/from-env';
-export { addSingleUserSignup } from './config/signup';
+export function readYamlConfFile(path: string): Configurations {
+	const txt = readFileSync(path, 'utf8');
+	const conf = yaml.load(txt);
 
-export import errors = require('./lib-server/middleware/error-handler');
-
-export * as mock from './mock/run-in-proc';
+	return conf;
+}
 
 
 Object.freeze(exports);

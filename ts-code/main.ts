@@ -19,71 +19,232 @@
  * This script starts server, according to settings, given in config file.
  */
 
+import { ServerOptions } from 'https';
+import { CliUsageDisplay, parseProcessArgv } from './config/cli';
+import { readYamlConfFile } from './config/from-yaml';
+import { sslOptsFromConfig } from './config/letsencrypt';
 import { Configurations, servicesApp, adminApp, AppWithWSs } from './lib';
-import { readFileSync, writeFileSync } from 'fs';
-import { unlink, readFile, FileException } from './lib-common/async-fs-node';
-import { execSync } from 'child_process';
-import { sleep } from './lib-common/processes';
+import { addMultiDomainSignup, addSingleUserSignup, readAllSignupTokens, readNoTokensFile, readTokenFile } from './config/signup';
 
-const PID_FILE = '/var/3nweb/service.pid';
-
-const confFile = process.argv[2];
-if (!confFile) {
-	console.error(`Configuration file is not given. It should be the first script argument.`);
-	process.exit(-1);
-}
-const conf: Configurations = JSON.parse(readFileSync(confFile, 'utf8'));
-
-const noop = () => {};
-
-(async () => {
+async function run(conf: Configurations): Promise<void> {
 
 	if (!conf.servicesConnect) {
-		console.error(`No connection settings found in ${confFile}.`);
+		console.error(`No connection settings found in ??.`);
 		process.exit(-1);
 		return;
 	}
 
-	try {
-		const prevPidStr = await readFile(PID_FILE, { encoding: 'utf8' });
-		const prevPid = Number.parseInt(prevPidStr);
-		if (!Number.isNaN(prevPid)) {
-			execSync(`kill -SIGTERM ${prevPid}`);
-			while (!!execSync(`ps ${prevPid} | grep ${prevPid}`)) {
-				await sleep(1000);
-			}
-			await unlink(PID_FILE).catch(noop);
-		}
-	} catch (err) {
-		if (!(err as FileException).notFound) { throw err; }
-	}
-	
 	let app: AppWithWSs|undefined = undefined;
+
+	function createApp(conf: Configurations): AppWithWSs {
+		const app = new AppWithWSs();
+		app.use(servicesApp(conf, 'console', 'console'));
+		app.use(adminApp(conf, 'console', 'console'));
+		return app;
+	}
 
 	async function stopProcess() {
 		if (!app) { return; }
-		app.stop().then(err => console.log(err));
-		app = undefined;
-		unlink(PID_FILE).catch(noop);
+		try {
+			console.log(`Stopping app ...`);
+			await app.stop();
+			console.log(`app has stopped.`);
+		} catch (err) {
+			console.log(`app encounter an error, when stopping`);
+			console.error(err);
+		} finally {
+			app = undefined;
+		}
+	}
+
+	async function startAppWithTLS(
+		sslOpts: ServerOptions, port: number, hostname: string|undefined
+	): Promise<void> {
+		await app!.start(sslOpts, port, hostname);
+		console.log(`Started 3NWeb server on port ${port},${hostname ? ` hostname ${hostname},` : ''} with TLS.`);
+	}
+
+	async function startAppWithoutTLS(
+		port: number, hostname: string|undefined
+	): Promise<void> {
+		await app!.start(undefined, port, hostname);
+		console.log(`Started 3NWeb server on port ${port},${hostname ? ` hostname ${hostname},` : ''} without TLS, and requiring TLS reverse proxy infront.`);	
 	}
 
 	try {
 
-		app = new AppWithWSs();
-		app.use(servicesApp(conf));
-		app.use(adminApp(conf));
+		app = createApp(conf);
 
-		const { hostname, port, sslOpts } = conf.servicesConnect;
-		await app.start(sslOpts, port, hostname);
-		console.log(`Started 3NWeb server at address "${hostname}", port ${port}, ${sslOpts? 'via TLS' : 'without TLS, and requiring TLS reverse proxy infront.'}`);
+		const {
+			hostname, port, letsencrypt, sslOpts, skipReloadOnCertsChange
+		} = conf.servicesConnect;
+		const tls = sslOptsFromConfig(
+			letsencrypt, sslOpts, skipReloadOnCertsChange
+		);
+		if (tls) {
+			await startAppWithTLS(tls.sslOpts, port, hostname);
+			if (!skipReloadOnCertsChange) {
+				tls.onCertsUpdate!(async (newOpts, originalOpts) => {
+					console.log(`Reloading server app server on TLS certificates change`);
+					try {
+						await stopProcess();
+						app = createApp(conf);
+						await startAppWithTLS(newOpts, port, hostname);
+					} catch (err) {
+						console.error(err);
+						console.log(`Failed to reload with new TLS certs. Attempting to load with original ones.`);
+						try {
+							await stopProcess();
+							app = createApp(conf);
+							await startAppWithTLS(originalOpts, port, hostname);
+						} catch (err) {
+							await stopProcess();
+							console.error(err);
+							process.exit(-500);					
+						}
+					}
+				});
+			}
+		} else {
+			await startAppWithoutTLS(port, hostname);
+		}
 
-		writeFileSync(PID_FILE, `${process.pid}`);
 		process.on('SIGINT', stopProcess);
 		process.on('SIGTERM', stopProcess);
 
 	} catch (err) {
-		stopProcess();
+		await stopProcess();
 		console.error(err);
 		process.exit(-500);
 	}
-})();
+}
+
+function showUsage({ txtToDisplay, exitStatus }: CliUsageDisplay): void {
+	if (exitStatus === 0) {
+		console.log(txtToDisplay);
+	} else {
+		console.error(txtToDisplay);
+	}
+	process.exit(exitStatus);
+}
+
+function assembleConfig(configPath: string): Configurations {
+	if (configPath) {
+		return readYamlConfFile(configPath);
+	} else {
+		throw new Error(`Config path must be given`);
+	}
+}
+
+async function displaySignupInfo(conf: Configurations): Promise<void> {
+	if (!conf.signup) {
+		console.log(`\nSignup is disabled.\n`);
+	} else {
+		console.log(`\nSignup is enabled.\n`);
+		if (conf.signup.noTokenFile) {
+			const ctx = await readNoTokensFile(conf.signup.noTokenFile);
+			console.log(`Signup of user without token is allowed in domains:\n`, ctx.domains, `\n`);
+		} else {
+			console.log(`Signup of users is allowed only with valid signup tokens.\n`);
+		}
+	}
+	const {
+		multiUserTokens, singleUserTokens
+	} = await readAllSignupTokens(conf.rootFolder);
+	console.log(`There are ${multiUserTokens.length} multi-user tokens.\n`);
+	console.log(`There are ${singleUserTokens.length} single-user tokens.\n`);
+}
+
+async function displayTokensList(conf: Configurations): Promise<void> {
+	const {
+		multiUserTokens, singleUserTokens
+	} = await readAllSignupTokens(conf.rootFolder);
+	if (multiUserTokens.length > 0) {
+		console.log(`\nMulti-user signup tokens:`);
+		for (const { tokenId, ctx: { domains } } of multiUserTokens) {
+			console.log(`  id: ${tokenId}  -> domains:`, domains);
+		}
+		console.log(``);
+	} else {
+		console.log(`\nThere are no multi-user signup tokens.\n`);
+	}
+	if (singleUserTokens.length > 0) {
+		console.log(`Single-user signup tokens:`);
+		for (const { tokenId, ctx: { userId } } of singleUserTokens) {
+			console.log(`  id: ${tokenId}  -> user: ${userId}`);
+		}
+		console.log(``);
+	} else {
+		console.log(`There are no single-user signup tokens.\n`);
+	}
+}
+
+async function displayTokenValue(
+	conf: Configurations, tokenId: string
+): Promise<void> {
+	const ctx = await readTokenFile(conf.rootFolder, tokenId);
+	if (!ctx) {
+		console.error(`Token ${tokenId} is not found.`);
+		process.exit(-1);
+	} else if (ctx.type === 'multi-domain') {
+		console.log(`\nMulti-user signup context:`);
+		console.log(`  domains:`, ctx.domains);
+		console.log(`  value:`, ctx.token);
+		if (ctx.validTill) {
+			console.log(`  valid till: ${(new Date(ctx.validTill)).toString()}\n`);
+		} else {
+			console.log(``);
+		}
+	} else if (ctx.type === 'single-user') {
+		console.log(`\nSingle-user signup context:`);
+		console.log(`  address:`, ctx.userId);
+		console.log(`  value:`, ctx.token);
+		if (ctx.validTill) {
+			console.log(`  valid till: ${(new Date(ctx.validTill)).toString()}\n`);
+		} else {
+			console.log(``);
+		}
+	}
+}
+
+async function createMultiUserToken(
+	conf: Configurations, domains: string[]
+): Promise<void> {
+	const token = await addMultiDomainSignup(conf.rootFolder, domains);
+	console.log (`\nToken value:\n  ${token}\n`);
+}
+
+async function createSingleUserToken(
+	conf: Configurations, userId: string
+): Promise<void> {
+	const token = await addSingleUserSignup(conf.rootFolder, userId);
+	console.log (`\nToken value:\n  ${token}\n`);
+}
+
+const cmd = parseProcessArgv();
+
+if (cmd.runCmd) {
+	const conf = assembleConfig(cmd.runCmd.config!);
+	run(conf);
+} else if (cmd.signupCmd) {
+	const conf = assembleConfig(cmd.signupCmd.config!);
+	if (cmd.signupCmd.info) {
+		displaySignupInfo(conf);
+	} else if (cmd.signupCmd.listTokens) {
+		displayTokensList(conf);
+	} else if (cmd.signupCmd.showToken) {
+		displayTokenValue(conf, cmd.signupCmd.token!);
+	} else if (cmd.signupCmd.createToken) {
+		if (cmd.signupCmd.user) {
+			createSingleUserToken(conf, cmd.signupCmd.user!);
+		} else {
+			createMultiUserToken(conf, cmd.signupCmd.domain!);
+		}
+	} else {
+		throw new Error(`CLI parser failed to capture invalid command`);
+	}
+} else if (cmd.showUsage) {
+	showUsage(cmd.showUsage);
+} else {
+	throw new Error(`CLI parser failed to trigger useful action`);
+}

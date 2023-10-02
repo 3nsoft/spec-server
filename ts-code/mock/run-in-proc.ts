@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2020 3NSoft Inc.
+ Copyright (C) 2020, 2023 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -39,9 +39,12 @@ export function setTestCertsAndDNS(
 	const dnsRecs: DnsTxtRecords = {};
 	for (const domain of domains) {
 		dnsRecs[domain] = [
-			[ 'asmail', '=', `${thisSrvLoc}/asmail` ],	// DNS txt with spaces
-			[ 'mailerid=', `${thisSrvLoc}/mailerid` ],	// DNS txt with space
-			[ `3nstorage=${thisSrvLoc}/3nstorage` ]	// DNS txt without spaces
+			[ 'asmail', '=', `${thisSrvLoc}/asmail` ],	// one record in DNS TXT
+			[
+				'mailerid=', `${thisSrvLoc}/mailerid`,
+				`3nstorage=${thisSrvLoc}/3nstorage`
+			]	// two 3NWeb records in one DNS TXT record
+			// XXX add other life-like records
 		];
 	}
 	const dnsMock = new DNSMock(dnsRecs);

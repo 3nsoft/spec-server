@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2023 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -43,19 +43,61 @@ interface DnsError extends Error {
  * value from TXT record.
  * @return string value for a given service among given dns TXT records.  
  */
-function extractPair(txtRecords: string[][], serviceLabel: string):
-		string|undefined {
+function extractPair(
+	txtRecords: string[][], serviceLabel: ServiceLabel
+): string|undefined {
 	for (const txtRecord of txtRecords) {
-		const txt = txtRecord.join(' ');
-		const eqPos = txt.indexOf('=');
-		if (eqPos < 0) { continue; }
-		const name = txt.substring(0, eqPos).trim();
-		if (name === serviceLabel) {
-			const value = txt.substring(eqPos+1).trim();
-			return value;
+		let joinedTXTstanzas = txtRecord.join('');
+		let record = getRecordAtStartOf(joinedTXTstanzas);
+		while (record) {
+			if (record.service === serviceLabel) {
+				const value = record.value.trim();
+				if (value.length > 0) {
+					return value;
+				}
+			}
+			if (record.txtTail) {
+				record = getRecordAtStartOf(record.txtTail);
+			} else {
+				break;
+			}
 		}
 	}
 	return;
+}
+
+const recordsStarts: { [key in ServiceLabel]: string; } = {
+	"3nstorage": '3nstorage=',
+	asmail: 'asmail=',
+	mailerid: 'mailerid='
+}
+
+function getRecordAtStartOf(txt: string): {
+	service: ServiceLabel; value: string; txtTail?: string;
+}|undefined {
+	let service: ServiceLabel|undefined = undefined;
+	for (const [ label, startSeq ] of Object.entries(recordsStarts)) {
+		if (txt.startsWith(startSeq)) {
+			service = label as ServiceLabel;
+			txt = txt.substring(startSeq.length);
+			break;
+		}
+	}
+	if (!service) { return; }
+	for (const delimiter of Object.values(recordsStarts)) {
+		const endPos = txt.indexOf(delimiter);
+		if (endPos >= 0) {
+			return {
+				service,
+				value: txt.substring(0, endPos),
+				txtTail: txt.substring(endPos)
+			};
+		}
+	}
+	return {
+		service,
+		value: txt
+	};
 }
 
 export type ServiceLabel = 'asmail' | 'mailerid' | '3nstorage';

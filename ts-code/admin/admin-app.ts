@@ -43,7 +43,7 @@ function apiPart(users: usersFactory): express.Express {
 }
 
 export function makeApp(
-	conf: Configurations, errLogger?: ErrLogger
+	conf: Configurations, errLogger?: ErrLogger, logSetup?: 'console'
 ): express.Express {
 	const app = express();
 	const noTokenFile = (conf.signup ? conf.signup.noTokenFile : undefined);
@@ -51,6 +51,9 @@ export function makeApp(
 
 	if (conf.signup) {
 		app.use('/signup', apiPart(users));
+		if (logSetup === 'console') {
+			console.log(`Enabled signup service.`);
+		}
 	}
 
 	app.use(makeErrHandler(errLogger));

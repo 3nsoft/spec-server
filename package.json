@@ -1,6 +1,6 @@
 {
   "name": "spec-3nweb-server",
-  "version": "1.6.4",
+  "version": "1.7.0",
   "description": "3NWeb spec server.",
   "main": "build/lib.js",
   "types": "build/lib.d.ts",
@@ -9,7 +9,9 @@
     "test": "node build/tests/jasmine.js",
     "clear-for-packing": "npm prune --production && bash -c \"rm -rf build/mock build/tests 'node_modules/ecma-nacl/c sources'\"",
     "clear-for-packing-mock": "npm prune --production && bash -c \"rm -rf build/tests 'node_modules/ecma-nacl/c sources'\"",
-    "pack-deb": "npm run clear-for-packing && bash packing/deb/create-bin.sh"
+    "pack": "pkg --config package.json build/main.js",
+    "pack-deb": "npm run pack && bash packing/deb/create-bin.sh",
+    "postinstall": "node -e \"try{require('./postinstall')}catch(e){}\""
   },
   "repository": {
     "type": "git",
@@ -29,8 +31,12 @@
   },
   "license": "GPL-3.0",
   "dependencies": {
+    "command-line-args": "^5.2.1",
+    "command-line-usage": "^7.0.1",
     "ecma-nacl": "^2.4.0",
     "express": "^4.18.0",
+    "js-yaml": "^4.1.0",
+    "prompts": "^2.4.2",
     "punycode": "^2.1.1",
     "ws": "^7.4.6",
     "xsp-files": "^2.0.0"
@@ -41,9 +47,16 @@
     "@types/node": "^16.11.7",
     "@types/ws": "^4.0.0",
     "jasmine": "^3.9.0",
+    "pkg": "^5.8.1",
     "rxjs": "^5.3.0",
     "typescript": "^4.7.4",
     "xhr2": "^0.1.3"
+  },
+  "pkg": {
+    "targets": [
+      "node18-linux-x64"
+    ],
+    "outputPath": "dist"
   },
   "readmeFilename": "README.md"
 }

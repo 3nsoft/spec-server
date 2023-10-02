@@ -1,5 +1,4 @@
 
-
 # Spec Server
 
 This repository contains 3NWeb protocols' specification test suite and a single-machine server implementation, conforming to spec's suite.

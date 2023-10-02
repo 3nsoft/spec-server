@@ -51,8 +51,10 @@ export interface DnsTxtRecords {
 
 export class DNSMock {
 
-	resolveTxt: (domain: string,
-		callback: (err: Error, txt: string[][]) =>void ) => void;
+	resolveTxt: (
+		domain: string,
+		callback: (err: Error, txt: string[][]) =>void
+	) => void;
 	
 	private domains = new Map<string, string[][]>();
 	private mailerIdRec: string;
@@ -76,8 +78,10 @@ export class DNSMock {
 		Object.freeze(this);
 	}
 	
-	private mockResolve(domain: string,
-			callback: (err: Error|null, txt: string[][]|null) => void): void {
+	private mockResolve(
+		domain: string,
+		callback: (err: Error|null, txt: string[][]|null) => void
+	): void {
 		const d = domainOfAddress(domain);
 		const txt = this.domains.get(d);
 		if (txt) {

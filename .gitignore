@@ -3,6 +3,7 @@
 /build/
 /.idea/
 /.vscode/
+/test/
 /test-data/
 /mock-data/
 /npm-debug.log

@@ -17,7 +17,7 @@
 
 import { Component } from './component';
 import { resolve as resolveUrl } from 'url';
-import { addSingleUserSignup } from '../../../run-config';
+import { addSingleUserSignup } from '../../../lib';
 
 export class AdminComponent extends Component {
 	
