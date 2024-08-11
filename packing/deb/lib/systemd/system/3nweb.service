@@ -4,8 +4,8 @@ After=network.target
 
 [Service]
 Type=forking
-ExecStart=/usr/bin/3nweb-start
-ExecStop=/usr/bin/3nweb-stop
+# systemd will capture
+ExecStart=sh -c "/usr/bin/3nweb run --config /etc/3nweb/conf.yaml & "
 
 [Install]
 WantedBy=multi-user.target

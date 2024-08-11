@@ -1,6 +1,0 @@
-#!/bin/sh
-
-CONF=/etc/3nweb/services.json
-JS_MAIN=/usr/share/3nweb/build/main.js
-
-node $JS_MAIN $CONF &

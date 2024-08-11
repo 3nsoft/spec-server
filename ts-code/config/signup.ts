@@ -131,4 +131,7 @@ export async function readAllSignupTokens(rootFolder: string): Promise<{
 }
 
 
+// XXX external qrencode command can be used to display QR code
+
+
 Object.freeze(exports);

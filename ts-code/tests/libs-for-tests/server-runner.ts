@@ -18,6 +18,7 @@
 import * as https from "https";
 import { sslOpts } from '../../mock/tls-options';
 import { AppWithWSs } from '../../lib-server/web-sockets/app';
+import { sleep } from "../../lib-common/processes";
 
 // allow client test calls to trust above self-signed cert
 https.globalAgent.options.ca = sslOpts.cert;
@@ -47,6 +48,7 @@ export abstract class ServerRunner {
 		this.state = 'starting';
 		this.app = await this.prepToRun();
 		await this.app.start(sslOpts, this.servicePort);
+		await sleep(100);
 		this.state = 'running';
 	}
 	

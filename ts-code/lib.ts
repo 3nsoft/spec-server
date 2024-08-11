@@ -19,7 +19,6 @@ export { AppWithWSs } from './lib-server/web-sockets/app';
 
 export { Configurations, servicesApp, adminApp } from './services';
 
-export { getConfsFromEnv, getBindParamsFromEnv } from './config/from-env';
 export { addSingleUserSignup } from './config/signup';
 
 export import errors = require('./lib-server/middleware/error-handler');

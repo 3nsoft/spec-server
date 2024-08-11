@@ -1,6 +1,6 @@
 {
   "name": "spec-3nweb-server",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "3NWeb spec server.",
   "main": "build/lib.js",
   "types": "build/lib.d.ts",
@@ -10,7 +10,7 @@
     "clear-for-packing": "npm prune --production && bash -c \"rm -rf build/mock build/tests 'node_modules/ecma-nacl/c sources'\"",
     "clear-for-packing-mock": "npm prune --production && bash -c \"rm -rf build/tests 'node_modules/ecma-nacl/c sources'\"",
     "pack": "pkg --config package.json build/main.js",
-    "pack-deb": "npm run pack && bash packing/deb/create-bin.sh",
+    "pack-deb": "npm run pack && bash packing/create-deb.sh",
     "postinstall": "node -e \"try{require('./postinstall')}catch(e){}\""
   },
   "repository": {
@@ -34,7 +34,7 @@
     "command-line-args": "^5.2.1",
     "command-line-usage": "^7.0.1",
     "ecma-nacl": "^2.4.0",
-    "express": "^4.18.0",
+    "express": "^4.19.2",
     "js-yaml": "^4.1.0",
     "prompts": "^2.4.2",
     "punycode": "^2.1.1",

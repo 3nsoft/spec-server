@@ -1,6 +1,7 @@
 /node_modules/
 /dist/
 /build/
+/deb-bin/
 /.idea/
 /.vscode/
 /test/

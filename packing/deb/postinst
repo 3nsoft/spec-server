@@ -1,10 +1,36 @@
 #!/bin/sh
 
 var_dir=/var/3nweb
+bin_link=/usr/bin/3nweb
+lib_bin=/usr/lib/3nweb/spec-3nweb-server
 
-if [ ! -d var_dir ]
+if [ ! -d $var_dir ]
 then
-	mkdir -p var_dir
+	mkdir -p $var_dir
+fi
+
+if [ ! -e $bin_link ]
+then 
+   ln -s $lib_bin $bin_link
+fi
+
+etc=/etc/3nweb
+etc_conf=$etc/conf.yaml
+conf_template=/usr/share/doc/3nweb-server/conf-for-postinstall.yaml
+etc_mid=$etc/mailerid
+
+if [ ! -e $etc_conf ]
+then
+   echo "Writing out template configuration into $etc"
+   mkdir -p $etc_mid
+   cat $conf_template > $etc_conf
+fi
+
+if [ -n "$(which systemctl)" ]
+then
+   echo "Reloading systemd daemon and enabling 3nweb service."
+   systemctl daemon-reload
+   systemctl enable 3nweb
 fi
 
 echo "
@@ -12,9 +38,7 @@ echo "
    #   3NWeb server   #
    ####################
 
-1. Set configurations of 3NWeb services in /etc/3nweb/services.json
+1. Customize 3NWeb settings in $etc_conf
 
 2. Start systemd service \"sudo systemctl start 3nweb\"
-
 "
-

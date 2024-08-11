@@ -1,0 +1,19 @@
+enabledServices:
+  asmail: true
+  storage: true
+  mailerId: true
+
+rootFolder: /var/3nweb
+
+# Customize domain at which clients reach this server from an outside.
+# domain: example.com
+
+mailerId:
+  certs: /etc/3nweb/mailerid/certs
+
+# Customize servicesConnect before starting this server
+# servicesConnect:
+#   port: 443
+#   letsencrypt: /etc/letsencrypt/live/example.com
+
+signup: {}
