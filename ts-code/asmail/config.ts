@@ -56,7 +56,7 @@ export function makeApp(
 	app.route('/'+api.p.anonSenderPolicy.URL_END)
 	.get(getParam(recipients.getAnonSenderInvites))
 	.put(parseJSON('40kb', true),
-		setParam(recipients.setAnonSenderInvites)
+		setParam(recipients.setAnonSenderPolicy)
 	);
 
 	app.route('/'+api.p.anonSenderInvites.URL_END)
