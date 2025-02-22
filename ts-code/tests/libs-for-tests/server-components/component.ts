@@ -18,12 +18,12 @@
 import { ServerRunner } from '../server-runner';
 import { mkdir, rmDirWithContent, writeFile } from '../../../lib-common/async-fs-node';
 import { FileException } from '../../../lib-common/exceptions/file';
-import { adminApp as makeAdminApp, Configurations, servicesApp as makeServicesApp } from '../../../services';
+import { accountsApp as makeAdminApp, Configurations, servicesApp as makeServicesApp } from '../../../services';
 import { DNSMock } from '../../../mock/dns';
 import * as dns from 'dns';
 import { AppWithWSs } from '../../../lib-server/web-sockets/app';
 import { join } from 'path';
-import { makeMultiDomainSignupCtx } from '../../../admin/signup-tokens';
+import { makeMultiDomainSignupCtx } from '../../../signup/signup-tokens';
 
 const DEFAULT_SERVICE_PORT = 8088;
 const DEFAULT_DATA_FOLDER = join(__dirname, '/../../../../test-data');

@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 3NSoft Inc.
+ Copyright (C) 2016, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -41,20 +41,20 @@ export function midLoginSpecs(
 			// request with known user id
 			let req: startSession.Request = { userId: user().id };
 			let rep = await doJsonRequest<startSession.Reply>(reqOpts, req);
-			expect(rep.status).toBe(startSession.SC.ok, 'status for ok reply');
+			expect(rep.status).withContext('status for ok reply').toBe(startSession.SC.ok);
 			expect(typeof rep.data).toBe('object');
-			expect(typeof rep.data.sessionId).toBe('string', 'session id be in reply');
+			expect(typeof rep.data.sessionId).withContext('session id be in reply').toBe('string');
 			
 			// duplicating request, with session id now in a header
 			reqOpts.sessionId = rep.data.sessionId;
 			rep = await doJsonRequest<startSession.Reply>(reqOpts, req);
-			expect(rep.status).toBe(ERR_SC.duplicate, 'reaction to duplicate request');
+			expect(rep.status).withContext('reaction to duplicate request').toBe(ERR_SC.duplicate);
 			delete reqOpts.sessionId;
 			
 			// when user id is unknown
 			req = { userId: 'unknown user @some.domain' };
 			rep = await doJsonRequest<startSession.Reply>(reqOpts, req);
-			expect(rep.status).toBe(startSession.SC.unknownUser, 'status code for an unknown user id');
+			expect(rep.status).withContext('status code for an unknown user id').toBe(startSession.SC.unknownUser);
 			
 			// requests with bad json's
 			const badIds = [ '', ' ', '\t', '\n',	// equivalent to empty string
@@ -97,17 +97,17 @@ export function midLoginSpecs(
 			};
 			
 			let rep = await doJsonRequest<void>(reqOpts, req);
-			expect(rep.status).toBe(authSession.SC.ok, 'status for ok reply');
+			expect(rep.status).withContext('status for ok reply').toBe(authSession.SC.ok);
 			
 			// repeating request is not ok
 			rep = await doJsonRequest<void>(reqOpts, req);
-			expect(rep.status).toBe(ERR_SC.duplicate, 'reaction to duplicate request');
+			expect(rep.status).withContext('reaction to duplicate request').toBe(ERR_SC.duplicate);
 			
 			// wrong assertion is from a different session
 			sessionId = await startMidSession(url, user().id);
 			reqOpts.sessionId = sessionId;
 			rep = await doJsonRequest<void>(reqOpts, req);
-			expect(rep.status).toBe(authSession.SC.authFailed, 'status for autherization failure');
+			expect(rep.status).withContext('status for autherization failure').toBe(authSession.SC.authFailed);
 			
 			// wrong domain in assertion
 			sessionId = await startMidSession(url, user().id);
@@ -115,7 +115,7 @@ export function midLoginSpecs(
 			req.assertion = midSigner.generateAssertionFor(
 				'other.domain', sessionId);
 			rep = await doJsonRequest<void>(reqOpts, req);
-			expect(rep.status).toBe(authSession.SC.authFailed, 'status for autherization failure');
+			expect(rep.status).withContext('status for autherization failure').toBe(authSession.SC.authFailed);
 			
 			// fake certs
 			const fakeRoot = mid.idProvider.generateRootKey(
@@ -135,7 +135,7 @@ export function midLoginSpecs(
 				serviceDomain, sessionId);
 			req.userCert = fakeUserCert;	// keep unrelated provCert
 			rep = await doJsonRequest<void>(reqOpts, req);
-			expect(rep.status).toBe(authSession.SC.authFailed, 'status for autherization failure');
+			expect(rep.status).withContext('status for autherization failure').toBe(authSession.SC.authFailed);
 			sessionId = await startMidSession(url, user().id);
 			reqOpts.sessionId = sessionId;
 			req.assertion = midSigner.generateAssertionFor(
@@ -143,7 +143,7 @@ export function midLoginSpecs(
 			req.provCert = fakeProvider.cert;
 			req.userCert = fakeUserCert;
 			rep = await doJsonRequest<void>(reqOpts, req);
-			expect(rep.status).toBe(authSession.SC.authFailed, 'status for autherization failure');
+			expect(rep.status).withContext('status for autherization failure').toBe(authSession.SC.authFailed);
 			
 			// bad json
 			const REQ_SIZE_LIMIT = 4*1024;

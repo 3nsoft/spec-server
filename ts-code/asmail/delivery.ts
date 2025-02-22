@@ -15,21 +15,10 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-/**
- * This module gives a function that creates a mountable, or app.use()-able,
- * express ASMail application.
- */
-
 import * as express from 'express';
-
-// Internal libs
 import { json as parseJSON, emptyBody } from '../lib-server/middleware/body-parsers';
-
-// Resource/Data modules
 import { SessionsFactory } from './resources/delivery-sessions';
-import { Factory as recipFactory } from './resources/recipients';
-
-// Modules for ASMail delivery protocol
+import { Factory as RecipFactory } from './resources/recipients';
 import { startSession } from './routes/delivery/start-session';
 import { preFlight } from './routes/delivery/pre-flight';
 import { restartSession } from './routes/delivery/restart-session';
@@ -44,51 +33,62 @@ import * as api from '../lib-common/service-api/asmail/delivery';
 const MAX_CHUNK_SIZE = '0.5mb';
 
 export function makeApp(
-	domain: string, sessions: SessionsFactory, recipients: recipFactory,
+	domain: string, sessions: SessionsFactory, recipients: RecipFactory,
 	midAuthorizer: IMidAuthorizer
 ): express.Express {
-	
+
 	const app = express();
 	app.disable('etag');
-	
+
 	app.post('/'+api.sessionStart.URL_END,
-			sessions.checkSession(),
-			parseJSON('1kb'),
-			startSession(recipients.allowedMaxMsgSize, sessions.generate));
-	
+		sessions.checkSession(),
+		parseJSON('1kb'),
+		startSession(recipients.allowedMaxMsgSize, sessions.generate)
+	);
+
 	app.post('/'+api.preFlight.URL_END,
-			sessions.checkSession(),
-			parseJSON('1kb'),
-			preFlight(recipients.allowedMaxMsgSize));
-	
+		sessions.checkSession(),
+		parseJSON('1kb'),
+		preFlight(recipients.allowedMaxMsgSize)
+	);
+
 	app.post('/'+api.sessionRestart.URL_END,
-			sessions.checkSession(),
-			parseJSON('1kb'),
-			restartSession(sessions.generate, sessions.getSessionForMsg,
-				recipients.incompleteMsgDeliveryParams, MAX_CHUNK_SIZE));
-	
+		sessions.checkSession(),
+		parseJSON('1kb'),
+		restartSession(
+			sessions.generate, sessions.getSessionForMsg,
+			recipients.incompleteMsgDeliveryParams, MAX_CHUNK_SIZE
+		)
+	);
+
 	app.post('/'+api.authSender.URL_END,
-			sessions.ensureOpenedSession(),
-			parseJSON('4kb'),
-			authorize(domain, midAuthorizer));
-	
+		sessions.ensureOpenedSession(),
+		parseJSON('4kb'),
+		authorize(domain, midAuthorizer)
+	);
+
 	// *** Require authorized session for everything below ***
 	app.use(sessions.ensureAuthorizedSession());
-	
+
 	app.get('/'+api.initPubKey.URL_END,
-			getRecipientPubKey(recipients.getPubKey));
-	
+		getRecipientPubKey(recipients.getPubKey)
+	);
+
 	app.put('/'+api.msgMeta.URL_END,
-			parseJSON('16kb'),
-			saveMetadata(recipients.setMsgStorage, MAX_CHUNK_SIZE));
-	
+		parseJSON('16kb'),
+		saveMetadata(recipients.setMsgStorage, MAX_CHUNK_SIZE)
+	);
+
 	app.put('/'+api.msgObj.EXPRESS_URL_END,
-			saveMsgObj(recipients.saveObj, MAX_CHUNK_SIZE));
-	
+		saveMsgObj(recipients.saveObj, MAX_CHUNK_SIZE)
+	);
+
 	app.post('/'+api.completion.URL_END,
-			emptyBody(),
-			finalizeDelivery(recipients.finalizeDelivery));
-	
+		emptyBody(),
+		finalizeDelivery(recipients.finalizeDelivery)
+	);
+
 	return app;
 }
+
 Object.freeze(exports);

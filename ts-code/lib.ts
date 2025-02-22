@@ -17,7 +17,7 @@
 
 export { AppWithWSs } from './lib-server/web-sockets/app';
 
-export { Configurations, servicesApp, adminApp } from './services';
+export { Configurations, servicesApp, accountsApp } from './services';
 
 export { addSingleUserSignup } from './config/signup';
 

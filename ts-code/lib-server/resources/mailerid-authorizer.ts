@@ -12,7 +12,8 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 import * as https from 'https';
 import { SignedLoad, getKeyCert, getPrincipalAddress } from '../../lib-common/jwkeys';
@@ -64,18 +65,17 @@ function getRootCert(serviceURL: string): Promise<SignedLoad> {
 //		(this will speed things up)
 
 export function validator(): MidAuthorizer {
-	return (rpDomain: string, sessionId: string, userId: string,
-			assertion: SignedLoad, userCert: SignedLoad, provCert: SignedLoad):
-			Promise<boolean> => {
-		return validate(rpDomain, sessionId, userId, assertion,
-			userCert, provCert);
-	};
+	return (
+		rpDomain, sessionId, userId, assertion, userCert, provCert
+	) => validate(
+		rpDomain, sessionId, userId, assertion, userCert, provCert
+	);
 }
 
-async function validate(rpDomain: string, sessionId: string,
-		userId: string, assertion: SignedLoad, userCert: SignedLoad,
-		provCert: SignedLoad):
-		Promise<boolean> {
+async function validate(
+	rpDomain: string, sessionId: string, userId: string,
+	assertion: SignedLoad, userCert: SignedLoad, provCert: SignedLoad
+): Promise<boolean> {
 	const validAt = Date.now() / 1000;
 	try{
 		// check that certificate is for the user
@@ -91,11 +91,13 @@ async function validate(rpDomain: string, sessionId: string,
 		
 		// get root certificate and check the whole chain
 		const rootCert = await getRootCert(serviceURL);
-		const assertInfo = mid.relyingParty.verifyAssertion(assertion,
+		const assertInfo = mid.relyingParty.verifyAssertion(
+			assertion,
 			{ user: userCert, prov: provCert, root: rootCert },
-			issuer, validAt);
-		if ((assertInfo.relyingPartyDomain === rpDomain) &&
-				(assertInfo.sessionId === sessionId)) {
+			issuer, validAt
+		);
+		if ((assertInfo.relyingPartyDomain === rpDomain)
+		&& (assertInfo.sessionId === sessionId)) {
 			return true;
 		} else {
 			return false;

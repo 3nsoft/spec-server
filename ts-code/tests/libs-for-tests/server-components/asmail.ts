@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 - 2017, 2019 - 2020 3NSoft Inc.
+ Copyright (C) 2016 - 2017, 2019 - 2020, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -108,25 +108,25 @@ export class ASMailComponent extends Component {
 
 		// check meta
 		if (msg.cryptoMeta.pid) {
-			expect(extMeta.pid).toBe(msg.cryptoMeta.pid, 'correct key-pair id in meta');
+			expect(extMeta.pid).withContext('correct key-pair id in meta').toBe(msg.cryptoMeta.pid);
 		}
 		if (msg.cryptoMeta.recipientKid) {
-			expect(extMeta.recipientKid).toBe(msg.cryptoMeta.recipientKid, 'correct recipient key id in meta');
+			expect(extMeta.recipientKid).withContext('correct recipient key id in meta').toBe(msg.cryptoMeta.recipientKid);
 		}
 		if (msg.cryptoMeta.senderPKey) {
-			expect(extMeta.senderPKey).toBe(msg.cryptoMeta.senderPKey, 'correct sender\'s public key');
+			expect(extMeta.senderPKey).withContext('correct sender\'s public key').toBe(msg.cryptoMeta.senderPKey);
 		}
-		expect(extMeta.objIds.length).toBe(msg.msgObjs.length, 'correct number of message objects in meta');
-		expect(Object.keys(meta.objs).length).toBe(msg.msgObjs.length, 'correct number of message object sizes in meta');
+		expect(extMeta.objIds.length).withContext('correct number of message objects in meta').toBe(msg.msgObjs.length);
+		expect(Object.keys(meta.objs).length).withContext('correct number of message object sizes in meta').toBe(msg.msgObjs.length);
 		
 		for (let i=0; i < msg.msgObjs.length; i+=1) {
 			// check meta info for each object
 			let obj = msg.msgObjs[i];
 			let objId = obj.objId!;
 			expect(extMeta.objIds[i]).toBe(objId);
-			expect(meta.objs[objId].size.header).toBe(obj.header.length, 'header length of a message object');
-			expect(meta.objs[objId].size.segments).toBe(obj.segs.length, 'segments length of a message object');
-			expect(meta.objs[objId].completed).toBe(true, 'completness flag of a message object');
+			expect(meta.objs[objId].size.header).withContext('header length of a message object').toBe(obj.header.length);
+			expect(meta.objs[objId].size.segments).withContext('segments length of a message object').toBe(obj.segs.length);
+			expect(meta.objs[objId].completed).withContext('completness flag of a message object').toBe(true);
 
 			// check object file
 			const filePath = join(msgFolder, objId);

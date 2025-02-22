@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 - 2017 3NSoft Inc.
+ Copyright (C) 2016 - 2017, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -34,23 +34,23 @@ export const specs: SpecDescribe = {
 function checkReplyExpectation(rep: Reply<Uint8Array>, obj: Obj,
 		headerPresent: boolean, expectedSegsBytes: Uint8Array): void {
 	// status
-	expect(rep.status).toBe(api.SC.ok, 'status for returned bytes');
+	expect(rep.status).withContext('status for returned bytes').toBe(api.SC.ok);
 
 	// object's header length http header
 	const headerLen = obj.header.length;
 	if (headerPresent) {
-		expect(parseInt(rep.headers!.get(HTTP_HEADER.objHeaderLength)!)).toBe(headerLen, 'object header size must be given in the reply header');
+		expect(parseInt(rep.headers!.get(HTTP_HEADER.objHeaderLength)!)).withContext('object header size must be given in the reply header').toBe(headerLen);
 	}
 
 	// segments length header
-	expect(parseInt(rep.headers!.get(HTTP_HEADER.objSegmentsLength)!)).toBe(obj.segs.length, 'object segments size must be given in the reply header');
+	expect(parseInt(rep.headers!.get(HTTP_HEADER.objSegmentsLength)!)).withContext('object segments size must be given in the reply header').toBe(obj.segs.length);
 
 	// check body
 	if (headerPresent) {
-		expect(bytesEqual(rep.data.subarray(0, headerLen), obj.header)).toBe(true, 'reply should have header bytes at the front');
-		expect(bytesEqual(rep.data.subarray(headerLen), expectedSegsBytes)).toBe(true, 'reply should have proper segments bytes, following header bytes');
+		expect(bytesEqual(rep.data.subarray(0, headerLen), obj.header)).withContext('reply should have header bytes at the front').toBe(true);
+		expect(bytesEqual(rep.data.subarray(headerLen), expectedSegsBytes)).withContext('reply should have proper segments bytes, following header bytes').toBe(true);
 	} else {
-		expect(bytesEqual(rep.data, expectedSegsBytes)).toBe(true, 'reply should have proper segments bytes');
+		expect(bytesEqual(rep.data, expectedSegsBytes)).withContext('reply should have proper segments bytes').toBe(true);
 	}
 }
 

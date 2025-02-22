@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2019 3NSoft Inc.
+ Copyright (C) 2017, 2019, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -91,7 +91,7 @@ fuzzingSpec.definition = (setup: () => TestSetup) => (() => {
 		opts.url = resolveUrl(user.storageOwnerUrl, api.secondPutReqUrlEnd(
 			{ trans, ofs: 0 }));
 		const rep = await doBinaryRequest<any>(opts, objV1.segs);
-		expect(rep.status).toBe(api.SC.unknownTransaction, 'status for unknown transaction');
+		expect(rep.status).withContext('status for unknown transaction').toBe(api.SC.unknownTransaction);
 	});
 
 	itAsync('fails write for incorrect version', async () => {
@@ -148,7 +148,7 @@ specsForNonDiffSending.definition = (setup: () => TestSetup) => (() => {
 	beforeEachAsync(() => setupSession(setup));
 
 	itAsync(`writes whole object in one request`, async () => {
-		expect(await storageServer.currentRootObjExists(user.id)).toBeFalsy('initially, there is no object');
+		expect(await storageServer.currentRootObjExists(user.id)).withContext('initially, there is no object').toBeFalsy();
 
 		// create object
 		const opts = copy(fstReqOpts);
@@ -157,9 +157,9 @@ specsForNonDiffSending.definition = (setup: () => TestSetup) => (() => {
 		}));
 		let rep = await doBinaryRequest<api.ReplyToPut>(
 			opts, [ objV1.header, objV1.segs ]);
-		expect(rep.status).toBe(api.SC.okPut, 'status for successful writing of segments bytes');
+		expect(rep.status).withContext('status for successful writing of segments bytes').toBe(api.SC.okPut);
 		expect(rep.data.transactionId).toBeUndefined();
-		expect(await storageServer.currentRootObjExists(user.id, objV1.version, objV1)).toBeTruthy('first version of object is present on the server');
+		expect(await storageServer.currentRootObjExists(user.id, objV1.version, objV1)).withContext('first version of object is present on the server').toBeTruthy();
 
 		// upload object's next version
 		opts.url = resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd({
@@ -167,21 +167,21 @@ specsForNonDiffSending.definition = (setup: () => TestSetup) => (() => {
 		}));
 		rep = await doBinaryRequest<api.ReplyToPut>(
 			opts, [ objV2.header, objV2.segs ]);
-		expect(rep.status).toBe(api.SC.okPut, 'status for successful writing of segments bytes');
+		expect(rep.status).withContext('status for successful writing of segments bytes').toBe(api.SC.okPut);
 		expect(rep.data.transactionId).toBeUndefined();
-		expect(await storageServer.currentRootObjExists(user.id, objV2.version, objV2)).toBeTruthy('second version of object is present on the server');
+		expect(await storageServer.currentRootObjExists(user.id, objV2.version, objV2)).withContext('second version of object is present on the server').toBeTruthy();
 		expect(await storageServer.rootTransactionExists(user.id)).toBeFalsy();
 
 		// returns current version, when trying to upload incorrect version,
 		// like uploading existing version, or smaller
 		const errRep = await doBinaryRequest<api.MismatchedObjVerReply>(opts, [ objV2.header, objV2.segs ]);
-		expect(errRep.status).toBe(api.SC.mismatchedObjVer, 'status for mismatched upload version');
-		expect(errRep.data.current_version).toBe(objV2.version, 'current object version on server');
+		expect(errRep.status).withContext('status for mismatched upload version').toBe(api.SC.mismatchedObjVer);
+		expect(errRep.data.current_version).withContext('current object version on server').toBe(objV2.version);
 
 	});
 
 	itAsync(`writes object in several requests`, async () => {
-		expect(await storageServer.currentRootObjExists(user.id)).toBeFalsy('initially, there is no object');
+		expect(await storageServer.currentRootObjExists(user.id)).withContext('initially, there is no object').toBeFalsy();
 
 		// first request, to start transmission
 		const opts = copy(fstReqOpts);
@@ -189,11 +189,11 @@ specsForNonDiffSending.definition = (setup: () => TestSetup) => (() => {
 			ver: objV1.version, header: objV1.header.length
 		}));
 		let rep = await doBinaryRequest<api.ReplyToPut>(opts, objV1.header);
-		expect(rep.status).toBe(api.SC.okPut, 'status for successful writing of segments bytes');
+		expect(rep.status).withContext('status for successful writing of segments bytes').toBe(api.SC.okPut);
 		expect(typeof rep.data.transactionId).toBe('string');
 		let transactionId = rep.data.transactionId!;
-		expect(await storageServer.rootTransactionExists(user.id, transactionId)).toBeTruthy(`transaction should be open, cause not all bytes have been sent in the first request`);
-		expect(await storageServer.currentRootObjExists(user.id, objV1.version)).toBeFalsy('upload is not complete, as transaction is not closed');
+		expect(await storageServer.rootTransactionExists(user.id, transactionId)).withContext(`transaction should be open, cause not all bytes have been sent in the first request`).toBeTruthy();
+		expect(await storageServer.currentRootObjExists(user.id, objV1.version)).withContext('upload is not complete, as transaction is not closed').toBeFalsy();
 
 		// following requests
 		for (let offset=0; offset<objV1.segs.length; offset+=512) {
@@ -203,18 +203,18 @@ specsForNonDiffSending.definition = (setup: () => TestSetup) => (() => {
 					{ trans: transactionId, ofs: offset, last: true }));
 				const chunk = objV1.segs.subarray(offset, offset + 512);
 				const rep = await doBinaryRequest<api.ReplyToPut>(opts, chunk);
-				expect(rep.status).toBe(api.SC.okPut, 'status for successful writing of segments bytes');
+				expect(rep.status).withContext('status for successful writing of segments bytes').toBe(api.SC.okPut);
 				expect(rep.data.transactionId).toBeUndefined();
 			} else {
 				opts.url = resolveUrl(user.storageOwnerUrl, api.secondPutReqUrlEnd(
 					{ trans: transactionId, ofs: offset }));
 				const chunk = objV1.segs.subarray(offset, offset + 512);
 				const rep = await doBinaryRequest<api.ReplyToPut>(opts, chunk);
-				expect(rep.status).toBe(api.SC.okPut, 'status for successful writing of segments bytes');
+				expect(rep.status).withContext('status for successful writing of segments bytes').toBe(api.SC.okPut);
 				expect(rep.data.transactionId).toBe(transactionId);
 			}
 		}
-		expect(await storageServer.currentRootObjExists(user.id, objV1.version, objV1)).toBeTruthy('first version of object is present on the server');
+		expect(await storageServer.currentRootObjExists(user.id, objV1.version, objV1)).withContext('first version of object is present on the server').toBeTruthy();
 		expect(await storageServer.rootTransactionExists(user.id)).toBeFalsy();
 
 	});
@@ -255,7 +255,7 @@ specsForDiffTransaction.definition = (setup: () => TestSetup) => (() => {
 
 	// XXX can't write general diff-ed object in one request.
 	// fitAsync(`writes whole object in one request`, async () => {
-	// 	expect(await storageServer.currentRootObjExists(user.id, objV1.version)).toBeTruthy('initially, there is only first version of an object');
+	// 	expect(await storageServer.currentRootObjExists(user.id, objV1.version)).withContext('initially, there is only first version of an object').toBeTruthy();
 
 	// 	const diffBytes = utf8.pack(JSON.stringify(diffVer.diff));
 
@@ -264,14 +264,14 @@ specsForDiffTransaction.definition = (setup: () => TestSetup) => (() => {
 	// 	opts.url = resolveUrl(user.storageOwnerUrl, api.firstPutReqUrlEnd(
 	// 		{ ver: diffVer.version, diff: diffBytes.length, header: diffVer.header.length, segs: diffVer.segs.length }));
 	// 	const rep = await doBinaryRequest<api.ReplyToPut>(opts, [ diffBytes, diffVer.header, diffVer.segs ]);
-	// 	expect(rep.status).toBe(api.SC.okPut, 'status for successful writing of segments bytes');
+	// 	expect(rep.status).withContext('status for successful writing of segments bytes').toBe(api.SC.okPut);
 	// 	expect(rep.data.transactionId).toBeUndefined();
-	// 	expect(await storageServer.currentRootObjExists(user.id, diffVer.version, diffVer)).toBeTruthy('second version of object is present on the server');
+	// 	expect(await storageServer.currentRootObjExists(user.id, diffVer.version, diffVer)).withContext('second version of object is present on the server').toBeTruthy();
 
 	// });
 
 	itAsync(`writes object in several requests`, async () => {
-		expect(await storageServer.currentRootObjExists(user.id, objV1.version)).toBeTruthy('initially, there is only first version of an object');
+		expect(await storageServer.currentRootObjExists(user.id, objV1.version)).withContext('initially, there is only first version of an object').toBeTruthy();
 
 		const diffBytes = utf8.pack(JSON.stringify(diffVer.diff));
 
@@ -285,8 +285,8 @@ specsForDiffTransaction.definition = (setup: () => TestSetup) => (() => {
 		expect(rep.status).toBe(api.SC.okPut, 'status for successful writing of segments bytes');
 		expect(typeof rep.data.transactionId).toBe('string');
 		let transactionId = rep.data.transactionId!;
-		expect(await storageServer.rootTransactionExists(user.id, transactionId)).toBeTruthy(`transaction should be open, cause not all bytes have been sent in the first request`);
-		expect(await storageServer.currentRootObjExists(user.id, diffVer.version)).toBeFalsy('upload is not complete, as transaction is not closed');
+		expect(await storageServer.rootTransactionExists(user.id, transactionId)).withContext(`transaction should be open, cause not all bytes have been sent in the first request`).toBeTruthy();
+		expect(await storageServer.currentRootObjExists(user.id, diffVer.version)).withContext('upload is not complete, as transaction is not closed').toBeFalsy();
 
 		// following requests
 		let ofs = 0;
@@ -306,20 +306,20 @@ specsForDiffTransaction.definition = (setup: () => TestSetup) => (() => {
 							trans: transactionId, ofs, last: true
 						}));
 					const rep = await doBinaryRequest<api.ReplyToPut>(opts, chunk);
-					expect(rep.status).toBe(api.SC.okPut, 'status for successful writing of segments bytes');
+					expect(rep.status).withContext('status for successful writing of segments bytes').toBe(api.SC.okPut);
 					expect(rep.data.transactionId).toBeUndefined();
 				} else {
 					opts.url = resolveUrl(user.storageOwnerUrl,
 						api.secondPutReqUrlEnd({ trans: transactionId, ofs }));
 					const rep = await doBinaryRequest<api.ReplyToPut>(opts, chunk);
-					expect(rep.status).toBe(api.SC.okPut, 'status for successful writing of segments bytes');
+					expect(rep.status).withContext('status for successful writing of segments bytes').toBe(api.SC.okPut);
 					expect(rep.data.transactionId).toBe(transactionId);
 				}
 				dvOfs += chunk.length;
 				ofs += chunk.length;
 			}
 		}
-		expect(await storageServer.currentRootObjExists(user.id, diffVer.version, diffVer)).toBeTruthy('diff version of object is present on the server');
+		expect(await storageServer.currentRootObjExists(user.id, diffVer.version, diffVer)).withContext('diff version of object is present on the server').toBeTruthy();
 		expect(await storageServer.rootTransactionExists(user.id)).toBeFalsy();
 
 	});

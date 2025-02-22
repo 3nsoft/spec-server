@@ -20,11 +20,11 @@ import { sslOpts } from './tls-options';
 import { AppWithWSs } from '../lib-server/web-sockets/app';
 import { mkdir, writeFile } from '../lib-common/async-fs-node';
 import { FileException } from '../lib-common/exceptions/file';
-import { adminApp, Configurations, servicesApp } from '../services';
+import { accountsApp, Configurations, servicesApp } from '../services';
 import * as dns from 'dns';
 import { DNSMock, DnsTxtRecords } from './dns';
 import { join } from 'path';
-import { makeMultiDomainSignupCtx } from "../admin/signup-tokens";
+import { makeMultiDomainSignupCtx } from "../signup/signup-tokens";
 
 export function setTestCertsAndDNS(
 	domains: string[], thisSrvLoc: string
@@ -96,7 +96,7 @@ export async function startOn(
 
 	// setup services and start
 	const app = new AppWithWSs();
-	app.use(adminApp(conf));
+	app.use(accountsApp(conf));
 	app.use(servicesApp(conf));
 	await app.start(conf.servicesConnect!.sslOpts, conf.servicesConnect!.port);
 

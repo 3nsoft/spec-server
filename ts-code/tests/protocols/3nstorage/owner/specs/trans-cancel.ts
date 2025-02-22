@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 - 2017 3NSoft Inc.
+ Copyright (C) 2016 - 2017, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -64,14 +64,14 @@ specs.definition = (setup: () => TestSetup) => (() => {
 	});
 	
 	itAsync('cancels object transaction', async () => {
-		expect(await storageServer.currentObjExists(user.id, obj.objId)).toBeFalsy('initially, there is no object');
-		expect(await storageServer.transactionExists(user.id, obj.objId)).toBeTruthy('initially, there is a started transaction');
+		expect(await storageServer.currentObjExists(user.id, obj.objId)).withContext('initially, there is no object').toBeFalsy();
+		expect(await storageServer.transactionExists(user.id, obj.objId)).withContext('initially, there is a started transaction').toBeTruthy();
 		
 		// normal reply
 		const rep = await doBodylessRequest<void>(reqOpts);
-		expect(rep.status).toBe(api.SC.ok, 'status for normal transaction completion');
-		expect(await storageServer.transactionExists(user.id, obj.objId)).toBeFalsy('transaction should not be present, as it has been completed');
-		expect(await storageServer.currentObjExists(user.id, obj.objId, 1, obj)).toBeFalsy('object is not created, cause transaction has been cancelled')
+		expect(rep.status).withContext('status for normal transaction completion').toBe(api.SC.ok);
+		expect(await storageServer.transactionExists(user.id, obj.objId)).withContext('transaction should not be present, as it has been completed').toBeFalsy();
+		expect(await storageServer.currentObjExists(user.id, obj.objId, 1, obj)).withContext('object is not created, cause transaction has been cancelled').toBeFalsy();
 		
 		// XXX split out fuzzing requests
 

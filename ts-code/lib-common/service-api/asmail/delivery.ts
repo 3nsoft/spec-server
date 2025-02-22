@@ -12,7 +12,8 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /**
  * This defines interfaces for mail delivery requests.
@@ -89,9 +90,9 @@ export namespace sessionStart {
 Object.freeze(sessionStart);
 
 export namespace sessionRestart {
-	
+
 	export const URL_END = 'restart-session';
-	
+
 	export interface Request {
 		recipient: string;
 		msgId: string;
@@ -101,9 +102,9 @@ export namespace sessionRestart {
 		sessionId: string;
 		maxChunkSize? : number;
 	}
-	
+
 	export interface RedirectReply extends preFlight.RedirectReply {}
-	
+
 	export const SC = {
 		ok: 200,
 		unknownRecipient: 474,
@@ -111,7 +112,7 @@ export namespace sessionRestart {
 		redirect: 373
 	};
 	Object.freeze(SC);
-	
+
 }
 Object.freeze(sessionRestart);
 

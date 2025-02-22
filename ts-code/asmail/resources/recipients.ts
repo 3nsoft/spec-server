@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017, 2020 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2020, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -20,7 +20,7 @@
  */
 
 import { Readable } from 'stream';
-import { Inbox, ObjReader, AuthSenderPolicy, SC, MailEventsSink } from './inbox';
+import { Inbox, ObjReader, AuthSenderPolicy, SC, MailEventsSink, InboxParams } from './inbox';
 import * as deliveryApi from '../../lib-common/service-api/asmail/delivery';
 import * as configApi from '../../lib-common/service-api/asmail/config';
 import * as retrievalApi from '../../lib-common/service-api/asmail/retrieval';
@@ -89,13 +89,13 @@ async function adaptToFreeSpaceLeft(
 async function allowedMsgSizeForAnonSender(
 	inbox: Inbox, invitation: string|undefined
 ): Promise<number> {
-	const policy = await inbox.getAnonSenderPolicy();
+	const policy = await inbox.getParam('anonymous/policy');
 	if (!policy.accept) { return 0; }
 	if (!invitation) {
 		if (policy.acceptWithInvitesOnly) { return 0; }
 		return await adaptToFreeSpaceLeft(inbox, policy.defaultMsgSize);
 	} else {
-		const invites = await inbox.getAnonSenderInvites();
+		const invites = await inbox.getParam('anonymous/invites');
 		const sizeForInvite = invites[invitation];
 		if (typeof sizeForInvite !== 'number') { return 0; }
 		return adaptToFreeSpaceLeft(inbox, sizeForInvite);
@@ -116,8 +116,9 @@ async function allowedMsgSizeForAuthSender(
 	inbox: Inbox, sender: string, invitation: string|undefined
 ): Promise<number> {
 	const results = await Promise.all<any>([
-		inbox.getAuthSenderPolicy(),
-		inbox.getAuthSenderWhitelist()])
+		inbox.getParam('authenticated/policy'),
+		inbox.getParam('authenticated/whitelist')
+	])
 	const policy: AuthSenderPolicy = results[0];
 	const sizeFromWL = findMatchIn(<AddressToSizeMap> results[1], sender);
 	// check whitelist for specific size
@@ -130,7 +131,7 @@ async function allowedMsgSizeForAuthSender(
 	if (policy.acceptFromWhiteListOnly) { return 0; }
 	// if needed, apply blacklist
 	if (policy.applyBlackList) {
-		const bList = await inbox.getAuthSenderBlacklist();
+		const bList = await inbox.getParam('authenticated/blacklist');
 		if (typeof findMatchIn(bList, sender) === 'undefined') {
 			return adaptToFreeSpaceLeft(inbox, policy.defaultMsgSize);
 		} else {
@@ -230,13 +231,33 @@ export type GetObj = (
 	header: boolean, segsOffset: number, segsLimit: number|undefined
 ) => Promise<ObjReader>;
 
-type GetParam<T> = (userId: string) => Promise<T>;
-type SetParam<T> = (userId: string, param: T) => Promise<boolean>;
+type GetParam<P extends keyof InboxParams> = (
+	userId: string
+) => Promise<InboxParams[P]>;
+type SetParam<P extends keyof InboxParams> = (
+	userId: string, param: InboxParams[P]
+) => Promise<boolean>;
 
-export type GetPubKey = GetParam<configApi.p.initPubKey.Certs>;
-export type SetPubKey = SetParam<configApi.p.initPubKey.Certs>;
-export type GetAnonSenderInvites = GetParam<configApi.p.anonSenderInvites.List>;
-export type SetAnonSenderInvites = SetParam<configApi.p.anonSenderInvites.List>;
+export type GetPubKey = GetParam<'pubkey'>;
+export type SetPubKey = SetParam<'pubkey'>;
+
+export type GetAnonSenderPolicy = GetParam<'anonymous/policy'>;
+export type SetAnonSenderPolicy = SetParam<'anonymous/policy'>;
+
+export type GetAnonSenderInvites = GetParam<'anonymous/invites'>;
+export type SetAnonSenderInvites = SetParam<'anonymous/invites'>;
+
+export type GetAuthSenderPolicy = GetParam<'authenticated/policy'>;
+export type SetAuthSenderPolicy = SetParam<'authenticated/policy'>;
+
+export type GetAuthSenderInvites = GetParam<'authenticated/invites'>;
+export type SetAuthSenderInvites = SetParam<'authenticated/invites'>;
+
+export type GetAuthSenderBlacklist = GetParam<'authenticated/blacklist'>;
+export type SetAuthSenderBlacklist = SetParam<'authenticated/blacklist'>;
+
+export type GetAuthSenderWhitelist = GetParam<'authenticated/whitelist'>;
+export type SetAuthSenderWhitelist = SetParam<'authenticated/whitelist'>;
 
 export type EventsSink = MailEventsSink;
 
@@ -251,28 +272,43 @@ export interface Factory {
 	deleteMsg: DeleteMsg;
 	getObj: GetObj;
 	incompleteMsgDeliveryParams: IncompleteMsgDeliveryParams;
+	setMailEventsSink(sink: EventsSink): void;
+
 	getPubKey: GetPubKey;
 	setPubKey: SetPubKey;
+
+	getAnonSenderPolicy: GetAnonSenderPolicy;
+	setAnonSenderPolicy: SetAnonSenderPolicy;
+
 	getAnonSenderInvites: GetAnonSenderInvites;
 	setAnonSenderInvites: SetAnonSenderInvites;
-	setMailEventsSink(sink: EventsSink): void;
-}
 
-export type StaticSetter<T> = (
-	inbox: Inbox, param: T, setDefault: boolean
-) => Promise<boolean>;
+	getAuthSenderPolicy: GetAuthSenderPolicy;
+	setAuthSenderPolicy: SetAuthSenderPolicy;
+
+	getAuthSenderInvites: GetAuthSenderInvites;
+	setAuthSenderInvites: SetAuthSenderInvites;
+
+	getAuthSenderBlacklist: GetAuthSenderBlacklist;
+	setAuthSenderBlacklist: SetAuthSenderBlacklist;
+
+	getAuthSenderWhitelist: GetAuthSenderWhitelist;
+	setAuthSenderWhitelist: SetAuthSenderWhitelist;
+}
 
 export function makeFactory(
 	rootFolder: string,
 	writeBufferSize?: string|number, readBufferSize?: string|number
 ): Factory {
-	
+
 	const boxes = new Map<string, Inbox>();
 
 	let mailEventsSink: EventsSink|undefined = undefined;
-	
+
 	async function getInbox(userId: string): Promise<Inbox> {
-		if (!mailEventsSink) { throw new Error(`Mail events sink is not set`); }
+		if (!mailEventsSink) {
+			throw new Error(`Mail events sink is not set`);
+		}
 		let inbox = boxes.get(userId);
 		if (inbox) {
 			try {
@@ -291,25 +327,7 @@ export function makeFactory(
 			return inbox;
 		}
 	}
-	
-	function makeParamGetter<T>(
-		staticGetter: (inbox: Inbox) => Promise<T>
-	): (userId: string) => Promise<T> {
-		return async (userId: string) => {
-			const inbox = await getInbox(userId);
-			return staticGetter(inbox);
-		};	
-	}
-	
-	function makeParamSetter<T>(
-		staticSetter: StaticSetter<T>
-	): (userId: string, param: T, setDefault?: boolean) => Promise<boolean> {
-		return async (userId: string, param: T, setDefault?: boolean) => {
-			const inbox = await getInbox(userId);
-			return staticSetter(inbox, param, !!setDefault);
-		};		
-	}
-	
+
 	const recipients: Factory = {
 
 		exists: async userId => {
@@ -321,15 +339,69 @@ export function makeFactory(
 				return false;
 			}
 		},
-	
-		getPubKey: makeParamGetter(Inbox.getPubKey),
-		setPubKey: makeParamSetter(Inbox.setPubKey),
-		
-		getAnonSenderInvites: makeParamGetter(
-			Inbox.getAnonSenderInvites),
-		setAnonSenderInvites: makeParamSetter(
-			Inbox.setAnonSenderInvites),
 
+		getPubKey: async recipient => {
+			const inbox = await getInbox(recipient);
+			return inbox.getParam('pubkey');
+		},
+		setPubKey: async (userId, pkey) => {
+			const inbox = await getInbox(userId);
+			return inbox.setPubKey(pkey, false);
+		},
+
+		getAnonSenderPolicy: async recipient => {
+			const inbox = await getInbox(recipient);
+			return inbox.getParam('anonymous/policy');
+		},
+		setAnonSenderPolicy: async (userId, policy) => {
+			const inbox = await getInbox(userId);
+			return inbox.setAnonSenderPolicy(policy, false);
+		},
+
+		getAnonSenderInvites: async recipient => {
+			const inbox = await getInbox(recipient);
+			return inbox.getParam('anonymous/invites');
+		},
+		setAnonSenderInvites: async (userId, invites) => {
+			const inbox = await getInbox(userId);
+			return inbox.setAnonSenderInvites(invites, false);
+		},
+
+		getAuthSenderPolicy: async recipient => {
+			const inbox = await getInbox(recipient);
+			return inbox.getParam('authenticated/policy');
+		},
+		setAuthSenderPolicy: async (userId, policy) => {
+			const inbox = await getInbox(userId);
+			return inbox.setAuthSenderPolicy(policy, false);
+		},
+	
+		getAuthSenderInvites: async recipient => {
+			const inbox = await getInbox(recipient);
+			return inbox.getParam('authenticated/invites');
+		},
+		setAuthSenderInvites: async (userId, invites) => {
+			const inbox = await getInbox(userId);
+			return inbox.setAnonSenderInvites(invites, false);
+		},
+	
+		getAuthSenderBlacklist: async recipient => {
+			const inbox = await getInbox(recipient);
+			return inbox.getParam('authenticated/blacklist');
+		},
+		setAuthSenderBlacklist: async (userId, list) => {
+			const inbox = await getInbox(userId);
+			return inbox.setAuthSenderBlacklist(list, false);
+		},
+	
+		getAuthSenderWhitelist: async recipient => {
+			const inbox = await getInbox(recipient);
+			return inbox.getParam('authenticated/whitelist');
+		},
+		setAuthSenderWhitelist: async (userId, list) => {
+			const inbox = await getInbox(userId);
+			return inbox.setAuthSenderWhitelist(list, false);
+		},
 	
 		allowedMaxMsgSize: async (recipient, sender, invitation) => {
 			const inbox = await getInbox(recipient);
@@ -340,14 +412,14 @@ export function makeFactory(
 				return allowedMsgSizeForAnonSender(inbox, invitation);
 			}
 		},
-	
+
 		setMsgStorage: async (
 			recipient, msgMeta, authSender, invite, maxMsgLength
 		) => {
 			const inbox = await getInbox(recipient);
 			return inbox.recordMsgMeta(msgMeta, authSender, invite, maxMsgLength);
 		},
-		
+
 		saveObj: async (
 			recipient, msgId, objId, fstReq, sndReq, bytesLen, bytes
 		) => {
@@ -360,22 +432,22 @@ export function makeFactory(
 				throw new Error(`Missing both request options`);
 			}
 		},
-	
+
 		finalizeDelivery: async (recipient, msgId) => {
 			const inbox = await getInbox(recipient);
 			return inbox.completeMsgDelivery(msgId);
 		},
-	
+
 		getMsgIds: async userId => {
 			const inbox = await getInbox(userId);
 			return inbox.getMsgIds();
 		},
-	
+
 		getMsgMeta: async (userId, msgId) => {
 			const inbox = await getInbox(userId);
 			return inbox.getMsgMeta(msgId, true);
 		},
-	
+
 		deleteMsg: async (userId, msgId) => {
 			const inbox = await getInbox(userId);
 			return inbox.rmMsg(msgId);
@@ -385,7 +457,7 @@ export function makeFactory(
 			const inbox = await getInbox(recipient);
 			return inbox.getIncompleteMsgParams(msgId);
 		},
-		
+
 		getObj: async (userId, msgId, objId, header, segsOffset, segsLimit) => {
 			const inbox = await getInbox(userId);
 			return inbox.getObj(msgId, objId, header, segsOffset, segsLimit);
@@ -395,10 +467,10 @@ export function makeFactory(
 			if (mailEventsSink) { throw new Error(`Mail events sink is already set`); }
 			mailEventsSink = sink;
 		}
-		
+
 	};
 	Object.freeze(recipients);
-	
+
 	return recipients;
 }
 

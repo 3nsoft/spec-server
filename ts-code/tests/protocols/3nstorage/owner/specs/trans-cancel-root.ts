@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 - 2017 3NSoft Inc.
+ Copyright (C) 2016 - 2017, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -65,13 +65,13 @@ specs.definition = (setup: () => TestSetup) => (() => {
 	});
 	
 	itAsync('cancels root object transaction', async () => {
-		expect(await storageServer.currentRootObjExists(user.id)).toBeFalsy('initially, there is no root object');
-		expect(await storageServer.rootTransactionExists(user.id)).toBeTruthy('initially, there is a started transaction');
+		expect(await storageServer.currentRootObjExists(user.id)).withContext('initially, there is no root object').toBeFalsy();
+		expect(await storageServer.rootTransactionExists(user.id)).withContext('initially, there is a started transaction').toBeTruthy();
 		
 		const rep = await doBodylessRequest<void>(reqOpts);
-		expect(rep.status).toBe(api.SC.ok, 'status for normal transaction cancelation');
-		expect(await storageServer.rootTransactionExists(user.id)).toBeFalsy('transaction should not exist, as it has been cancelled.')
-		expect(await storageServer.currentRootObjExists(user.id, 1, obj)).toBeFalsy('object is not created, cause transaction has been cancelled');
+		expect(rep.status).withContext('status for normal transaction cancelation').toBe(api.SC.ok);
+		expect(await storageServer.rootTransactionExists(user.id)).withContext('transaction should not exist, as it has been cancelled.').toBeFalsy();
+		expect(await storageServer.currentRootObjExists(user.id, 1, obj)).withContext('object is not created, cause transaction has been cancelled').toBeFalsy();
 
 		// XXX split out fuzzing requests
 		

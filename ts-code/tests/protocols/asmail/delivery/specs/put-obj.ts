@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 - 2017, 2019 3NSoft Inc.
+ Copyright (C) 2016 - 2017, 2019, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -66,7 +66,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 			'unknown-obj',
 			{ header: obj1.header.length, last: true }));
 		const rep = await doBinaryRequest<any>(opts, [ obj1.header, obj1.segs ]);
-		expect(rep.status).toBe(api.SC.unknownObj, 'status for unknown object');
+		expect(rep.status).withContext('status for unknown object').toBe(api.SC.unknownObj);
 	});
 
 	itAsync('fails for unknown object, in secondary put request', async () => {
@@ -74,7 +74,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		opts.url = resolveUrl(deliveryUrl, api.secondPutReqUrlEnd(
 			'unknown-obj', { ofs: 0, last: true }));
 		const rep = await doBinaryRequest<any>(opts, obj1.segs);
-		expect(rep.status).toBe(api.SC.unknownObj, 'status for unknown object');
+		expect(rep.status).withContext('status for unknown object').toBe(api.SC.unknownObj);
 	});
 
 	itAsync('will not work outside of a valid session', async () => {
@@ -106,7 +106,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		opts.url = resolveUrl(deliveryUrl, api.firstPutReqUrlEnd(obj1.objId,
 			{ header: obj1.header.length, last: true }));
 		let rep = await doBinaryRequest<void>(opts, [ obj1.header, obj1.segs ]);
-		expect(rep.status).toBe(api.SC.ok, 'status for successful writing of segments bytes');
+		expect(rep.status).withContext('status for successful writing of segments bytes').toBe(api.SC.ok);
 	});
 
 	itAsync(`writes object in several requests`, async () => {
@@ -116,7 +116,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 			obj2.objId, { header: obj2.header.length }));
 		// we send only header here, but we may send some segment bytes as well
 		const rep = await doBinaryRequest<void>(opts, obj2.header);
-		expect(rep.status).toBe(api.SC.ok, 'status for successful writing of segments bytes');
+		expect(rep.status).withContext('status for successful writing of segments bytes').toBe(api.SC.ok);
 
 		// following requests
 		for (let ofs=0; ofs<obj2.segs.length; ofs+=512) {
@@ -125,7 +125,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 			opts.url = resolveUrl(deliveryUrl,
 				api.secondPutReqUrlEnd(obj2.objId, { ofs, last }));
 			const rep = await doBinaryRequest<void>(opts, chunk);
-			expect(rep.status).toBe(api.SC.ok, 'status for successful writing of segments bytes');
+			expect(rep.status).withContext('status for successful writing of segments bytes').toBe(api.SC.ok);
 		}
 
 	});
@@ -135,10 +135,10 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		opts.sessionId = (await startMsgDeliverySession(
 			deliveryUrl, { recipient: user2.id })).sessionId;
 		let rep = await doBinaryRequest<void>(opts, obj1.header);
-		expect(rep.status).toBe(ERR_SC.earlyReq, 'status for sending object bytes before sending message metadata');
+		expect(rep.status).withContext('status for sending object bytes before sending message metadata').toBe(ERR_SC.earlyReq);
 		opts.url = sndReqOpts.url;
 		rep = await doBinaryRequest<void>(opts, obj1.header);
-		expect(rep.status).toBe(ERR_SC.earlyReq, 'status for sending object bytes before sending message metadata');
+		expect(rep.status).withContext('status for sending object bytes before sending message metadata').toBe(ERR_SC.earlyReq);
 	});
 
 	itAsync('will not accept bad type', async () => {

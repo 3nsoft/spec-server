@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 3NSoft Inc.
+ Copyright (C) 2016, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -61,8 +61,9 @@ describe('3NStorage owner service', () => {
 		});
 
 		describe('MailerId login', midLoginSpecs(
-			() => resolveUrl(user.storageOwnerUrl, api.midLogin.MID_URL_PART),
-			() => user ));
+			() => resolveUrl(user.storageOwnerUrl, api.midLogin.URL_PART),
+			() => user
+		));
 		
 		itAsync('closing', async () => {
 			const sessionId = await startSession(user);
@@ -75,15 +76,16 @@ describe('3NStorage owner service', () => {
 			
 			// normal closing of a session
 			let rep = await doBodylessRequest<void>(reqOpts);
-			expect(rep.status).toBe(200, 'status for successful closing of session');
+			expect(rep.status).withContext('status for successful closing of session').toBe(200);
 			
 			// repeated call should see invalid session respose
 			rep = await doBodylessRequest<void>(reqOpts);
 			expect(rep.status).toBe(api.ERR_SC.needAuth);
 			
 			reqOpts.sessionId = await doMailerIdLogin(
-				resolveUrl(user.storageOwnerUrl, api.midLogin.MID_URL_PART),
-				user);
+				resolveUrl(user.storageOwnerUrl, api.midLogin.URL_PART),
+				user
+			);
 			
 			await expectNonAcceptanceOfNonEmptyBody(reqOpts);
 			
@@ -103,7 +105,7 @@ describe('3NStorage owner service', () => {
 			};
 			
 			const rep = await doBodylessRequest<api.sessionParams.Reply>(reqOpts);
-			expect(rep.status).toBe(200, 'for successful getting of session parameters');
+			expect(rep.status).withContext('for successful getting of session parameters').toBe(200);
 			expect(typeof rep.data.maxChunkSize).toBe('number');
 			expect(rep.data.maxChunkSize).not.toBeLessThan(64*1024);
 			
@@ -135,7 +137,7 @@ describe('3NStorage owner service', () => {
 				};
 				
 				const rep = await doBodylessRequest<any>(reqOpts);
-				expect(rep.status).toBe(api.PARAM_SC.ok, 'status for reading parameter');
+				expect(rep.status).withContext('status for reading parameter').toBe(api.PARAM_SC.ok);
 		
 				await expectNonAcceptanceOfBadSessionId(reqOpts);
 				
@@ -166,15 +168,16 @@ describe('3NStorage owner service', () => {
 				for (const paramVal of goodValues) {
 					
 					const rep = await doJsonRequest<void>(reqOpts, paramVal);
-					expect(rep.status).toBe(api.PARAM_SC.ok, 'status for successful parameter value update');
+					expect(rep.status).withContext('status for successful parameter value update').toBe(api.PARAM_SC.ok);
 					
 					const paramOnServer = await getParam();
-					expect(deepEqual(paramVal, paramOnServer)).toBe(true, 'parameter value on the server should be set to new value');
+					expect(deepEqual(paramVal, paramOnServer)).withContext('parameter value on the server should be set to new value').toBe(true);
 					
 				}
 				
 				await expectNonAcceptanceOfBadJsonRequest(
-					reqOpts, maxBodyLen, badValues);
+					reqOpts, maxBodyLen, badValues
+				);
 				
 				await expectNonAcceptanceOfBadSessionId(reqOpts);
 				
@@ -187,7 +190,8 @@ describe('3NStorage owner service', () => {
 		api.keyDerivParams.URL_END,
 		[],
 		[ 1, undefined, 'string', [ 1, 2 ], [] ],
-		1024));
+		1024
+	));
 	
 	addSpecsFrom(SPECS_FOLDER, () => ({ user, storageServer }));
 	

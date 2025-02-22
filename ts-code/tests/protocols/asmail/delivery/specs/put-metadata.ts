@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 - 2017 3NSoft Inc.
+ Copyright (C) 2016 - 2017, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -55,13 +55,13 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		};
 		
 		const rep = await doJsonRequest<api.Reply>(reqOpts, req);
-		expect(rep.status).toBe(api.SC.ok, 'status for normal meta acceptance and issue of a corresponding message id');
+		expect(rep.status).withContext('status for normal meta acceptance and issue of a corresponding message id').toBe(api.SC.ok);
 		expect(typeof rep.data.msgId).toBe('string');
 		const msgId = rep.data.msgId;
 		expect(msgId.length).toBeGreaterThan(0);
 		expect(typeof rep.data.maxChunkSize).toBe('number');
 		expect(rep.data.maxChunkSize).not.toBeLessThan(64*1024);
-		expect(await asmailServer.msgExists(user2.id, msgId, false)).toBeTruthy('message is known to be in delivery');
+		expect(await asmailServer.msgExists(user2.id, msgId, false)).withContext('message is known to be in delivery').toBeTruthy();
 		
 	});
 	
@@ -74,11 +74,11 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		};
 
 		let rep = await doJsonRequest<api.Reply>(reqOpts, req);
-		expect(rep.status).toBe(ERR_SC.malformed, 'same object ids are not allowed');
+		expect(rep.status).withContext('same object ids are not allowed').toBe(ERR_SC.malformed);
 		
 		req.objIds = [ msg.msgObjs[0].objId, msg.msgObjs[0].objId+'+as' ];
 		rep = await doJsonRequest<api.Reply>(reqOpts, req);
-		expect(rep.status).toBe(ERR_SC.malformed, 'object ids, equal to letter case, are not allowed');
+		expect(rep.status).withContext('object ids, equal to letter case, are not allowed').toBe(ERR_SC.malformed);
 		
 	});
 

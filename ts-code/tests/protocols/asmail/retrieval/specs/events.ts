@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017 3NSoft Inc.
+ Copyright (C) 2017, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -47,7 +47,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 	itAsync(`requires session to open web socket`, async () => {
 
 		let rep = await openSocket(wsUrl, 'invalid session id');
-		expect(rep.status).toBe(ERR_SC.needAuth, 'status for missing authorized session');
+		expect(rep.status).withContext('status for missing authorized session').toBe(ERR_SC.needAuth);
 		
 	});
 	
@@ -71,7 +71,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 
 		const event = await eventPromise;
 		expect(typeof event).toBe('object');
-		expect(event.msgId).toBe(msgId, `message reception completion event should give a respective message id`);
+		expect(event.msgId).withContext(`message reception completion event should give a respective message id`).toBe(msgId);
 
 	});
 

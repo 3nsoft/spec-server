@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017, 2019 - 2020, 2022 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2019 - 2020, 2022, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -108,6 +108,10 @@ interface SpaceInfo {
 	used: number;
 }
 
+export interface StorageParams {
+	"key-deriv": any;
+}
+
 // XXX move this space-tracker into user-files file. One instance for the whole
 // server should do the job.
 class SpaceTracker {
@@ -167,14 +171,15 @@ const SINGLE_BYTE_BUF = Buffer.alloc(1);
 SINGLE_BYTE_BUF[0] = 0;
 
 
-export class Store extends UserFiles {
+export class Store extends UserFiles<StorageParams> {
 
 	private objVerFiles = new ObjVerFiles(30*1000);
 
 	private statuses = new ObjStatuses(30*1000, this.path);
 
 	private transactions = new ObjTransactions(
-		30*1000, this.statuses, this.path, this.objVerFiles.uncache);
+		30*1000, this.statuses, this.path, this.objVerFiles.uncache
+	);
 	
 	constructor(userId: string, path: string,
 		private storageEventsSink: StorageEventsSink,
@@ -537,29 +542,19 @@ export class Store extends UserFiles {
 			archived: status.archivedVersions
 		};
 	}
-	
-	static getSpaceQuota(store: Store): Promise<number> {
-		return store.getSpaceQuota();
-	}
-	
-	static getKeyDerivParams(store: Store): Promise<any> {
-		return store.getParam<any>('key-deriv');
-	}
-	static async setKeyDerivParams(
-		store: Store, params: any, setDefault: boolean
+
+	async setKeyDerivParams(
+		params: any, setDefault: boolean
 	): Promise<boolean> {
 		if (setDefault) {
 			params = {};
 		} else if ((typeof params !== 'object') || Array.isArray(params)) {
 			return false;
 		}
-		await store.setParam('key-deriv', params);
+		await this.setParam('key-deriv', params);
 		return true;
 	}
-	getKeyDerivParams(): Promise<any> {
-		return this.getParam<any>('key-deriv');
-	}
-		
+	
 }
 Object.freeze(Store.prototype);
 Object.freeze(Store);

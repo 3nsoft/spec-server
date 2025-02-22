@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 3NSoft Inc.
+ Copyright (C) 2016, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -64,9 +64,11 @@ describe('ASMail retrieval service', () => {
 		deliveryUrl = await asmailServer.getDeliveryUrl();
 		if (!deliveryUrl.endsWith('/')) { deliveryUrl += '/'; }
 		user1 = await asmailServer.addUser(
-			`Bob Johnson @${signupDomains[0]}`);
+			`Bob Johnson @${signupDomains[0]}`
+		);
 		user2 = await asmailServer.addUser(
-			`William Young @${signupDomains[1]}`);
+			`William Young @${signupDomains[1]}`
+		);
 	});
 	
 	afterAllAsync(async () => {
@@ -77,8 +79,9 @@ describe('ASMail retrieval service', () => {
 	describe('session', () => {
 
 		describe('MailerId login', midLoginSpecs(
-			() => resolveUrl(retrievalUrl, api.midLogin.MID_URL_PART),
-			() => user1 ));
+			() => resolveUrl(retrievalUrl, api.midLogin.URL_PART),
+			() => user1
+		));
 		
 		itAsync('closing session', async () => {
 			const sessionId = await startSession(user1, retrievalUrl);
@@ -91,7 +94,7 @@ describe('ASMail retrieval service', () => {
 			
 			// normal closing of a session
 			let rep = await doBodylessRequest<void>(reqOpts);
-			expect(rep.status).toBe(200, 'status for successful closing of session');
+			expect(rep.status).withContext('status for successful closing of session').toBe(200);
 			
 			// repeated call should see invalid session response
 			rep = await doBodylessRequest<void>(reqOpts);

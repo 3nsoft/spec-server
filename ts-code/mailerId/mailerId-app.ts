@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016, 2020 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2020, 2024 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -21,48 +21,47 @@
  */
 
 import * as express from 'express';
-import { json as parseJSON, binary as parseBinary } from '../lib-server/middleware/body-parsers';
-import { ComputeDHSharedKey, startPKLogin } from '../lib-server/routes/pub-key-login/start-exchange';
-import { completePKLogin } from '../lib-server/routes/pub-key-login/complete-exchange';
+import { binary as parseBinary } from '../lib-server/middleware/body-parsers';
+import { ComputeDHSharedKey } from '../lib-server/routes/pub-key-login/start-exchange';
 import { certify } from './routes/certify';
 import { Certifier } from './resources/certifier';
 import { makeSessionFactory, SessionsFactory } from './resources/sessions';
-import { makeFactory as makeUserFactory, Factory as userFactory } from './resources/users';
+import { makeFactory as makeUserFactory, Factory as UserFactory } from './resources/users';
 import { makeSingleProcCertifier } from './resources/certifier';
-import { calcNaClBoxSharedKey } from './resources/compute-login-dhshared-key';
+import { calcNaClBoxSharedKey } from '../lib-server/resources/server-key-for-pkl-challenge';
 import { ErrLogger, makeErrHandler } from '../lib-server/middleware/error-handler';
 import * as api from '../lib-common/service-api/mailer-id/provisioning';
+import { addPKLLoginRoutes } from '../lib-server/pkl-access';
 
 // Constant url parts of MailerId provisioning requests
 const PROVISIONING_PATH = '/prov/';
 
 function provisioningApp(
-	sessions: SessionsFactory, users: userFactory,
+	sessions: SessionsFactory, users: UserFactory,
 	certifier: Certifier, computeDHSharedKey: ComputeDHSharedKey
 ): express.Express {
 
 	const app = express();
 	app.disable('etag');
 
+	// Login
+	addPKLLoginRoutes(
+		app, '/', users.getUserParamsAndKey, sessions, computeDHSharedKey
+	);
+
+	// *** Require authorized session for everything below ***
+	app.use(sessions.ensureAuthorizedSession());
+
 	// MailerId certificate provisioning routes
-	app.post('/' + api.pkl.START_URL_END,
-			sessions.checkSession(),
-			parseJSON('1kb'),
-			startPKLogin(users.getUserParamsAndKey,
-				sessions.generate, computeDHSharedKey));
-	app.post('/' + api.pkl.COMPL_URL_END,
-			sessions.ensureOpenedSession(),
-			parseBinary('1kb'),
-			completePKLogin());
 	app.post('/' + api.certify.URL_END,
-			sessions.ensureAuthorizedSession(),
-			parseBinary('16kb'),
-			certify(certifier.certify));
+		parseBinary('16kb'),
+		certify(certifier.certify)
+	);
 
 	return app;
 }
 
-export function makeApp(
+export function makeMailerIdApp(
 	rootFolder: string, domain: string, certFile: string,
 	errLogger?: ErrLogger
 ): express.Express {
@@ -74,7 +73,9 @@ export function makeApp(
 
 	app.use(PROVISIONING_PATH,
 		provisioningApp(
-			certProvisSessions, users, certifier, calcNaClBoxSharedKey));
+			certProvisSessions, users, certifier, calcNaClBoxSharedKey
+		)
+	);
 
 	// MailerId display of service parameters, as per protocol
 	app.get('/', (req: express.Request, res: express.Response) => {
@@ -83,9 +84,9 @@ export function makeApp(
 			path = path+'/';
 		}
 		const json = {
-				"current-cert": certifier.getRootCert(),
-				"previous-certs": certifier.getPrevCerts(),
-				"provisioning": path+PROVISIONING_PATH.substring(1)
+			"current-cert": certifier.getRootCert(),
+			"previous-certs": certifier.getPrevCerts(),
+			"provisioning": path+PROVISIONING_PATH.substring(1)
 		};
 		res.status(200).json(json);	// content type application/json
 	});

@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017, 2020 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2020, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -22,7 +22,7 @@
  */
 
 import { Readable as ReadableStream } from 'stream';
-import { Store, SC, ObjReader, StorageEventsSink } from './store';
+import { Store, SC, ObjReader, StorageEventsSink, StorageParams } from './store';
 import { PutObjFirstQueryOpts, PutObjSecondQueryOpts, DiffInfo, ObjStatus } from '../../lib-common/service-api/3nstorage/owner';
 import { userDataInRootFolder } from '../../lib-server/resources/server-data-folders';
 
@@ -67,13 +67,17 @@ export type DeleteArchivedObjVersion = (
 	userId: string, objId: string|null, version: number
 ) => Promise<void>;
 
+export type GetSpaceQuota = (userId: string) => Promise<number>;
 
-type GetParam<T> = (userId: string) => Promise<T>;
-type SetParam<T> = (userId: string, param: T) => Promise<boolean>;
+type GetParam<P extends keyof StorageParams> = (
+	userId: string
+) => Promise<StorageParams[P]>;
+type SetParam<P extends keyof StorageParams> = (
+	userId: string, param: StorageParams[P]
+) => Promise<boolean>;
 
-export type GetSpaceQuota = GetParam<number>;
-export type GetKeyDerivParams = GetParam<any>;
-export type SetKeyDerivParams = SetParam<any>;
+export type GetKeyDerivParams = GetParam<'key-deriv'>;
+export type SetKeyDerivParams = SetParam<'key-deriv'>;
 
 export type EventsSink = StorageEventsSink;
 
@@ -103,14 +107,15 @@ export function makeFactory(
 	rootFolder: string,
 	writeBufferSize?: string|number, readBufferSize?: string|number
 ): Factory {
-	
+
 	const stores = new Map<string, Store>();
 
 	let storageEventsSink: StorageEventsSink|undefined = undefined;
-	
+
 	async function getStore(userId: string): Promise<Store> {
-		if (!storageEventsSink) { throw new Error(
-			`Storage events sink is not set`); }
+		if (!storageEventsSink) {
+			throw new Error(`Storage events sink is not set`);
+		}
 		const store = stores.get(userId);
 		if (store) {
 			try {
@@ -129,23 +134,6 @@ export function makeFactory(
 			stores.set(userId, store);
 			return store;
 		}
-	}
-	
-	function makeParamGetter<T>(staticGetter: (store: Store) => Promise<T>):
-			(userId: string) => Promise<T> {
-		return async (userId: string) => {
-			const store = await getStore(userId);
-			return staticGetter(store);
-		};		
-	}
-	
-	function makeParamSetter<T>(staticSetter:
-			(store: Store, param: T, setDefault: boolean) => Promise<boolean>):
-			(userId: string, param: T, setDefault?: boolean) => Promise<boolean> {
-		return async (userId: string, param: T, setDefault?: boolean) => {
-			const store = await getStore(userId);
-			return staticSetter(store, param, !!setDefault);
-		};		
 	}
 
 	function makeCurrentObjGetter(isRoot?: boolean): GetCurrentObj {
@@ -170,7 +158,7 @@ export function makeFactory(
 			return store.getArchivedObjVersion(objId, version, header, segsOffset, segsLimit);
 		}
 	}
-	
+
 	function makeObjSaver(isRoot: boolean): SaveNewObjVersion {
 		return async (userId: string, objId: string|null,
 				fstReq: PutObjFirstQueryOpts|undefined, diff: DiffInfo|undefined,
@@ -191,17 +179,17 @@ export function makeFactory(
 			}
 		};
 	}
-	
+
 	function makeTransactionCanceller(): CancelTransaction {
 		return async (userId: string, objId: string, transactionId?: string) => {
 			const store = await getStore(userId);
 			await store.cancelTransaction(objId, transactionId);
 		};
 	}
-	
+
 	const factory: Factory = {
-		
-		exists: async (userId) => {
+
+		exists: async userId => {
 			try {
 				const store = await getStore(userId);
 				return true;
@@ -210,11 +198,21 @@ export function makeFactory(
 				return false;
 			}
 		},
-		
-		getSpaceQuota: makeParamGetter(Store.getSpaceQuota),
-		getKeyDerivParams: makeParamGetter(Store.getKeyDerivParams),
-		setKeyDerivParams: makeParamSetter(Store.setKeyDerivParams),
-		
+
+		getSpaceQuota: async userId => {
+			const store = await getStore(userId);
+			return await store.getSpaceQuota();
+		},
+
+		getKeyDerivParams: async userId => {
+			const store = await getStore(userId);
+			return await store.getParam('key-deriv');
+		},
+		setKeyDerivParams: async (userId, keyParams) => {
+			const store = await getStore(userId);
+			return await store.setKeyDerivParams(keyParams, false);
+		},
+
 		getCurrentRootObj: makeCurrentObjGetter(true),
 		getCurrentObj: makeCurrentObjGetter(false),
 
@@ -225,7 +223,7 @@ export function makeFactory(
 		saveNewObjVersion: makeObjSaver(false),
 
 		cancelTransaction: makeTransactionCanceller(),
-		
+
 		deleteCurrentObjVersion: async (userId, objId, version) => {
 			const store = await getStore(userId);
 			await store.deleteCurrentObjVer(objId, version);
@@ -251,7 +249,7 @@ export function makeFactory(
 				`Storage events sink is already set`); }
 			storageEventsSink = sink;
 		}
-		
+
 	};
 	Object.freeze(factory);
 	return factory;

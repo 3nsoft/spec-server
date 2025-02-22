@@ -21,11 +21,11 @@ import { join } from 'path';
 import { promises as fsPromises, mkdirSync } from 'fs';
 
 export function addressToFName(address: string): string {
-	return canonicalAddressToFName(toCanonicalAddress(address));
+	return idStringToFName(toCanonicalAddress(address));
 }
 
-function canonicalAddressToFName(canonicalAddress: string): string {
-	return base64urlSafe.pack(utf8.pack(canonicalAddress));
+function idStringToFName(id: string): string {
+	return base64urlSafe.pack(utf8.pack(id));
 }
 
 export interface FolderDef {
@@ -83,6 +83,11 @@ export function tokensInRootFolder(rootFolder: string): string {
 
 export function userDataInRootFolder(root: string, userId: string): string {
 	return join(root, 'users', addressToFName(userId));
+}
+
+// XXX use this instead of userDataInRootFolder for locker storage
+export function lockerDataInRootFolder(root: string, lockerId: string): string {
+	return join(root, 'lockers', idStringToFName(lockerId));
 }
 
 export function treeInDefaultsFolder(defaults: string): DefaultsDataTree {

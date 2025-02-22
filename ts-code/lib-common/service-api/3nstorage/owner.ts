@@ -46,13 +46,11 @@ Object.freeze(HTTP_HEADER);
 export const BIN_TYPE = 'application/octet-stream';
 
 export namespace midLogin {
-
-	export const MID_URL_PART = 'login/mailerid/';
-	export const START_URL_END = MID_URL_PART + midApi.startSession.URL_END;
-	export const AUTH_URL_END = MID_URL_PART + midApi.authSession.URL_END;
-
+	
+	export const URL_PART = 'login/mailerid/';
+	
 }
-Object.freeze(midLogin);
+Object.freeze(closeSession);
 
 export namespace closeSession {
 	

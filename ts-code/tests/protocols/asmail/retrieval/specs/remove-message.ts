@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 - 2017 3NSoft Inc.
+ Copyright (C) 2016 - 2017, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -56,14 +56,14 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		opts.url = resolveUrl(retrievalUrl, api.genUrlEnd(msgId));
 		
 		const rep = await doBodylessRequest<void>(opts);
-		expect(rep.status).toBe(api.SC.ok, 'status when message was found and removed');
-		expect(await asmailServer.msgExists(user1.id, msgId, true)).toBeFalsy('message should be removed from the server');
+		expect(rep.status).withContext('status when message was found and removed').toBe(api.SC.ok);
+		expect(await asmailServer.msgExists(user1.id, msgId, true)).withContext('message should be removed from the server').toBeFalsy();
 	});
 
 	itAsync(`returns an error when message is unknown`, async () => {
 		const opts = copy(reqOpts);
 		const rep = await doBodylessRequest<void>(opts);
-		expect(rep.status).toBe(api.SC.unknownMsg, 'status for unknown message');
+		expect(rep.status).withContext('status for unknown message').toBe(api.SC.unknownMsg);
 	});
 
 	itAsync(`requires open session`, async () => {

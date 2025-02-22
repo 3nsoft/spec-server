@@ -12,29 +12,18 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
-
-/**
- * This module gives a function that creates a mountable, or app.use()-able,
- * express 3NStorage sharing application.
- */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 import * as express from 'express';
-
-// Internal libs
-import { json as parseJSON } from '../lib-server/middleware/body-parsers'
-
-// Resource/Data modules
-import { Factory as usersFactory } from './resources/users';
+import { json as parseJSON } from '../lib-server/middleware/body-parsers';
+import { Factory as UsersFactory } from './resources/users';
 import { SessionsFactory } from './resources/sessions';
-
-// routes
-
-
 //import * as api from '../../lib-common/service-api/3nstorage/shared';
 
-export function makeApp(sessions: SessionsFactory, users: usersFactory):
-		express.Express {
+export function makeSharedStorageApp(
+	sessions: SessionsFactory, users: UsersFactory
+): express.Express {
 	
 	const app = express();
 	app.disable('etag');

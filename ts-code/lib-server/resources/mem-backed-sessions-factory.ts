@@ -43,8 +43,9 @@ export class InMemorySessions<T> extends BaseSessionFactory<T> {
 
 	private makeDefaultSessionParams: (sessionId: string) => T;
 
-	protected constructor(timeoutSecs: number,
-			makeSessionParams: (sessionId: string) => T) {
+	protected constructor(
+		timeoutSecs: number, makeSessionParams: (sessionId: string) => T
+	) {
 		super();
 		if ((typeof timeoutSecs !== 'number') || (timeoutSecs <= 0)) {
 			throw new Error("Given timeout must be a number greater than zero."); }
@@ -95,8 +96,9 @@ export class InMemorySessions<T> extends BaseSessionFactory<T> {
 	 * @param makeDefaultSessionParams is a function that creates session
 	 * parameters object in some initial/default state
 	 */
-	static factory<T>(timeout: number, makeDefaultSessionParams: () => T):
-			Factory<T> {
+	static factory<T>(
+		timeout: number, makeDefaultSessionParams: () => T
+	): Factory<T> {
 		const factory = new InMemorySessions(timeout, makeDefaultSessionParams);
 		Object.seal(factory);
 		return Object.freeze(wrapFactory(factory));

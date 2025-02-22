@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016, 2020 - 2021 3NSoft Inc.
+ Copyright (C) 2016, 2020 - 2021, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -55,9 +55,9 @@ describe('Admin', () => {
 			// request with ok name
 			let req: signupApi.availableAddressesForName.Request = { name };
 			const rep = await doJsonRequest<string[]>(reqOpts, req);
-			expect(rep.status).toBe(signupApi.availableAddressesForName.SC.ok, 'status code for OK reply');
-			expect(Array.isArray(rep.data)).toBe(true, 'OK reply is an array');
-			expect(rep.data.length).toBe(signupDomains.length, 'with no users, all domains should used as options for available addresses');
+			expect(rep.status).withContext('status code for OK reply').toBe(signupApi.availableAddressesForName.SC.ok);
+			expect(Array.isArray(rep.data)).withContext('OK reply is an array').toBe(true);
+			expect(rep.data.length).withContext('with no users, all domains should used as options for available addresses').toBe(signupDomains.length);
 			for (const domain of signupDomains) {
 				expect(rep.data).toContain(name+'@'+domain);
 			}
@@ -88,9 +88,9 @@ describe('Admin', () => {
 
 			const req: signupApi.availableDomains.Request = {};
 			const rep = await doJsonRequest<string[]>(reqOpts, req);
-			expect(rep.status).toBe(signupApi.availableDomains.SC.ok, 'status code for OK reply');
-			expect(Array.isArray(rep.data)).toBe(true, 'OK reply is an array');
-			expect(rep.data.length).toBe(signupDomains.length, 'with no token, all domains should be given as options');
+			expect(rep.status).withContext('status code for OK reply').toBe(signupApi.availableDomains.SC.ok);
+			expect(Array.isArray(rep.data)).withContext('OK reply is an array').toBe(true);
+			expect(rep.data.length).withContext('with no token, all domains should be given as options').toBe(signupDomains.length);
 			for (const domain of signupDomains) {
 				expect(rep.data).toContain(domain);
 			}
@@ -214,9 +214,9 @@ describe('Admin', () => {
 			};
 			const req = makeAddUserReq(userId, signupToken);
 			let rep = await doJsonRequest<string[]>(reqOpts, req);
-			expect(rep.status).toBe(signupApi.addUser.SC.ok, 'status when user is added');
+			expect(rep.status).withContext('status when user is added').toBe(signupApi.addUser.SC.ok);
 			rep = await doJsonRequest<string[]>(reqOpts, req);
-			expect(rep.status).toBe(signupApi.addUser.SC.userAlreadyExists, 'status when user already exists');
+			expect(rep.status).withContext('status when user already exists').toBe(signupApi.addUser.SC.userAlreadyExists);
 		}
 
 		itAsync('adds new user', async () => {
@@ -262,13 +262,13 @@ describe('Admin', () => {
 			// let's try to do this without any token
 			let req = makeAddUserReq(userId);
 			let rep = await doJsonRequest<string[]>(reqOpts, req);
-			expect(rep.status).toBe(signupApi.addUser.SC.unauthorized, 'status when no token given');
+			expect(rep.status).withContext('status when no token given').toBe(signupApi.addUser.SC.unauthorized);
 
 			// create token, here setup code uses spec-server specific code
 			const token = await admin.createSingleUserSignupTokenFor(userId);
 			req = makeAddUserReq(userId, token);
 			rep = await doJsonRequest<string[]>(reqOpts, req);
-			expect(rep.status).toBe(signupApi.addUser.SC.ok, 'status when user is added');
+			expect(rep.status).withContext('status when user is added').toBe(signupApi.addUser.SC.ok);
 
 		});
 

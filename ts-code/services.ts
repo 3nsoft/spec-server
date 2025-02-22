@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017, 2020 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2020, 2024 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -23,17 +23,19 @@
 import * as https from "https";
 import { validator } from './lib-server/resources/mailerid-authorizer';
 import { AppWithWSs } from './lib-server/web-sockets/app';
-import { makeApp as makeMailerIdApp } from './mailerId/mailerId-app';
-import { makeApp as makeMailApp } from './asmail/asmail-app';
-import { makeApp as makeStoreApp } from './3nstorage/3nstorage-app';
-import { makeApp as makeAdminApp } from './admin/admin-app';
+import { makeMailerIdApp } from './mailerId/mailerId-app';
+import { makeASMailApp } from './asmail/asmail-app';
+import { makeStorageApp } from './3nstorage/3nstorage-app';
+import { makeSignupApp } from './signup/signup-app';
 import { ErrLogger, makeErrLoggerToConsole } from "./lib-server/middleware/error-handler";
+import { makeLockerApp } from "./locker/locker-app";
 
 export interface Configurations {
 	enabledServices: {
 		asmail?: boolean;
 		storage?: boolean;
 		mailerId?: boolean;
+		locker?: boolean;
 	};
 	servicesConnect?: {
 		hostname?: string;
@@ -74,7 +76,7 @@ export function servicesApp(
 	}
 
 	if (conf.enabledServices.asmail) {
-		app.use('/asmail', makeMailApp(
+		app.use('/asmail', makeASMailApp(
 			conf.rootFolder, conf.domain, midAuthorizer,
 			(errLogger === 'console') ? makeErrLoggerToConsole('ASMail') : errLogger
 		));
@@ -84,7 +86,7 @@ export function servicesApp(
 	}
 
 	if (conf.enabledServices.storage) {
-		app.use('/3nstorage', makeStoreApp(
+		app.use('/3nstorage', makeStorageApp(
 			conf.rootFolder, conf.domain, midAuthorizer,
 			(errLogger === 'console') ? makeErrLoggerToConsole('3NStorage') : errLogger
 		));
@@ -92,16 +94,37 @@ export function servicesApp(
 			console.log(`Enabled 3NStorage service with provider domain ${conf.domain}`);
 		}
 	}
+
+	if (conf.enabledServices.locker) {
+		app.use('/locker', makeLockerApp(
+			conf.rootFolder,
+			(errLogger === 'console') ? makeErrLoggerToConsole('Locker') : errLogger
+		));
+		if (logSetup === 'console') {
+			console.log(`Enabled Locker service`);
+		}
+	}
+
 	return app;
 }
 
-export function adminApp(
+export function accountsApp(
 	conf: Configurations, errLogger?: ErrLogger|'console', logSetup?: 'console'
 ): AppWithWSs {
-	if (errLogger === 'console') {
-		errLogger = makeErrLoggerToConsole('3NWeb server admin');
+
+	const app = new AppWithWSs();
+
+	if (conf.signup) {
+		app.http.use('/signup', makeSignupApp(
+			conf,
+			(errLogger === 'console') ? makeErrLoggerToConsole('Signup') : errLogger
+		));
+		if (logSetup === 'console') {
+			console.log(`Enabled signup service.`);
+		}
 	}
-	return new AppWithWSs(makeAdminApp(conf, errLogger, logSetup));
+
+	return app;
 }
 
 Object.freeze(exports);

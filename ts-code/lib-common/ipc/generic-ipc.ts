@@ -12,13 +12,13 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 import { Envelope, EventEnvelope, EventEndEnvelope, EventException, events,
 	RequestEnvelope, ReplyEnvelope }
 	from '../service-api/ipc-api';
 import { ErrorWithCause } from '../exceptions/error';
-import { bind } from '../binding';
 import { MapOfSets } from '../map-of-sets';
 import { NamedProcs } from '../processes';
 
@@ -190,8 +190,8 @@ class RequestingSide extends MessageHandler implements RequestingClient {
 	wrap(): RequestingClient {
 		const w: RequestingClient = {
 			makeRequest: this.makeRequest.bind(this),
-			close: bind(this, this.close),
-			on: bind(this, this.on)
+			close: this.close.bind(this),
+			on: this.on.bind(this)
 		};
 		return Object.freeze(w);
 	}
@@ -299,10 +299,10 @@ class ReplyingSide extends MessageHandler implements RequestServer {
 
 	wrap(): RequestServer {
 		const w: RequestServer = {
-			addHandler: bind(this, this.addHandler),
-			notifyOfProgressOnRequest: bind(this, this.notifyOfProgressOnRequest),
-			close: bind(this, this.close),
-			on: bind(this, this.on)
+			addHandler: this.addHandler.bind(this),
+			notifyOfProgressOnRequest: this.notifyOfProgressOnRequest.bind(this),
+			close: this.close.bind(this),
+			on: this.on.bind(this)
 		};
 		return Object.freeze(w);
 	}
@@ -339,10 +339,12 @@ class EventsSendingSide extends ReplyingSide {
 
 	constructor(channel: string|undefined, comm: RawDuplex<Envelope>) {
 		super(channel, comm);
-		this.addHandler(events.subscribe.REQ_NAME,
-			bind(this, this.handleSubscribe));
-		this.addHandler(events.unsubscribe.REQ_NAME,
-			bind(this, this.handleUnsubscribe));
+		this.addHandler(
+			events.subscribe.REQ_NAME, this.handleSubscribe.bind(this)
+		);
+		this.addHandler(
+			events.unsubscribe.REQ_NAME, this.handleUnsubscribe.bind(this)
+		);
 	}
 
 	private findGroup(eventChannel: string): GroupInfo|undefined {
@@ -424,9 +426,9 @@ class EventsSendingSide extends ReplyingSide {
 			notifyOfProgressOnRequest: reqServer.notifyOfProgressOnRequest,
 			close: reqServer.close,
 			on: reqServer.on,
-			addEventGroup: bind(this, this.addEventGroup),
-			sendEvent: bind(this, this.sendEvent),
-			endEvent: bind(this, this.endEvent)
+			addEventGroup: this.addEventGroup.bind(this),
+			sendEvent: this.sendEvent.bind(this),
+			endEvent: this.endEvent.bind(this)
 		};
 		return Object.freeze(w);
 	}
@@ -589,7 +591,7 @@ class EventsReceivingSide extends RequestingSide implements SubscribingClient {
 			makeRequest: reqClient.makeRequest,
 			close: reqClient.close,
 			on: reqClient.on,
-			subscribe: bind(this, this.subscribe)
+			subscribe: this.subscribe.bind(this)
 		};
 		return Object.freeze(w);
 	}

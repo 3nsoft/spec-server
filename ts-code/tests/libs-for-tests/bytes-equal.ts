@@ -12,7 +12,8 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 export function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
 	if (a.BYTES_PER_ELEMENT !== b.BYTES_PER_ELEMENT) { return false; }

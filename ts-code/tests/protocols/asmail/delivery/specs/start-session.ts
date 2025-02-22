@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 - 2017 3NSoft Inc.
+ Copyright (C) 2016 - 2017, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -48,7 +48,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		};
 		
 		const rep = await doJsonRequest<api.Reply>(reqOpts, req);
-		expect(rep.status).toBe(api.SC.ok, 'successful session start status');
+		expect(rep.status).withContext('successful session start status').toBe(api.SC.ok);
 		expect(typeof rep.data.sessionId).toBe('string');
 		expect(rep.data.sessionId.length).toBeGreaterThan(0);
 		expect(typeof rep.data.maxMsgLength).toBe('number');
@@ -59,7 +59,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 	itAsync('returns error status when recipient is unknown', async () => {
 		const req: api.Request = { recipient: 'unknown user@bank.com' };
 		const rep = await doJsonRequest<api.Reply>(reqOpts, req);
-		expect(rep.status).toBe(api.SC.unknownRecipient, 'status for unknown recipient');
+		expect(rep.status).withContext('status for unknown recipient').toBe(api.SC.unknownRecipient);
 	});
 
 	itAsync('adequately responds to fuzzing', async () => {

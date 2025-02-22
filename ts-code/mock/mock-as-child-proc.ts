@@ -16,7 +16,7 @@
 */
 
 import { commToParent, RequestEnvelope } from './node-child-ipc';
-import { Configurations, servicesApp as makeServicesApp, adminApp as makeAdminApp } from '../services';
+import { Configurations, servicesApp as makeServicesApp, accountsApp } from '../services';
 import * as dns from 'dns';
 import { DNSMock, DnsTxtRecords } from './dns';
 import { mkdir, rmDirWithContent, writeFile } from '../lib-common/async-fs-node';
@@ -25,7 +25,7 @@ import * as https from "https";
 import { sslOpts } from './tls-options';
 import { AppWithWSs } from '../lib-server/web-sockets/app';
 import { join } from 'path';
-import { makeMultiDomainSignupCtx } from '../admin/signup-tokens';
+import { makeMultiDomainSignupCtx } from '../signup/signup-tokens';
 
 const SERVER_MOCK_CHANNEL = 'server-mock';
 
@@ -101,7 +101,7 @@ async function start(
 
 	// setup app
 	app = new AppWithWSs();
-	app.use(makeAdminApp(conf));
+	app.use(accountsApp(conf));
 	app.use(makeServicesApp(conf));
 
 	// start app

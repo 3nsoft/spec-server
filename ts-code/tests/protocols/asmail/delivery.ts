@@ -41,7 +41,8 @@ describe('ASMail delivery service', () => {
 		user2 = await asmailServer.addUser(`William Young @${signupDomains[1]}`);
 		const user2Params = <any> {};
 		user2Params[p.initPubKey.URL_END] = await generateInitPubKey(
-			asmailServer.midUrl, user2);
+			asmailServer.midUrl, user2
+		);
 		await setInboxParams(asmailServer.asmailUrl, user2, user2Params);
 	});
 	

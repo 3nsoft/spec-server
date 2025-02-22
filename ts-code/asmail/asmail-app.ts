@@ -56,7 +56,7 @@ function setupStaticEntryRoute(app: Express): void {
 	
 }
 
-export function makeApp(
+export function makeASMailApp(
 	rootFolder: string, domain: string, midAuthorizer: MidAuthorizer,
 	errLogger?: ErrLogger
 ): AppWithWSs {
@@ -69,14 +69,17 @@ export function makeApp(
 	
 	setupStaticEntryRoute(app.http);
 	
-	app.http.use(PATHS.delivery, makeDeliveryApp(domain,
-		mailDeliverySessions, recipients, midAuthorizer));
+	app.http.use(PATHS.delivery,
+		makeDeliveryApp(domain, mailDeliverySessions, recipients, midAuthorizer)
+	);
 	
-	app.use(PATHS.retrieval, makeRetrievalApp(domain,
-		recipientsSessions, recipients, midAuthorizer));
+	app.use(PATHS.retrieval,
+		makeRetrievalApp(domain, recipientsSessions, recipients, midAuthorizer)
+	);
 	
-	app.http.use(PATHS.config, makeConfApp(domain,
-		userSettingSessions, recipients, midAuthorizer));
+	app.http.use(PATHS.config,
+		makeConfApp(domain, userSettingSessions, recipients, midAuthorizer)
+	);
 	
 	app.http.use(makeErrHandler(errLogger));
 	

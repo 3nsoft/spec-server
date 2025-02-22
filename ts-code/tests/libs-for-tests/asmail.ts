@@ -49,7 +49,7 @@ export async function setInboxParams(
 ): Promise<void> {
 	const confUrl = await getASMailServiceUrl(asmailUrl, 'config');
 	const sessionId = await doMailerIdLogin(
-		resolveUrl(confUrl, midLogin.MID_URL_PART), user
+		resolveUrl(confUrl, midLogin.URL_PART), user
 	);
 	for (const pUrl of Object.keys(params)) {
 		const reqOpts: RequestOpts= {

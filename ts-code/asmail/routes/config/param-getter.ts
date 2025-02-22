@@ -38,7 +38,8 @@ export function getParam<T>(
 		} catch (err) {
 			if (err === recipSC.USER_UNKNOWN) {
 				res.status(ERR_SC.server).send(
-					"Recipient disappeared from the system.");
+					"Recipient disappeared from the system."
+				);
 				session.close();
 			} else {
 				next(err);

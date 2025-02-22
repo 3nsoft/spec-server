@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2024 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -15,27 +15,33 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-/**
- * This module is a test-grade function to calculate DH-shared keys for login.
- */
+import { RequestHandler } from 'express';
+import { createLocker as api } from '../../lib-common/service-api/locker';
 
-import { box } from 'ecma-nacl';
-import * as random from '../../lib-common/random-node';
+export type LockerCreator = (token: string|undefined) => Promise<api.Reply>;
 
-// XXX update the key from time-to-time
+export function createLocker(
+	createLocker: LockerCreator
+): RequestHandler {
+	
+	if ('function' !== typeof createLocker) {
+		throw new TypeError(
+			"Given argument 'createLocker' must be function, but is not."
+		);
+	}
 
-const testLoginSecretKey = random.bytesSync(32);
+	return async (req, res, next) => {
 
-const testLoginPublicKey = box.generate_pubkey(testLoginSecretKey);
+		const { token } = req.body as api.Request;
 
-export function calcNaClBoxSharedKey(userPubKey: Uint8Array): {
-	dhsharedKey: Uint8Array; serverPubKey: Uint8Array;
-} {
-	const dhsharedKey = box.calc_dhshared_key(userPubKey, testLoginSecretKey);
-	return {
-		dhsharedKey: dhsharedKey,
-		serverPubKey: testLoginPublicKey
+		try{
+			const lockerInfo = await createLocker(token);
+			res.status(api.SC.ok).json(lockerInfo);
+		} catch (err) {
+			next(err);
+		}
+
 	};
+	
 }
-
 Object.freeze(exports);

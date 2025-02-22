@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 3NSoft Inc.
+ Copyright (C) 2016, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -61,7 +61,7 @@ describe('MailerId', () => {
 			responseType: 'json'
 		};
 		let rep = await doBodylessRequest<any>(reqOpts);
-		expect(rep.status).toBe(200, 'status code for OK reply');
+		expect(rep.status).withContext('status code for OK reply').toBe(200);
 		expect(Array.isArray(rep.data["previous-certs"])).toBe(true);
 		expect(isLikeSignedKeyCert(rep.data["current-cert"])).toBe(true);
 		expect(typeof rep.data["provisioning"]).toBe('string');
@@ -92,7 +92,7 @@ describe('MailerId', () => {
 				{ userId: user1.id } :
 				{ userId: user1.id, kid: user1.loginLabeledSKey.kid });
 			let rep = await doJsonRequest<pklApi.start.Reply>(reqOpts, req);
-			expect(rep.status).toBe(pklApi.start.SC.ok, 'status code for OK reply');
+			expect(rep.status).withContext('status code for OK reply').toBe(pklApi.start.SC.ok);
 			expect(typeof rep.data).toBe('object');
 			expect(typeof rep.data.sessionId).toBe('string');
 			expect(() => {
@@ -103,16 +103,16 @@ describe('MailerId', () => {
 			// duplicating request, with session id now in a header
 			reqOpts.sessionId = rep.data.sessionId;
 			rep = await doJsonRequest<pklApi.start.Reply>(reqOpts, req);
-			expect(rep.status).toBe(pklApi.ERR_SC.duplicate, 'reaction to duplicate request');
+			expect(rep.status).withContext('reaction to duplicate request').toBe(pklApi.ERR_SC.duplicate);
 			delete reqOpts.sessionId;
 			
 			// when user id is unknown
 			req = { userId: 'unknown user @some.domain' };
 			rep = await doJsonRequest<pklApi.start.Reply>(reqOpts, req);
-			expect(rep.status).toBe(pklApi.start.SC.unknownUser, 'status code for an unknown user id');
+			expect(rep.status).withContext('status code for an unknown user id').toBe(pklApi.start.SC.unknownUser);
 			req = { userId: 'unknown user @'+signupDomains[0] };
 			rep = await doJsonRequest<pklApi.start.Reply>(reqOpts, req);
-			expect(rep.status).toBe(pklApi.start.SC.unknownUser, 'status code for an unknown user id');
+			expect(rep.status).withContext('status code for an unknown user id').toBe(pklApi.start.SC.unknownUser);
 			
 			// requests with bad user ids and with bad json's
 			let badIds = [ '', ' ', '\t', '\n',	// equivalent to empty string
@@ -149,16 +149,14 @@ describe('MailerId', () => {
 			
 			let rep = await doBinaryRequest<Uint8Array>(
 				reqOpts, exchangeParams.crypto.encResponse);
-			expect(rep.status).toBe(pklApi.complete.SC.ok, 'status code for successful login completion');
+			expect(rep.status).withContext('status code for successful login completion').toBe(pklApi.complete.SC.ok);
 			expect(rep.data.length).toBe(sbox.POLY_LENGTH);
-			expect(bytesEqual(rep.data,
-				exchangeParams.crypto.serverVerificationBytes))
-			.toBe(true, 'returned bytes must be a missing poly part from the challenge, to verify to client, that server knows user\'s public key');
+			expect(bytesEqual(rep.data, exchangeParams.crypto.serverVerificationBytes)).withContext('returned bytes must be a missing poly part from the challenge, to verify to client, that server knows user\'s public key').toBe(true);
 			
 			// repeating request is not ok
 			rep = await doBinaryRequest<Uint8Array>(
 				reqOpts, exchangeParams.crypto.encResponse);
-			expect(rep.status).toBe(pklApi.ERR_SC.duplicate, 'reaction to duplicate request');
+			expect(rep.status).withContext('reaction to duplicate request').toBe(pklApi.ERR_SC.duplicate);
 			
 			// send incorrect challenge response
 			for (let i=0; i < exchangeParams.crypto.encResponse.length; i+=1) {
@@ -216,7 +214,7 @@ describe('MailerId', () => {
 			
 			let encrBody = sessParams.sessEncr.packJSON(reqData);
 			let rep = await doBinaryRequest<Uint8Array>(reqOpts, encrBody);
-			expect(rep.status).toBe(certApi.SC.ok, 'status code for OK reply');
+			expect(rep.status).withContext('status code for OK reply').toBe(certApi.SC.ok);
 			let repData: certApi.Reply = sessParams.sessEncr.openJSON(rep.data);
 			let pkeyAndAddress = relyingParty.verifyChainAndGetUserKey({
 					root: await getMidRoot(midServer.midUrl),
@@ -225,19 +223,19 @@ describe('MailerId', () => {
 				},
 				midServer.midServiceDomain,
 				Date.now()/1000);
-			expect(pkeyAndAddress.address).toBe(toCanonicalAddress(user1.id), 'certificate must be issued for session\'s user canonical address.');
+			expect(pkeyAndAddress.address).withContext('certificate must be issued for session\'s user canonical address.').toBe(toCanonicalAddress(user1.id));
 			let pkeyFromCert: JsonKey = {
 				alg: pkeyAndAddress.pkey.alg,
 				kid: pkeyAndAddress.pkey.kid,
 				use: pkeyAndAddress.pkey.use,
 				k: base64.pack(pkeyAndAddress.pkey.k)
 			};
-			expect(deepEqual(pkeyFromCert, midSigningPair.pkey)).toBe(true, 'public key should be exactly the same as given one.');
+			expect(deepEqual(pkeyFromCert, midSigningPair.pkey)).withContext('public key should be exactly the same as given one.').toBe(true);
 			
 			// session is closed at this request
 			rep = await doBinaryRequest<Uint8Array>(
 				reqOpts, sessParams.sessEncr.packJSON(reqData));
-			expect(rep.status).toBe(UNAUTHORIZED_STATUS, 'session should be closed.');
+			expect(rep.status).withContext('session should be closed.').toBe(UNAUTHORIZED_STATUS);
 			
 			// messed up cipher body
 			sessParams = await doPubKeyLogin(provUrl, user1);

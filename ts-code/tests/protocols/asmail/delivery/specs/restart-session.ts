@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017 3NSoft Inc.
+ Copyright (C) 2017 3NSoft, 2025 Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -53,7 +53,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		};
 		
 		const rep = await doJsonRequest<api.Reply>(reqOpts, req);
-		expect(rep.status).toBe(api.SC.ok, 'successful session start status');
+		expect(rep.status).withContext('successful session start status').toBe(api.SC.ok);
 		expect(typeof rep.data.sessionId).toBe('string');
 		expect(rep.data.sessionId.length).toBeGreaterThan(0);
 		expect(rep.data.maxMsgLength).toBe(initialSession.maxMsgLength);
@@ -67,7 +67,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 			msgId: initialSession.msgId
 		};
 		const rep = await doJsonRequest<api.Reply>(reqOpts, req);
-		expect(rep.status).toBe(api.SC.unknownRecipient, 'status for unknown recipient');
+		expect(rep.status).withContext('status for unknown recipient').toBe(api.SC.unknownRecipient);
 	});
 
 	itAsync(`returns error status when message is not known in delivery`,
@@ -77,7 +77,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 			msgId: 'unknown message'
 		};
 		const rep = await doJsonRequest<api.Reply>(reqOpts, req);
-		expect(rep.status).toBe(api.SC.unknownMsg, 'status for unknown message');
+		expect(rep.status).withContext('status for unknown message').toBe(api.SC.unknownMsg);
 	});
 
 	itAsync('adequately responds to fuzzing', async () => {

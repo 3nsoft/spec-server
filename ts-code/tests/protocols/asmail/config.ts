@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016, 2020 3NSoft Inc.
+ Copyright (C) 2016, 2020, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -38,8 +38,7 @@ describe('ASMail configuration', () => {
 		await asmailServer.start();
 		confUrl = await asmailServer.getConfUrl();
 		if (!confUrl.endsWith('/')) { confUrl += '/'; }
-		user1 = await asmailServer.addUser(
-			`Bob Johnson @${signupDomains[0]}`);
+		user1 = await asmailServer.addUser(`Bob Johnson @${signupDomains[0]}`);
 	});
 	
 	afterAllAsync(async () => {
@@ -48,17 +47,21 @@ describe('ASMail configuration', () => {
 	});
 	
 	describe('MailerId login', midLoginSpecs(
-		() => resolveUrl(confUrl, api.midLogin.MID_URL_PART),
-		() => user1 ));
+		() => resolveUrl(confUrl, api.midLogin.URL_PART),
+		() => user1
+	));
 	
 	async function startSession(user: User): Promise<string> {
 		return await doMailerIdLogin(
-			resolveUrl(confUrl, api.midLogin.MID_URL_PART),
-			user);
+			resolveUrl(confUrl, api.midLogin.URL_PART),
+			user
+		);
 	}
 
-	function checkParamRoutes(paramUrlPart: string, goodValues: any[],
-			badValues: any[], maxBodyLen: number): () => void {
+	function checkParamRoutes(
+		paramUrlPart: string, goodValues: any[], badValues: any[],
+		maxBodyLen: number
+	): () => void {
 		return () => {
 			
 			let sessionId: string;
@@ -77,7 +80,7 @@ describe('ASMail configuration', () => {
 				};
 				
 				const rep = await doBodylessRequest<any>(reqOpts);
-				expect(rep.status).toBe(api.PARAM_SC.ok, 'status for reading parameter');
+				expect(rep.status).withContext('status for reading parameter').toBe(api.PARAM_SC.ok);
 		
 				await expectNonAcceptanceOfBadSessionId(reqOpts);
 				
@@ -106,15 +109,16 @@ describe('ASMail configuration', () => {
 				for (const paramVal of goodValues) {
 					
 					const rep = await doJsonRequest<void>(reqOpts, paramVal);
-					expect(rep.status).toBe(api.PARAM_SC.ok, 'status for successful parameter value update');
+					expect(rep.status).withContext('status for successful parameter value update').toBe(api.PARAM_SC.ok);
 					
 					const paramOnServer = await getParam();
-					expect(deepEqual(paramVal, paramOnServer)).toBe(true, 'parameter value on the server should be set to new value');
+					expect(deepEqual(paramVal, paramOnServer)).withContext('parameter value on the server should be set to new value').toBe(true);
 					
 				}
 				
 				await expectNonAcceptanceOfBadJsonRequest(
-					reqOpts, maxBodyLen, badValues);
+					reqOpts, maxBodyLen, badValues
+				);
 				
 				await expectNonAcceptanceOfBadSessionId(reqOpts);
 				
@@ -130,13 +134,15 @@ describe('ASMail configuration', () => {
 		api.p.initPubKey.URL_END,
 		[],
 		[ 1, undefined, 'string', [ 1, 2 ], [] ],
-		4*1024));
+		4*1024
+	));
 	
 	describe(`invites for anonymous senders`, checkParamRoutes(
 		api.p.anonSenderInvites.URL_END,
 		[ {} ],
 		[ 1, null, undefined, 'string' ],
-		4*1024));
+		40*1024
+	));
 	
 	itAsync(`closing session`, async () => {
 		const sessionId = await startSession(user1);
@@ -149,7 +155,7 @@ describe('ASMail configuration', () => {
 		
 		// normal closing of a session
 		let rep = await doBodylessRequest<void>(reqOpts);
-		expect(rep.status).toBe(200, 'status for successful closing of session');
+		expect(rep.status).withContext('status for successful closing of session').toBe(200);
 		
 		// repeated call should see invalid session respose
 		rep = await doBodylessRequest<void>(reqOpts);

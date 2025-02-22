@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 - 2017 3NSoft Inc.
+ Copyright (C) 2016 - 2017, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -48,11 +48,11 @@ specs.definition = (setup: () => TestSetup) => (() => {
 	});
 	
 	itAsync(`marks message as completely delivered`, async () => {
-		expect(await asmailServer.msgExists(user2.id, sessInfo.msgId, false)).toBeTruthy('message is known to be in delivery');
+		expect(await asmailServer.msgExists(user2.id, sessInfo.msgId, false)).withContext('message is known to be in delivery').toBeTruthy();
 
 		let rep = await doBodylessRequest<void>(reqOpts);
-		expect(rep.status).toBe(api.SC.ok, 'normal end of message delivering session');
-		expect(await asmailServer.msgExists(user2.id, sessInfo.msgId, true, msg)).toBeTruthy('message must now be delivered');
+		expect(rep.status).withContext('normal end of message delivering session').toBe(api.SC.ok);
+		expect(await asmailServer.msgExists(user2.id, sessInfo.msgId, true, msg)).withContext('message must now be delivered').toBeTruthy();
 		
 		// duplicate should not work, as session is already closed
 		rep = await doBodylessRequest<void>(reqOpts);

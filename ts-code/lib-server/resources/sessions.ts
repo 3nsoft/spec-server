@@ -12,11 +12,11 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 import * as express from 'express';
 import * as http from 'http';
-import { bind } from '../../lib-common/binding';
 
 // Constant custom header
 export const SESSION_ID_HEADER = "X-Session-Id";
@@ -113,10 +113,13 @@ export abstract class BaseSessionFactory<T> implements Factory<T> {
 	 * middleware function to send 401 reply, when session needs to go through
 	 * sender authorization step.
 	 */
-	private makeSessionMiddleware(send401WhenMissingSession: boolean,
-			sessionMustBeAuthorized: boolean): express.RequestHandler {
-		return async (req: Request<T>, res: express.Response,
-				next: express.NextFunction) => {
+	private makeSessionMiddleware(
+		send401WhenMissingSession: boolean,
+		sessionMustBeAuthorized: boolean
+	): express.RequestHandler {
+		return async (
+			req: Request<T>, res: express.Response, next: express.NextFunction
+		) => {
 			if ('OPTIONS' == req.method) {
 				next();
 				return;
@@ -216,12 +219,12 @@ Object.freeze(BaseSessionFactory);
 
 export function wrapFactory<T>(impl: Factory<T>): Factory<T> {
 	const wrap: Factory<T> = {
-		checkSession: bind(impl, impl.checkSession),
-		ensureAuthorizedSession: bind(impl, impl.ensureAuthorizedSession),
-		ensureOpenedSession: bind(impl, impl.ensureOpenedSession),
+		checkSession: impl.checkSession.bind(impl),
+		ensureAuthorizedSession: impl.ensureAuthorizedSession.bind(impl),
+		ensureOpenedSession: impl.ensureOpenedSession.bind(impl),
 		ensureAuthorizedSessionForSocketStart:
-			bind(impl, impl.ensureAuthorizedSessionForSocketStart),
-		generate: bind(impl, impl.generate)
+			impl.ensureAuthorizedSessionForSocketStart.bind(impl),
+		generate: impl.generate.bind(impl)
 	};
 	return wrap;
 }

@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017, 2022 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2022, 2024 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -12,26 +12,21 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /**
  * This module gives a function that creates a mountable, or app.use()-able,
  * express 3NStorage owners' application.
  */
 
-// Internal libs
+import { Express } from 'express';
 import { json as parseJSON, emptyBody } from '../lib-server/middleware/body-parsers';
 import { UserSockets, AppWithWSs } from '../lib-server/web-sockets/app';
 import { ServerEvents } from '../lib-server/web-sockets/server-events';
-
-// Resource/Data modules
 import { SessionsFactory } from './resources/sessions';
-import { Factory as usersFactory } from './resources/users';
-
-// routes
-import { MidAuthorizer, midLogin }
-	from '../lib-server/routes/sessions/mid-auth';
-import { startSession } from '../lib-server/routes/sessions/start';
+import { Factory as UsersFactory } from './resources/users';
+import { MidAuthorizer } from '../lib-server/routes/sessions/mid-auth';
 import { closeSession } from '../lib-server/routes/sessions/close';
 import { sessionParams } from './routes/owner/session-params';
 import { getParam } from './routes/owner/param-getter';
@@ -43,31 +38,60 @@ import { getArchivedObjVersion } from './routes/owner/get-archived-obj-ver';
 import { deleteArchivedObjVer, deleteCurrentObjVer } from './routes/owner/delete-obj';
 import { archiveCurrentObjVersion } from './routes/owner/archive-obj-version';
 import { getObjStatus } from './routes/owner/get-obj-status';
-
 import * as api from '../lib-common/service-api/3nstorage/owner';
+import { addMailerIdLoginRoutes } from '../lib-server/mid-access';
+import { addPKLLoginRoutes } from '../lib-server/pkl-access';
+import { calcNaClBoxSharedKey } from '../lib-server/resources/server-key-for-pkl-challenge';
 
-export function makeApp(
-	domain: string, sessions: SessionsFactory, users: usersFactory,
+export function makeOwnerStorageApp(
+	domain: string, sessions: SessionsFactory, users: UsersFactory,
 	midAuthorizer: MidAuthorizer
 ): AppWithWSs {
-	
+
 	const app = new AppWithWSs();
-	
-	setHttpPart(app, domain, sessions, users, midAuthorizer);
+
+	const setupLoginRoutes: SetupLoginRoutes = (
+		app, urlPrefix
+	) => addMailerIdLoginRoutes(
+		app, domain, urlPrefix, sessions, users.exists, midAuthorizer
+	);
+
+	setHttpPart(app.http, setupLoginRoutes, sessions, users);
+	setWSPart(app, sessions, users);
+
+	return app;
+}
+
+export function makeOwnerStorageForLocker(
+	sessions: SessionsFactory, users: UsersFactory
+): AppWithWSs {
+
+	const app = new AppWithWSs();
+
+	// XXX WIP
+
+	// const setupLoginRoutes: SetupLoginRoutes = (
+	// 	app, urlPrefix
+	// ) => addPKLLoginRoutes(
+	// 	app, urlPrefix, getUserParamsAndKey, sessions, calcNaClBoxSharedKey
+	// );
+
+	// setHttpPart(app.http, setupLoginRoutes, sessions, users);
 	setWSPart(app, sessions, users);
 
 	return app;
 }
 
 function setWSPart(
-	app: AppWithWSs, sessions: SessionsFactory, users: usersFactory
+	app: AppWithWSs, sessions: SessionsFactory, users: UsersFactory
 ): void {
 	const sockets = new UserSockets(
-		sessions.ensureAuthorizedSessionForSocketStart());
+		sessions.ensureAuthorizedSessionForSocketStart()
+	);
 	
-	const storageEvents = new ServerEvents(undefined,
-		api.events.all,
-		sockets.socketGetter);
+	const storageEvents = new ServerEvents(
+		undefined, api.events.all, sockets.socketGetter
+	);
 	
 	// give events ipc to both ends
 	sockets.addSocketIPC(storageEvents);
@@ -78,86 +102,90 @@ function setWSPart(
 
 const MAX_CHUNK_SIZE = '0.5mb';
 
+type SetupLoginRoutes = (app: Express, urlPrefix: string) => void;
+
 function setHttpPart(
-	app: AppWithWSs, domain: string, sessions: SessionsFactory,
-	users: usersFactory, midAuthorizer: MidAuthorizer
+	app: Express, setupLoginRoutes: SetupLoginRoutes,
+	sessions: SessionsFactory, users: UsersFactory
 ): void {
 
-	app.http.disable('etag');
+	app.disable('etag');
 
 	// Login
-	app.http.post('/'+api.midLogin.START_URL_END,
-		sessions.checkSession(),
-		parseJSON('1kb'),
-		startSession(users.exists, sessions.generate));
-	app.http.post('/'+api.midLogin.AUTH_URL_END,
-		sessions.ensureOpenedSession(),
-		parseJSON('4kb'),
-		midLogin(domain, midAuthorizer));
+	setupLoginRoutes(app, '/'+api.midLogin.URL_PART);
 
 	// *** Require authorized session for everything below ***
-	app.http.use(sessions.ensureAuthorizedSession());
+	app.use(sessions.ensureAuthorizedSession());
 
-	app.http.post('/'+api.closeSession.URL_END,
+	app.post('/'+api.closeSession.URL_END,
 		emptyBody(),
-		closeSession());
+		closeSession()
+	);
 
 	// Session params
-	app.http.get('/'+api.sessionParams.URL_END,
-		sessionParams(MAX_CHUNK_SIZE));
+	app.get('/'+api.sessionParams.URL_END,
+		sessionParams(MAX_CHUNK_SIZE)
+	);
 
 	// Key derivation params
-	app.http.route('/'+api.keyDerivParams.URL_END)
+	app.route('/'+api.keyDerivParams.URL_END)
 	.get(getParam(users.getKeyDerivParams))
 	.put(parseJSON('1kb'),
-		setParam(users.setKeyDerivParams));
+		setParam(users.setKeyDerivParams)
+	);
 
 	// Transaction canceling
-	app.http.post('/'+api.cancelTransaction.EXPRESS_URL_END,
+	app.post('/'+api.cancelTransaction.EXPRESS_URL_END,
 		emptyBody(),
-		cancelTransaction(false, users.cancelTransaction));
-	app.http.post('/'+api.cancelRootTransaction.EXPRESS_URL_END,
+		cancelTransaction(false, users.cancelTransaction)
+	);
+	app.post('/'+api.cancelRootTransaction.EXPRESS_URL_END,
 		emptyBody(),
-		cancelTransaction(true, users.cancelTransaction));
+		cancelTransaction(true, users.cancelTransaction)
+	);
 
 	// Getting and updating current root object
-	app.http.route('/'+api.currentRootObj.EXPRESS_URL_END)
+	app.route('/'+api.currentRootObj.EXPRESS_URL_END)
 	.get(getCurrentObj(true, users.getCurrentRootObj))
 	.put(saveCurrentObj(true, users.saveNewRootVersion, MAX_CHUNK_SIZE));
 
 	// Getting, updating and removing current non-root objects
-	app.http.route('/'+api.currentObj.EXPRESS_URL_END)
+	app.route('/'+api.currentObj.EXPRESS_URL_END)
 	.get(getCurrentObj(false, users.getCurrentObj))
 	.delete(deleteCurrentObjVer(users.deleteCurrentObjVersion))
 	.put(saveCurrentObj(false, users.saveNewObjVersion, MAX_CHUNK_SIZE));
 
 	// Getting root archived versions
-	app.http.route('/'+api.archivedRootVersion.EXPRESS_URL_END)
+	app.route('/'+api.archivedRootVersion.EXPRESS_URL_END)
 	.get(getArchivedObjVersion(true, users.getArchivedRootVersion));
 
 	// Getting non-root object archived versions
-	app.http.route('/'+api.archivedObjVersion.EXPRESS_URL_END)
+	app.route('/'+api.archivedObjVersion.EXPRESS_URL_END)
 	.get(getArchivedObjVersion(false, users.getArchivedObjVersion));
 
 	// Archive root's current version
-	app.http.route('/'+api.archiveRoot.EXPRESS_URL_END)
+	app.route('/'+api.archiveRoot.EXPRESS_URL_END)
 	.post(emptyBody(),
-		archiveCurrentObjVersion(true, users.archiveObjVersion))
+		archiveCurrentObjVersion(true, users.archiveObjVersion)
+	)
 	.delete(deleteArchivedObjVer(true, users.deleteArchivedObjVersion));
 
 	// Archive non-root object's current version
-	app.http.route('/'+api.archiveObj.EXPRESS_URL_END)
+	app.route('/'+api.archiveObj.EXPRESS_URL_END)
 	.post(emptyBody(),
-		archiveCurrentObjVersion(false, users.archiveObjVersion))
+		archiveCurrentObjVersion(false, users.archiveObjVersion)
+	)
 	.delete(deleteArchivedObjVer(false, users.deleteArchivedObjVersion));
 
 	// Getting root object status
-	app.http.get('/'+api.rootStatus.EXPRESS_URL_END,
-		getObjStatus(true, users.getObjStatus));
+	app.get('/'+api.rootStatus.EXPRESS_URL_END,
+		getObjStatus(true, users.getObjStatus)
+	);
 
 	// Getting object status
-	app.http.get('/'+api.objStatus.EXPRESS_URL_END,
-		getObjStatus(false, users.getObjStatus));
+	app.get('/'+api.objStatus.EXPRESS_URL_END,
+		getObjStatus(false, users.getObjStatus)
+	);
 
 }
 

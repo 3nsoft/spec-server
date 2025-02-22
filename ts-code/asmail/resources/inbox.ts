@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017, 2019 - 2020 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2019 - 2020, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -103,7 +103,18 @@ async function genMsgIdAndMakeFolder(
 	return msgId;
 }
 
-export class Inbox extends UserFiles {
+export interface InboxParams {
+	"pubkey": deliveryApi.initPubKey.Reply;
+	"anonymous/policy": AnonSenderPolicy;
+	"anonymous/invites": AnonSenderInvites;
+	"authenticated/policy": AuthSenderPolicy;
+	"authenticated/blacklist": Blacklist;
+	"authenticated/whitelist": Whitelist;
+	"authenticated/invites": AuthSenderInvites;
+}
+
+
+export class Inbox extends UserFiles<InboxParams> {
 
 	private metas = new MsgMetas(
 		5*60*1000, join(this.path, 'delivery'), join(this.path, 'messages'));
@@ -389,15 +400,14 @@ export class Inbox extends UserFiles {
 	}
 	
 	/**
-	 * @param inbox
 	 * @param initKeyCerts
 	 * @param setDefault when it is true, sets default values -- null --
 	 * in place of an object with certs.
 	 * @return a promise, resolvable to true, when certs are set, or
 	 * resolvable to false, when given certs do not pass sanitization. 
 	 */
-	static async setPubKey(
-		inbox: Inbox, initKeyCerts: deliveryApi.initPubKey.Reply,
+	async setPubKey(
+		initKeyCerts: deliveryApi.initPubKey.Reply,
 		setDefault: boolean
 	): Promise<boolean> {
 		if (setDefault) {
@@ -410,23 +420,12 @@ export class Inbox extends UserFiles {
 				isLikeSignedKeyCert(initKeyCerts.provCert);
 			if (!isOK) { return false; }
 		}
-		await inbox.setParam('pubkey', initKeyCerts);
+		await this.setParam('pubkey', initKeyCerts);
 		return true;
 	}
 
-	/**
-	 * @return a promise, either resolvable to object with certificates,
-	 * or resolvable to null (default), if key certs were not set by the user.
-	 */
-	static getPubKey(inbox: Inbox): Promise<deliveryApi.initPubKey.Reply> {
-		return inbox.getParam<deliveryApi.initPubKey.Reply>('pubkey');
-	}
-	
-	static getAnonSenderPolicy(inbox: Inbox): Promise<AnonSenderPolicy> {
-		return inbox.getParam<AnonSenderPolicy>('anonymous/policy');
-	}
-	static async setAnonSenderPolicy(
-		inbox: Inbox, policy: AnonSenderPolicy, setDefault: boolean
+	async setAnonSenderPolicy(
+		policy: AnonSenderPolicy, setDefault: boolean
 	): Promise<boolean> {
 		if (setDefault) {
 			policy = {
@@ -443,18 +442,12 @@ export class Inbox extends UserFiles {
 				(policy.defaultMsgSize > 500);
 			if (!isOK) { false; }
 		}
-		await inbox.setParam('anonymous/policy', policy);
+		await this.setParam('anonymous/policy', policy);
 		return true;
 	}
-	getAnonSenderPolicy(): Promise<AnonSenderPolicy> {
-		return Inbox.getAnonSenderPolicy(this);
-	}
-	
-	static getAnonSenderInvites(inbox: Inbox): Promise<AnonSenderInvites> {
-		return inbox.getParam<AnonSenderInvites>('anonymous/invites');
-	}
-	static async setAnonSenderInvites(
-		inbox: Inbox, invites: AnonSenderInvites, setDefault: boolean
+
+	async setAnonSenderInvites(
+		invites: AnonSenderInvites, setDefault: boolean
 	): Promise<boolean> {
 		if (setDefault) {
 			invites = {};
@@ -467,18 +460,12 @@ export class Inbox extends UserFiles {
 				if (!isOK) { return false; }
 			}
 		}
-		await inbox.setParam('anonymous/invites', invites);
+		await this.setParam('anonymous/invites', invites);
 		return true;
 	}
-	getAnonSenderInvites(): Promise<AnonSenderInvites> {
-		return Inbox.getAnonSenderInvites(this);
-	}
-	
-	static getAuthSenderPolicy(inbox: Inbox): Promise<AuthSenderPolicy> {
-		return inbox.getParam<AuthSenderPolicy>('authenticated/policy');
-	}
-	static async setAuthSenderPolicy(
-		inbox: Inbox, policy: AuthSenderPolicy, setDefault: boolean
+
+	async setAuthSenderPolicy(
+		policy: AuthSenderPolicy, setDefault: boolean
 	): Promise<boolean> {
 		if (setDefault) {
 			policy = {
@@ -497,36 +484,25 @@ export class Inbox extends UserFiles {
 				(policy.defaultMsgSize > 500);
 			if (!isOK) { return false; }
 		}
-		await inbox.setParam('authenticated/policy', policy);
+		await this.setParam('authenticated/policy', policy);
 		return true;
 	}
-	getAuthSenderPolicy(): Promise<AuthSenderPolicy> {
-		return Inbox.getAuthSenderPolicy(this);
-	}
-	
-	static getAuthSenderBlacklist(inbox: Inbox): Promise<Blacklist> {
-		return inbox.getParam<Blacklist>('authenticated/blacklist');
-	}
-	static async setAuthSenderBlacklist(inbox: Inbox, list: Blacklist,
-			setDefault: boolean): Promise<boolean> {
+
+	async setAuthSenderBlacklist(
+		list: Blacklist, setDefault: boolean
+	): Promise<boolean> {
 		if (setDefault) {
 			list = {};
 		} else {
 			const isOK = ('object' === typeof list) && !!list;
 			if (!isOK) { return false; }
 		}
-		await inbox.setParam('authenticated/blacklist', list);
+		await this.setParam('authenticated/blacklist', list);
 		return true;
 	}
-	getAuthSenderBlacklist(): Promise<Blacklist> {
-		return Inbox.getAuthSenderBlacklist(this);
-	}
-	
-	static getAuthSenderWhitelist(inbox: Inbox): Promise<Whitelist> {
-		return inbox.getParam<Whitelist>('authenticated/whitelist');
-	}
-	static async setAuthSenderWhitelist(
-		inbox: Inbox, list: Whitelist, setDefault: boolean
+
+	async setAuthSenderWhitelist(
+		list: Whitelist, setDefault: boolean
 	): Promise<boolean> {
 		if (setDefault) {
 			list = {};
@@ -539,18 +515,12 @@ export class Inbox extends UserFiles {
 				if (!isOK) { return false; }
 			}
 		}
-		await inbox.setParam('authenticated/whitelist', list);
+		await this.setParam('authenticated/whitelist', list);
 		return true;
 	}
-	getAuthSenderWhitelist(): Promise<Whitelist> {
-		return Inbox.getAuthSenderWhitelist(this);
-	}
-	
-	static getAuthSenderInvites(inbox: Inbox): Promise<AuthSenderInvites> {
-		return inbox.getParam<AuthSenderInvites>('authenticated/invites');
-	}
-	static async setAuthSenderInvites(
-		inbox: Inbox, invites: AuthSenderInvites, setDefault: boolean
+
+	async setAuthSenderInvites(
+		invites: AuthSenderInvites, setDefault: boolean
 	): Promise<boolean> {
 		if (setDefault) {
 			invites = {};
@@ -563,11 +533,8 @@ export class Inbox extends UserFiles {
 				if (!isOK) { return false; }
 			}
 		}
-		await inbox.setParam('authenticated/invites', invites);
+		await this.setParam('authenticated/invites', invites);
 		return true;
-	}
-	getAuthSenderInvites(): Promise<AuthSenderInvites> {
-		return Inbox.getAuthSenderInvites(this);
 	}
 
 }

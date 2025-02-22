@@ -22,7 +22,6 @@ import { toCanonicalAddress } from '../../lib-common/canonical-address';
 import { base64urlSafe, utf8 } from '../../lib-common/buffer-utils';
 import { defer } from '../../lib-common/processes';
 import { join } from 'path';
-import { readdirSync } from 'fs';
 
 const DEFAULT_FILE_WRITE_BUFFER_SIZE = 4*1024;
 const DEFAULT_FILE_READ_BUFFER_SIZE = 64*1024;
@@ -42,7 +41,7 @@ export function addressToFName(address: string): string {
 }
 
 
-export abstract class UserFiles {
+export abstract class UserFiles<ParamTypes extends object> {
 	
 	protected readonly fileWritingBufferSize: number;
 	protected readonly fileReadingBufferSize: number;
@@ -54,17 +53,22 @@ export abstract class UserFiles {
 	) {
 		this.fileWritingBufferSize = (writeBufferSize ?
 			stringToNumOfBytes(writeBufferSize) :
-			DEFAULT_FILE_WRITE_BUFFER_SIZE);
+			DEFAULT_FILE_WRITE_BUFFER_SIZE
+		);
 		this.fileReadingBufferSize = (readBufferSize ?
 			stringToNumOfBytes(readBufferSize) :
-			DEFAULT_FILE_READ_BUFFER_SIZE);
+			DEFAULT_FILE_READ_BUFFER_SIZE
+		);
 	}
 
 	async ensureUserExistsOnDisk(): Promise<void> {
 		try {
 			const stats = await fs.stat(this.path);
-			if (!stats.isDirectory()) { throw new Error(
-				`Path for users' folder is not a folder: ${this.path}`); }
+			if (!stats.isDirectory()) {
+				throw new Error(
+					`Path for users' folder is not a folder: ${this.path}`
+				);
+			}
 		} catch (err) {
 			if ((err as FileException).code === excCode.notFound) {
 				throw SC.USER_UNKNOWN;
@@ -78,16 +82,23 @@ export abstract class UserFiles {
 	}
 
 	getSpaceQuota(): Promise<number> {
-		return readJsonFile<number>(join(this.commonInfoFolder(),'quota'));
+		return readJsonFile<number>(join(this.commonInfoFolder(), 'quota'));
 	}
 
-	getParam<T>(paramFileName: string): Promise<T> {
-		return readJsonFile<T>(join(this.path, 'params', paramFileName));
+	getParam<P extends keyof ParamTypes>(
+		paramFileName: P
+	): Promise<ParamTypes[P]> {
+		const filePath = join(this.path, 'params', paramFileName as string);
+		return readJsonFile<ParamTypes[P]>(filePath);
 	}
 
-	setParam<T>(paramFileName: string, param: T): Promise<void> {
-		return fs.writeFile(join(this.path, 'params', paramFileName),
-			JSON.stringify(param), { encoding: 'utf8', flag: 'w' })
+	protected setParam<P extends keyof ParamTypes>(
+		paramFileName: P, param: ParamTypes[P]
+	): Promise<void> {
+		const filePath = join(this.path, 'params', paramFileName as string);
+		return fs.writeFile(
+			filePath, JSON.stringify(param), { encoding: 'utf8', flag: 'w' }
+		);
 	}
 
 }

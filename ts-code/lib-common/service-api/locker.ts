@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 3NSoft Inc.
+ Copyright (C) 2024 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -12,10 +12,33 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-export function bind<T extends Function>(thisArg: any, func: T): T {
-	return func.bind(thisArg);
-}
 
-Object.freeze(exports);
+export namespace createLocker {
+
+	export const URL_END = 'create';
+
+	export const method = 'PUT';
+
+	export interface Request {
+		token?: string;
+	}
+	
+	export interface Reply {
+		userId: string;
+		storageUri: string;
+		storageMBs: number;
+		willBeRemovedAt: number;
+	}
+
+	export const SC = {
+		ok: 200,
+		invalidToken: 403
+	};
+	Object.freeze(SC);
+
+};
+Object.freeze(createLocker);
+

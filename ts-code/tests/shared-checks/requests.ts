@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016, 2019 3NSoft Inc.
+ Copyright (C) 2016, 2019, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -40,7 +40,7 @@ export async function expectNonAcceptanceOfBadJsonRequest(
 	// bad json
 	for (const badReq of badJSONs) {
 		const rep = await doJsonRequest<void>(opts, badReq);
-		expect(rep.status).toBe(MALFORMED_BODY_STATUS, `status code for malformed request: ${JSON.stringify(badReq)}`);
+		expect(rep.status).withContext(`status code for malformed request: ${JSON.stringify(badReq)}`).toBe(MALFORMED_BODY_STATUS);
 	}
 	
 	// bad non-json bodies
@@ -49,7 +49,7 @@ export async function expectNonAcceptanceOfBadJsonRequest(
 		const req = request<void>('application/json', opts);
 		req.xhr.send(bytes);
 		const rep = await req.promise;
-		expect(rep.status).toBe(MALFORMED_BODY_STATUS, 'status code for malformed request');
+		expect(rep.status).withContext('status code for malformed request').toBe(MALFORMED_BODY_STATUS);
 	}
 	
 	// wrong content type
@@ -75,7 +75,7 @@ export async function expectNonAcceptanceOfBadType(
 		const req = request<void>(bt, opts);
 		req.xhr.send(body);
 		const rep = await req.promise;
-		expect(rep.status).toBe(WRONG_CONTENT_TYPE_STATUS, 'status code for wrong content type request');
+		expect(rep.status).withContext('status code for wrong content type request').toBe(WRONG_CONTENT_TYPE_STATUS);
 	}
 }
 
@@ -87,11 +87,11 @@ export async function expectNonAcceptanceOfLongBody(
 	req.xhr.send(badReq);
 	try {
 		const rep = await req.promise;
-		expect(rep.status).toBe(LONG_BODY_STATUS, 'status code for long request');
+		expect(rep.status).withContext('status code for long request').toBe(LONG_BODY_STATUS);
 	} catch (exc) {
 		const cantConnect = (exc as ConnectException).runtimeException &&
 		((exc as ConnectException).type === 'http-connect');
-		expect(cantConnect).toBe(true, `server can close connection on a long reply, resulting in a can't connect error on a client side`);
+		expect(cantConnect).withContext(`server can close connection on a long reply, resulting in a can't connect error on a client side`).toBe(true);
 	}
 }
 
@@ -102,7 +102,7 @@ export async function expectNonAcceptanceOfNonEmptyBody(
 	const req = request<void>(undefined, opts);
 	req.xhr.send(badReq);
 	const rep = await req.promise;
-	expect(rep.status).toBe(LONG_BODY_STATUS, 'status code for long request');
+	expect(rep.status).withContext('status code for long request').toBe(LONG_BODY_STATUS);
 }
 
 /**
@@ -121,7 +121,7 @@ export async function expectNonAcceptanceOfBadSessionId(
 	if (hasBody) { req.xhr.send(randomBytes(5)); }
 	else { req.xhr.send(); }
 	let rep = await req.promise;
-	expect(rep.status).toBe(UNAUTHORIZED_STATUS, 'status code when required session id is missing');
+	expect(rep.status).withContext('status code when required session id is missing').toBe(UNAUTHORIZED_STATUS);
 	
 	// invalid session id
 	opts.sessionId = 'bogus session id';
@@ -129,7 +129,7 @@ export async function expectNonAcceptanceOfBadSessionId(
 	if (hasBody) { req.xhr.send(randomBytes(5)); }
 	else { req.xhr.send(); }
 	rep = await req.promise;
-	expect(rep.status).toBe(UNAUTHORIZED_STATUS, 'status code for an invalid session id');
+	expect(rep.status).withContext('status code for an invalid session id').toBe(UNAUTHORIZED_STATUS);
 }
 
 Object.freeze(exports);

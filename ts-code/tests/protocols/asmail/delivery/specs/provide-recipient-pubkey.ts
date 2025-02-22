@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 - 2017 3NSoft Inc.
+ Copyright (C) 2016 - 2017, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -54,7 +54,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		reqOpts.sessionId = sessInfo.sessionId;
 
 		const rep = await doBodylessRequest<api.Reply>(reqOpts);
-		expect(rep.status).toBe(api.SC.ok, 'status for successfully getting a key');
+		expect(rep.status).withContext('status for successfully getting a key').toBe(api.SC.ok);
 
 		// TODO add check of certs, together with adding check in setting pkey
 		
@@ -69,11 +69,11 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		reqOpts.sessionId = sessInfo.sessionId;
 
 		let rep = await doBodylessRequest<api.Reply>(reqOpts);
-		expect(rep.status).toBe(api.SC.pkeyNotRegistered, 'status for no key registered with server');
+		expect(rep.status).withContext('status for no key registered with server').toBe(api.SC.pkeyNotRegistered);
 		
 		// session is closed, when there is no key, so repeat request is denied
 		rep = await doBodylessRequest<api.Reply>(reqOpts);
-		expect(rep.status).toBe(UNAUTHORIZED_STATUS, 'status for closed session');
+		expect(rep.status).withContext('status for closed session').toBe(UNAUTHORIZED_STATUS);
 		
 	});
 

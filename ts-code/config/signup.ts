@@ -16,7 +16,7 @@
 */
 
 import { writeFile, FileException, mkdir, readFile, readdir } from '../lib-common/async-fs-node';
-import { makeSingleUserSignupCtx, generateToken, tokenPath, MultiDomainSignupCtx, SingleUserSignupCtx, makeMultiDomainSignupCtx } from "../admin/signup-tokens";
+import { makeSingleUserSignupCtx, generateToken, tokenPath, MultiDomainSignupCtx, SingleUserSignupCtx, makeMultiDomainSignupCtx } from "../signup/signup-tokens";
 import { tokensInRootFolder } from "../lib-server/resources/server-data-folders";
 import { errWithCause } from '../lib-common/exceptions/error';
 import { join } from 'path';

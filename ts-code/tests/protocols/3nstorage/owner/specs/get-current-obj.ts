@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 - 2017 3NSoft Inc.
+ Copyright (C) 2016 - 2017, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -65,27 +65,27 @@ function checkReplyExpectation(
 	expectedSegsBytes: Uint8Array
 ): void {
 	// status
-	expect(rep.status).toBe(api.SC.okGet, 'status for returned bytes');
+	expect(rep.status).withContext('status for returned bytes').toBe(api.SC.okGet);
 
 	// version header
-	expect(parseInt(rep.headers!.get(HTTP_HEADER.objVersion)!)).toBe(obj.version, 'object version must be given in the reply header');
+	expect(parseInt(rep.headers!.get(HTTP_HEADER.objVersion)!)).withContext('object version must be given in the reply header').toBe(obj.version);
 
 	// object's header length http header
 	const headerLen = obj.header.length;
 	if (headerPresent) {
-		expect(parseInt(rep.headers!.get(HTTP_HEADER.objHeaderLength)!)).toBe(headerLen, 'object header size must be given in the reply header');
+		expect(parseInt(rep.headers!.get(HTTP_HEADER.objHeaderLength)!)).withContext('object header size must be given in the reply header').toBe(headerLen);
 	}
 
 	// segments length header
 	const segsLen = (obj.diff ? obj.diff.segsSize : obj.segs.length);
-	expect(parseInt(rep.headers!.get(HTTP_HEADER.objSegmentsLength)!)).toBe(segsLen, 'object segments size must be given in the reply header');
+	expect(parseInt(rep.headers!.get(HTTP_HEADER.objSegmentsLength)!)).withContext('object segments size must be given in the reply header').toBe(segsLen);
 
 	// check body
 	if (headerPresent) {
-		expect(bytesEqual(rep.data.subarray(0, headerLen), obj.header)).toBe(true, 'reply should have header bytes at the front');
-		expect(bytesEqual(rep.data.subarray(headerLen), expectedSegsBytes)).toBe(true, 'reply should have proper segments bytes, following header bytes');
+		expect(bytesEqual(rep.data.subarray(0, headerLen), obj.header)).withContext('reply should have header bytes at the front').toBe(true);
+		expect(bytesEqual(rep.data.subarray(headerLen), expectedSegsBytes)).withContext('reply should have proper segments bytes, following header bytes').toBe(true);
 	} else {
-		expect(bytesEqual(rep.data, expectedSegsBytes)).toBe(true, 'reply should have proper segments bytes');
+		expect(bytesEqual(rep.data, expectedSegsBytes)).withContext('reply should have proper segments bytes').toBe(true);
 	}
 }
 
@@ -125,7 +125,7 @@ readSimpleObjVersion.definition = (setup: () => TestSetup) => (() => {
 	});
 
 	itAsync('returns header and all segments', async () => {
-		expect(await storageServer.currentObjExists(user.id, obj.objId, obj.version, obj)).toBe(true, 'object must be in serve\'s store');
+		expect(await storageServer.currentObjExists(user.id, obj.objId, obj.version, obj)).withContext('object must be in serve\'s store').toBe(true);
 		const opts = copy(reqOpts);
 		opts.url = resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd(obj.objId, { header: true }));
 		const rep = await doBodylessRequest<Uint8Array>(opts);
@@ -133,7 +133,7 @@ readSimpleObjVersion.definition = (setup: () => TestSetup) => (() => {
 	});
 
 	itAsync('returns header without segments', async () => {
-		expect(await storageServer.currentObjExists(user.id, obj.objId, obj.version, obj)).toBe(true, 'object must be in serve\'s store');
+		expect(await storageServer.currentObjExists(user.id, obj.objId, obj.version, obj)).withContext('object must be in serve\'s store').toBe(true);
 		const opts = copy(reqOpts);
 		opts.url = resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd(obj.objId, { header: true, limit: 0 }));
 		const rep = await doBodylessRequest<Uint8Array>(opts);
@@ -141,7 +141,7 @@ readSimpleObjVersion.definition = (setup: () => TestSetup) => (() => {
 	});
 
 	itAsync('returns all segments without header', async () => {
-		expect(await storageServer.currentObjExists(user.id, obj.objId, obj.version, obj)).toBe(true, 'object must be in serve\'s store');
+		expect(await storageServer.currentObjExists(user.id, obj.objId, obj.version, obj)).withContext('object must be in serve\'s store').toBe(true);
 		const opts = copy(reqOpts);
 		opts.url = resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd(obj.objId));
 		const rep = await doBodylessRequest<Uint8Array>(opts);
@@ -250,7 +250,7 @@ accessDiffedObjVersion.definition = (setup: () => TestSetup) => (() => {
 	});
 
 	itAsync('returns header and all segments', async () => {
-		expect(await storageServer.currentObjExists(user.id, diffVer.objId, diffVer.version, diffVer)).toBe(true, `object must be in serve's store`);
+		expect(await storageServer.currentObjExists(user.id, diffVer.objId, diffVer.version, diffVer)).withContext(`object must be in serve's store`).toBe(true);
 		const opts = copy(reqOpts);
 		const combinedBytes = combineDiffSegs(obj.segs, diffVer);
 		opts.url = resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd(diffVer.objId, { header: true }));
@@ -259,7 +259,7 @@ accessDiffedObjVersion.definition = (setup: () => TestSetup) => (() => {
 	});
 
 	itAsync('returns header without segments', async () => {
-		expect(await storageServer.currentObjExists(user.id, diffVer.objId, diffVer.version, diffVer)).toBe(true, `object must be in serve's store`);
+		expect(await storageServer.currentObjExists(user.id, diffVer.objId, diffVer.version, diffVer)).withContext(`object must be in serve's store`).toBe(true);
 		const opts = copy(reqOpts);
 		opts.url = resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd(diffVer.objId, { header: true, limit: 0 }));
 		const rep = await doBodylessRequest<Uint8Array>(opts);
@@ -267,7 +267,7 @@ accessDiffedObjVersion.definition = (setup: () => TestSetup) => (() => {
 	});
 
 	itAsync('returns all segments without header', async () => {
-		expect(await storageServer.currentObjExists(user.id, diffVer.objId, diffVer.version, diffVer)).toBe(true, `object must be in serve's store`);
+		expect(await storageServer.currentObjExists(user.id, diffVer.objId, diffVer.version, diffVer)).withContext(`object must be in serve's store`).toBe(true);
 		const opts = copy(reqOpts);
 		const combinedBytes = combineDiffSegs(obj.segs, diffVer);
 		opts.url = resolveUrl(user.storageOwnerUrl, api.getReqUrlEnd(diffVer.objId));

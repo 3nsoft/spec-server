@@ -18,7 +18,6 @@
 import { EventfulServer, makeEventfulServer, makeJsonCommPoint } from '../../lib-common/ipc/ws-ipc';
 import * as WebSocket from 'ws';
 import { SocketIPCs } from './app';
-import { bind } from '../../lib-common/binding';
 
 export type EventsSink<T> = (userId: string, channel: string, event: T) => void;
 
@@ -54,7 +53,7 @@ export class ServerEvents<T> implements SocketIPCs {
 	}
 
 	get eventsSink(): EventsSink<T> {
-		return bind(this, this.sendEvent);
+		return this.sendEvent.bind(this);
 	}
 
 }

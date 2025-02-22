@@ -21,7 +21,6 @@
 
 import { InMemorySessions } from '../../lib-server/resources/mem-backed-sessions-factory';
 import { Request as Req, Factory, Session, GenerateSession as GenSession, wrapFactory } from '../../lib-server/resources/sessions';
-import { bind } from '../../lib-common/binding';
 
 export interface SessionParams {
 	recipient: string;
@@ -108,7 +107,7 @@ export class DeliverySessions extends InMemorySessions<SessionParams>
 	static make(timeout: number): SessionsFactory {
 		const factory = new DeliverySessions(timeout);
 		const wrap = wrapFactory(factory) as SessionsFactory;
-		wrap.getSessionForMsg = bind(factory, factory.getSessionForMsg);
+		wrap.getSessionForMsg = factory.getSessionForMsg.bind(factory);
 		return Object.freeze(wrap);
 	}
 

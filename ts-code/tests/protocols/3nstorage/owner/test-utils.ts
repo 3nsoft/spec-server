@@ -35,8 +35,9 @@ export type SpecDescribe = GenericSpecDescribe<TestSetup>;
 
 export async function startSession(user: User): Promise<string> {
 	return await doMailerIdLogin(
-		resolveUrl(user.storageOwnerUrl, api.midLogin.MID_URL_PART),
-		user);
+		resolveUrl(user.storageOwnerUrl, api.midLogin.URL_PART),
+		user
+	);
 }
 
 export async function getObjStatus(
@@ -44,7 +45,8 @@ export async function getObjStatus(
 ): Promise<api.ObjStatus> {
 	const rep = await doBodylessRequest<api.ObjStatus>({
 		url: resolveUrl(user.storageOwnerUrl, (objId ?
-			api.objStatus.getReqUrlEnd(objId) : api.rootStatus.getReqUrlEnd())),
+			api.objStatus.getReqUrlEnd(objId) : api.rootStatus.getReqUrlEnd())
+		),
 		method: 'GET',
 		sessionId,
 		responseType: 'json'

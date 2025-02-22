@@ -15,26 +15,21 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-/**
- * This module gives a function that creates a mountable, or app.use()-able,
- * express 3NStorage application.
- */
-
 import { Express } from 'express';
-import { makeFactory as makeUsersFactory } from './resources/users';
-import { makeSessionFactory } from './resources/sessions';
+import { makeFactory as makeUsersFactory, Factory as UsersFactory } from './resources/users';
+import { makeSessionFactory, SessionsFactory } from './resources/sessions';
 import { MidAuthorizer } from '../lib-server/routes/sessions/mid-auth';
 import { ErrLogger, makeErrHandler } from '../lib-server/middleware/error-handler';
 import { AppWithWSs } from '../lib-server/web-sockets/app';
-import * as owners from './owner';
-import * as sharing from './shared';
+import { makeOwnerStorageApp, makeOwnerStorageForLocker } from './owner';
+import { makeSharedStorageApp } from './shared';
 
 const PATHS = {
 	owner: '/owner/',
 	shared: '/shared/'
 };
 
-function setupStaticEntryRoute(app: Express): void {
+function setupStaticStorageEntryRoute(app: Express): void {
 
 	app.route('/')
 	.get((req, res) => {
@@ -52,7 +47,7 @@ function setupStaticEntryRoute(app: Express): void {
 
 }
 
-export function makeApp(
+export function makeStorageApp(
 	dataFolder: string, domain: string, midAuthorizer: MidAuthorizer,
 	errLogger?: ErrLogger
 ): AppWithWSs {
@@ -62,13 +57,38 @@ export function makeApp(
 	const sharingSessions = makeSessionFactory(20*60);
 	const users = makeUsersFactory(dataFolder);
 
-	setupStaticEntryRoute(app.http);
+	setupStaticStorageEntryRoute(app.http);
 
 	app.use(PATHS.owner,
-		owners.makeApp(domain, ownersSessions, users, midAuthorizer));
+		makeOwnerStorageApp(domain, ownersSessions, users, midAuthorizer)
+	);
 
 	app.http.use(PATHS.shared,
-		sharing.makeApp(sharingSessions, users));
+		makeSharedStorageApp(sharingSessions, users)
+	);
+
+	app.http.use(makeErrHandler(errLogger));
+
+	return app;
+}
+
+export function makeStorageAppForLocker(
+	users: UsersFactory,
+	ownersSessions: SessionsFactory, sharingSessions: SessionsFactory,
+	errLogger?: ErrLogger
+): AppWithWSs {
+
+	const app = new AppWithWSs();
+
+	setupStaticStorageEntryRoute(app.http);
+
+	app.use(PATHS.owner,
+		makeOwnerStorageForLocker(ownersSessions, users)
+	);
+
+	app.http.use(PATHS.shared,
+		makeSharedStorageApp(sharingSessions, users)
+	);
 
 	app.http.use(makeErrHandler(errLogger));
 

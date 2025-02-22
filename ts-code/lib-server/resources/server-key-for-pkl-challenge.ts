@@ -15,13 +15,27 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { RequestHandler } from 'express';
-import { Request } from '../../resources/sessions';
+/**
+ * This module is a test-grade function to calculate DH-shared keys for login.
+ */
 
-export function closeSession(): RequestHandler {
-	return (req: Request<any>, res, next) => {
-		req.session.close();
-		res.status(200).end();
+import { box } from 'ecma-nacl';
+import * as random from '../../lib-common/random-node';
+
+// XXX update the key from time-to-time, and this must be single instance
+
+const skeyForPKLChallenge = random.bytesSync(32);
+
+const pkeyForPKLChallenge = box.generate_pubkey(skeyForPKLChallenge);
+
+export function calcNaClBoxSharedKey(userPubKey: Uint8Array): {
+	dhsharedKey: Uint8Array; serverPubKey: Uint8Array;
+} {
+	const dhsharedKey = box.calc_dhshared_key(userPubKey, skeyForPKLChallenge);
+	return {
+		dhsharedKey: dhsharedKey,
+		serverPubKey: pkeyForPKLChallenge
 	};
 }
+
 Object.freeze(exports);

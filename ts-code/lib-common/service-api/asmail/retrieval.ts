@@ -12,7 +12,8 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /**
  * This defines interfaces for mail retrieval requests.
@@ -40,9 +41,7 @@ Object.freeze(ERR_SC);
 
 export namespace midLogin {
 	
-	export const MID_URL_PART = 'login/mailerid/';
-	export const START_URL_END = MID_URL_PART + midApi.startSession.URL_END;
-	export const AUTH_URL_END = MID_URL_PART + midApi.authSession.URL_END;
+	export const URL_PART = 'login/mailerid/';
 
 }
 Object.freeze(midLogin);

@@ -12,9 +12,9 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { bind } from '../binding';
 
 export type ByteSource = web3n.ByteSource;
 
@@ -22,12 +22,12 @@ type Transferable = web3n.implementation.Transferable;
 
 export function wrapByteSourceImplementation(src: ByteSource): ByteSource {
 	const wrap: ByteSource = {
-		read: bind(src, src.read),
-		getSize: bind(src, src.getSize)
+		read: src.read.bind(src),
+		getSize: src.getSize.bind(src)
 	};
 	if (src.seek) {
-		wrap.seek = bind(src, src.seek);
-		wrap.getPosition = bind(src, src.getPosition!);
+		wrap.seek = src.seek.bind(src);
+		wrap.getPosition = src.getPosition!.bind(src);
 	}
 	(wrap as any as Transferable).$_transferrable_type_id_$ = 'ByteSource';
 	return wrap;
@@ -37,13 +37,13 @@ export type ByteSink = web3n.ByteSink;
 
 export function wrapByteSinkImplementation(sink: ByteSink): ByteSink {
 	const wrap: ByteSink = {
-		setSize: bind(sink, sink.setSize),
-		write: bind(sink, sink.write),
-		getSize: bind(sink, sink.getSize)
+		setSize: sink.setSize.bind(sink),
+		write: sink.write.bind(sink),
+		getSize: sink.getSize.bind(sink)
 	};
 	if (sink.seek) {
-		wrap.seek = bind(sink, sink.seek);
-		wrap.getPosition = bind(sink, sink.getPosition!);
+		wrap.seek = sink.seek.bind(sink);
+		wrap.getPosition = sink.getPosition!.bind(sink);
 	}
 	(wrap as any as Transferable).$_transferrable_type_id_$ = 'ByteSink';
 	return wrap;

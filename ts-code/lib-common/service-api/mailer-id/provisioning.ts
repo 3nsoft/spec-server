@@ -12,22 +12,14 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 /**
  * This defines request interfaces for MailerId certificate provisioning.
  */
 
-import * as pklApi from '../pub-key-login';
 import { JsonKey, SignedLoad } from '../../jwkeys';
-
-export namespace pkl {
-	
-	export const START_URL_END = pklApi.start.URL_END;
-	export const COMPL_URL_END = pklApi.complete.URL_END;
-	
-}
-Object.freeze(pkl);
 
 export namespace certify {
 	

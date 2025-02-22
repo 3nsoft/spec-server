@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 - 2017 3NSoft Inc.
+ Copyright (C) 2016 - 2017, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -56,7 +56,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		opts.url = resolveUrl(retrievalUrl, api.genUrlEnd(msgId));
 		
 		const rep = await doBodylessRequest<api.Reply>(opts);
-		expect(rep.status).toBe(api.SC.ok, 'status for successfully found message');
+		expect(rep.status).withContext('status for successfully found message').toBe(api.SC.ok);
 		expect(rep.data.authSender).toBeFalsy();
 		expect(typeof rep.data.deliveryStart).toBe('number');
 		expect(typeof rep.data.deliveryCompletion).toBe('number');
@@ -69,7 +69,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		opts.url = resolveUrl(retrievalUrl, api.genUrlEnd(
 			'unknown-message'));
 		const rep = await doBodylessRequest<api.Reply>(opts);
-		expect(rep.status).toBe(api.SC.unknownMsg, 'status for unknown message');
+		expect(rep.status).withContext('status for unknown message').toBe(api.SC.unknownMsg);
 	});
 
 	itAsync(`requires open session`, async () => {

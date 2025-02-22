@@ -19,7 +19,6 @@ import * as http from 'http';
 import * as https from 'https';
 import * as express from 'express';
 import * as WebSocket from 'ws';
-import { bind } from '../../lib-common/binding';
 import { MapOfSets } from '../../lib-common/map-of-sets';
 import { CheckSession, BaseRequest as HttpRequest, SessionParams } from '../resources/sessions';
 import { parse as parseUrl } from 'url';
@@ -58,9 +57,9 @@ class UserSocketsServer {
 			server,
 			clientTracking: true,
 			maxPayload: MAX_MSG_PAYLOAD,
-			verifyClient: bind(this, this.verifyClient)
+			verifyClient: this.verifyClient.bind(this)
 		} as WebSocket.ServerOptions)
-		.on('connection', bind(this, this.handleConnection) as any)	// bad @types
+		.on('connection', this.handleConnection.bind(this))
 		.on('error', (err) => { console.error(err); });
 
 	}

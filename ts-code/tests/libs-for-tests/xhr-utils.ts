@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -12,7 +12,8 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 import { makeHTTPException, makeConnectionException, HTTPException }
 	from '../../lib-common/exceptions/http';
@@ -43,8 +44,6 @@ export interface Headers {
 	get(name: string): string|undefined;
 }
 
-const logHttp = (process.argv.indexOf('--console-log-http') > 0);
-
 function makeHeadersInstanceFrom(xhr: XMLHttpRequest, selectHeaders: string[]):
 		Headers {
 	const m = new Map<string, string>();
@@ -66,16 +65,8 @@ export function request<T>(contentType: string|undefined, opts: RequestOpts):
 	const xhr: XMLHttpRequest = new xhr2();
 	const promise = new Promise<Reply<T>>((resolve, reject) => {
 		xhr.open(opts.method, opts.url!);
-
-		// DEBUG
-		if (logHttp) { console.log(` - ${opts.method} @ ${opts.url} ...\n`); }
-
 		xhr.onload = () => {
 			let data = xhr.response;
-
-			// DEBUG
-			if (logHttp) { console.log(` > ${xhr.status} reply to ${opts.method} @ ${opts.url}\n > ${(data instanceof ArrayBuffer) ? (<ArrayBuffer> data).byteLength+' bytes' : JSON.stringify(data) }\n`); }
-
 			if ((opts.responseType === 'arraybuffer') &&
 					(data instanceof ArrayBuffer)) {
 				data = new Uint8Array(data);
@@ -91,11 +82,9 @@ export function request<T>(contentType: string|undefined, opts: RequestOpts):
 			}
 			resolve(rep);
 		};
-		xhr.onerror = (ev) => {
-// DEBUG
-if (logHttp) { console.log(` * cannot connect to ${opts.method} @ ${opts.url} ...\n${ev}\n`); }
-			reject(makeConnectionException(opts.url, opts.method, 'Cannot connect'));
-		};
+		xhr.onerror = ev => reject(
+			makeConnectionException(opts.url, opts.method, 'Cannot connect', ev)
+		);
 		if (contentType) {
 			xhr.setRequestHeader('Content-Type', contentType);
 		}
@@ -119,7 +108,8 @@ if (logHttp) { console.log(` * cannot connect to ${opts.method} @ ${opts.url} ..
 export function doJsonRequest<T>(opts: RequestOpts, json: any):
 		Promise<Reply<T>> {
 	const req = request<T>('application/json', opts);
-	req.xhr.send(JSON.stringify(json));
+	const body = ((json === undefined) ? '' : JSON.stringify(json));
+	req.xhr.send(body);
 	return req.promise;
 }
 

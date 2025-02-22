@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -12,9 +12,10 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import * as express from 'express';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { stringToNumOfBytes } from '../conf-util';
 import { makeErr } from './error-handler';
 import { defer } from '../../lib-common/processes';
@@ -24,32 +25,28 @@ import { EMPTY_BUFFER } from '../../lib-common/buffer-utils';
 const HTTP_HEADER = {
 	contentType: 'Content-Type',
 	contentLength: 'Content-Length'
-}
+};
 
 const TYPES = {
 	plain: 'text/plain',
 	json: 'application/json',
 	bin: 'application/octet-stream'
-}
-
-const noop = {
-	onData: (chunk: Buffer) => {},
-	onEnd: () => {}
 };
 
-export function attachByteDrainToRequest(req: express.Request): void {
-	req.on('data', noop.onData);
-	req.on('end', noop.onEnd);
+export function attachByteDrainToRequest(req: Request): void {
+	req.on('data', noop);
+	req.on('end', noop);
 }
+
+function noop() {}
 
 /**
  * Use this for empty-body POST and PUT routes, as it does sanitization, and
  * prevents hanging requests, because nothing drains data.
  * @return a middleware function that ensures empty body in requests.
  */
-export function emptyBody(): express.RequestHandler {
-	return (req: express.Request, res: express.Response,
-			next: express.NextFunction) => {
+export function emptyBody(): RequestHandler {
+	return (req, _res, next) => {
 		attachByteDrainToRequest(req);
 		
 		// get and check Content-Length
@@ -65,6 +62,7 @@ export function emptyBody(): express.RequestHandler {
 		next();
 	}	
 }
+
 /**
  * @param req
  * @param expectedLen is an expected non-zero length of a binary body.
@@ -72,8 +70,9 @@ export function emptyBody(): express.RequestHandler {
  * @return a promise, resolvable to request's body bytes, parsed from a request
  * object.
  */
-export async function parseBinaryBodyWithExpectedSize(req: express.Request,
-		expectedLen: number): Promise<Uint8Array> {
+export async function parseBinaryBodyWithExpectedSize(
+	req: Request, expectedLen: number
+): Promise<Uint8Array> {
 	try {
 		if (expectedLen < 1) { throw new Error(`Given illegal length value ${expectedLen}`); }
 
@@ -124,13 +123,15 @@ export async function parseBinaryBodyWithExpectedSize(req: express.Request,
 	return deffered.promise;
 }
 
-function byteCollector(maxSize: string|number, contentType: string,
-		parser?: express.RequestHandler): express.RequestHandler {
+function byteCollector(
+	maxSize: string|number, contentType: string, parser?: RequestHandler
+): RequestHandler {
 	const maxSizeNum = stringToNumOfBytes(maxSize);
-	if ('string' !== typeof contentType) { throw new Error(
-			"Given 'contentType' argument must be a string."); }
-	return (req: express.Request, res: express.Response,
-			next: express.NextFunction) => {
+	if ('string' !== typeof contentType) {
+		throw new Error("Given 'contentType' argument must be a string.");
+	}
+
+	return (req, res, next) => {
 		// check Content-Type
 		if (!req.is(contentType)) {
 			attachByteDrainToRequest(req);
@@ -191,7 +192,7 @@ function byteCollector(maxSize: string|number, contentType: string,
  * @return middleware function, that places all request bytes into Buffer,
  * placed into usual body field of request object. 
  */
-export function binary(maxSize: string|number): express.RequestHandler {
+export function binary(maxSize: string|number): RequestHandler {
 	return byteCollector(maxSize, TYPES.bin);
 }
 
@@ -203,24 +204,27 @@ export function binary(maxSize: string|number): express.RequestHandler {
  * @return middleware function, that parses all request bytes as JSON, placing
  * result into usual body field of request object.
  */
-export function json(maxSize: string|number, allowNonObject?: boolean):
-		express.RequestHandler {
-	return byteCollector(maxSize, TYPES.json,
-		(req: express.Request, res: express.Response,
-				next: express.NextFunction) => {
-			try {
-				const bodyAsStr = req.body.toString('utf8');
-				req.body = JSON.parse(bodyAsStr);
-			} catch (err) {
-				return next(makeErr(400,
-					"Request body cannot be interpreted as JSON."));
-			}
-			if (!allowNonObject &&
-					(!req.body || (typeof req.body !== 'object'))) {
-				return next(makeErr(400, "Request body is not a JSON object."));
-			}
-			next();
-		});
+export function json(
+	maxSize: string|number, allowNonObject?: boolean
+): RequestHandler {
+	return byteCollector(maxSize, TYPES.json, (req, _res, next) => {
+		try {
+			const bodyAsStr = req.body.toString('utf8');
+			req.body = ((bodyAsStr === '') ?
+				undefined :
+				JSON.parse(bodyAsStr)
+			);
+		} catch (err) {
+			return next(
+				makeErr(400, "Request body cannot be interpreted as JSON.")
+			);
+		}
+		if (!allowNonObject
+		&& (!req.body || (typeof req.body !== 'object'))) {
+			return next(makeErr(400, "Request body is not a JSON object."));
+		}
+		next();
+	});
 }
 
 /**
@@ -229,18 +233,16 @@ export function json(maxSize: string|number, allowNonObject?: boolean):
  * @return middleware function, that parses all request bytes as utf8 text,
  * placing result into usual body field of request object.
  */
-export function textPlain(maxSize: string|number): express.RequestHandler {
-	return byteCollector(maxSize, TYPES.plain,
-		(req: express.Request, res: express.Response,
-				next: express.NextFunction) => {
-			try {
-				req.body = req.body.toString('utf8');
-			} catch (err) {
-				return next(makeErr(400,
-					"Request body cannot be interpreted as plain utf8 text."));
-			}
-			next();
-		});
+export function textPlain(maxSize: string|number): RequestHandler {
+	return byteCollector(maxSize, TYPES.plain, (req, _res, next) => {
+		try {
+			req.body = req.body.toString('utf8');
+		} catch (err) {
+			return next(makeErr(400,
+				"Request body cannot be interpreted as plain utf8 text."));
+		}
+		next();
+	});
 }
 
 Object.freeze(exports);

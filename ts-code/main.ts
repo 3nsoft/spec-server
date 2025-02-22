@@ -23,7 +23,7 @@ import { ServerOptions } from 'https';
 import { CliUsageDisplay, parseProcessArgv } from './config/cli';
 import { readYamlConfFile } from './config/from-yaml';
 import { sslOptsFromConfig } from './config/letsencrypt';
-import { Configurations, servicesApp, adminApp, AppWithWSs } from './lib';
+import { Configurations, servicesApp, accountsApp, AppWithWSs } from './lib';
 import { addMultiDomainSignup, addSingleUserSignup, readAllSignupTokens, readNoTokensFile, readTokenFile } from './config/signup';
 
 async function run(conf: Configurations): Promise<void> {
@@ -39,7 +39,7 @@ async function run(conf: Configurations): Promise<void> {
 	function createApp(conf: Configurations): AppWithWSs {
 		const app = new AppWithWSs();
 		app.use(servicesApp(conf, 'console', 'console'));
-		app.use(adminApp(conf, 'console', 'console'));
+		app.use(accountsApp(conf, 'console', 'console'));
 		return app;
 	}
 

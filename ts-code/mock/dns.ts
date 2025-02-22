@@ -12,9 +12,9 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>. */
+ this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
-import { bind } from '../lib-common/binding';
 
 const DNS_ERR_CODE = {
 	NODATA: 'ENODATA',
@@ -73,21 +73,20 @@ export class DNSMock {
 				this.domains.set(d, midUrlOrBulkRecs[d]);
 			}
 		}
-		// node's definition incorrectly describes callback argument
-		this.resolveTxt = (bind(this, this.mockResolve) as any);
+		this.resolveTxt = this.mockResolve.bind(this);
 		Object.freeze(this);
 	}
 	
 	private mockResolve(
 		domain: string,
-		callback: (err: Error|null, txt: string[][]|null) => void
+		callback: (err: any, txt: string[][]) => void
 	): void {
 		const d = domainOfAddress(domain);
 		const txt = this.domains.get(d);
 		if (txt) {
 			callback(null, txt);
 		} else {
-			callback(makeDnsError(DNS_ERR_CODE.NOTFOUND, d), null);
+			callback(makeDnsError(DNS_ERR_CODE.NOTFOUND, d), null as any);
 		}
 	}
 

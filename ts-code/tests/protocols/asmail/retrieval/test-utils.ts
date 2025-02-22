@@ -53,7 +53,7 @@ export const msg: Msg = {
 export async function startSession(user: User, retrievalUrl: string):
 		Promise<string> {
 	return await doMailerIdLogin(
-		resolveUrl(retrievalUrl, api.midLogin.MID_URL_PART),
+		resolveUrl(retrievalUrl, api.midLogin.URL_PART),
 		user);
 }
 

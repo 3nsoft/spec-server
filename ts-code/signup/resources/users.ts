@@ -25,7 +25,6 @@ import { writeFileSync, readdirSync } from 'fs';
 import * as jwk from '../../lib-common/jwkeys';
 import * as nacl from 'ecma-nacl';
 import { UserMidParams, UserStorageParams } from '../../lib-common/admin-api/signup';
-import { bind } from '../../lib-common/binding';
 import * as asmailConf from '../../lib-common/service-api/asmail/config';
 import { join } from 'path';
 import { createFolderTreeSync, treeInRootFolder, treeInDefaultsFolder, DefaultsDataTree, addressToFName, treeInUserFolder, createFolderTree } from '../../lib-server/resources/server-data-folders';
@@ -409,9 +408,9 @@ class Users {
 
 	wrap(): Factory {
 		const wrap: Factory = {
-			getAvailableDomains: bind(this, this.getAvailableDomains),
-			getAvailableAddresses: bind(this, this.getAvailableAddresses),
-			add: bind(this, this.add),
+			getAvailableDomains: this.getAvailableDomains.bind(this),
+			getAvailableAddresses: this.getAvailableAddresses.bind(this),
+			add: this.add.bind(this),
 		};
 		Object.freeze(wrap);
 		return wrap;
