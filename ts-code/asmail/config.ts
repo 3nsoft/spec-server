@@ -55,37 +55,37 @@ export function makeApp(
 
 	app.route('/'+api.p.anonSenderPolicy.URL_END)
 	.get(getParam(recipients.getAnonSenderPolicy))
-	.put(parseJSON('40kb', true),
+	.put(parseJSON('40kb'),
 		setParam(recipients.setAnonSenderPolicy)
 	);
 
 	app.route('/'+api.p.anonSenderInvites.URL_END)
 	.get(getParam(recipients.getAnonSenderInvites))
-	.put(parseJSON('40kb', true),
+	.put(parseJSON('40kb'),
 		setParam(recipients.setAnonSenderInvites)
 	);
 
 	app.route('/'+api.p.authSenderPolicy.URL_END)
 	.get(getParam(recipients.getAuthSenderPolicy))
-	.put(parseJSON('4kb', true),
+	.put(parseJSON('4kb'),
 		setParam(recipients.setAuthSenderPolicy)
 	);
 
 	app.route('/'+api.p.authSenderInvites.URL_END)
 	.get(getParam(recipients.getAuthSenderInvites))
-	.put(parseJSON('40kb', true),
+	.put(parseJSON('40kb'),
 		setParam(recipients.setAuthSenderInvites)
 	);
 
 	app.route('/'+api.p.authSenderWhitelist.URL_END)
 	.get(getParam(recipients.getAuthSenderWhitelist))
-	.put(parseJSON('40kb', true),
+	.put(parseJSON('40kb'),
 		setParam(recipients.setAuthSenderWhitelist)
 	);
 
 	app.route('/'+api.p.authSenderBlacklist.URL_END)
 	.get(getParam(recipients.getAuthSenderBlacklist))
-	.put(parseJSON('40kb', true),
+	.put(parseJSON('40kb'),
 		setParam(recipients.setAuthSenderBlacklist)
 	);
 

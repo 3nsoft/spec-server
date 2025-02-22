@@ -22,7 +22,6 @@
 import { Readable } from 'stream';
 import { Inbox, ObjReader, AuthSenderPolicy, SC, MailEventsSink, InboxParams } from './inbox';
 import * as deliveryApi from '../../lib-common/service-api/asmail/delivery';
-import * as configApi from '../../lib-common/service-api/asmail/config';
 import * as retrievalApi from '../../lib-common/service-api/asmail/retrieval';
 import { userDataInRootFolder } from '../../lib-server/resources/server-data-folders';
 
@@ -346,7 +345,7 @@ export function makeFactory(
 		},
 		setPubKey: async (userId, pkey) => {
 			const inbox = await getInbox(userId);
-			return inbox.setPubKey(pkey, false);
+			return inbox.setPubKey(pkey);
 		},
 
 		getAnonSenderPolicy: async recipient => {
@@ -355,7 +354,7 @@ export function makeFactory(
 		},
 		setAnonSenderPolicy: async (userId, policy) => {
 			const inbox = await getInbox(userId);
-			return inbox.setAnonSenderPolicy(policy, false);
+			return inbox.setAnonSenderPolicy(policy);
 		},
 
 		getAnonSenderInvites: async recipient => {
@@ -364,7 +363,7 @@ export function makeFactory(
 		},
 		setAnonSenderInvites: async (userId, invites) => {
 			const inbox = await getInbox(userId);
-			return inbox.setAnonSenderInvites(invites, false);
+			return inbox.setAnonSenderInvites(invites);
 		},
 
 		getAuthSenderPolicy: async recipient => {
@@ -373,7 +372,7 @@ export function makeFactory(
 		},
 		setAuthSenderPolicy: async (userId, policy) => {
 			const inbox = await getInbox(userId);
-			return inbox.setAuthSenderPolicy(policy, false);
+			return inbox.setAuthSenderPolicy(policy);
 		},
 	
 		getAuthSenderInvites: async recipient => {
@@ -382,7 +381,7 @@ export function makeFactory(
 		},
 		setAuthSenderInvites: async (userId, invites) => {
 			const inbox = await getInbox(userId);
-			return inbox.setAnonSenderInvites(invites, false);
+			return inbox.setAnonSenderInvites(invites);
 		},
 	
 		getAuthSenderBlacklist: async recipient => {
@@ -391,7 +390,7 @@ export function makeFactory(
 		},
 		setAuthSenderBlacklist: async (userId, list) => {
 			const inbox = await getInbox(userId);
-			return inbox.setAuthSenderBlacklist(list, false);
+			return inbox.setAuthSenderBlacklist(list);
 		},
 	
 		getAuthSenderWhitelist: async recipient => {
@@ -400,7 +399,7 @@ export function makeFactory(
 		},
 		setAuthSenderWhitelist: async (userId, list) => {
 			const inbox = await getInbox(userId);
-			return inbox.setAuthSenderWhitelist(list, false);
+			return inbox.setAuthSenderWhitelist(list);
 		},
 	
 		allowedMaxMsgSize: async (recipient, sender, invitation) => {
