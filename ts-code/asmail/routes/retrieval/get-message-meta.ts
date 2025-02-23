@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -16,18 +16,17 @@
 */
 
 import { RequestHandler } from 'express';
-import { SC as recipSC, GetMsgMeta } from '../../resources/recipients';
+import { SC as recipSC, MsgRetrieval } from '../../resources/recipients';
 import { msgMetadata as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/asmail/retrieval';
 import { Request } from '../../resources/sessions';
 
-export function getMsgMeta(getMsgMetaFunc: GetMsgMeta): RequestHandler {
-	if ('function' !== typeof getMsgMetaFunc) { throw new TypeError(
-			"Given argument 'getMsgMetaFunc' must be function, but is not."); }
-
+export function getMsgMeta(
+	getMsgMetaFunc: MsgRetrieval['getMsgMeta']
+): RequestHandler {
 	return async (req: Request, res, next) => {
 		const userId = req.session.params.userId;
 		const msgId: string = req.params.msgId;
-		
+
 		try {
 			const meta = await getMsgMetaFunc(userId, msgId);
 			res.status(api.SC.ok).json(meta);
@@ -47,7 +46,7 @@ export function getMsgMeta(getMsgMetaFunc: GetMsgMeta): RequestHandler {
 				next(new Error("Unhandled storage error code: "+err));
 			}
 		}
-		
+
 	};
 }
 

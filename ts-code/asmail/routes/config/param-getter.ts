@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -16,22 +16,19 @@
 */
 
 import { RequestHandler } from 'express';
-import { SC as recipSC } from '../../resources/recipients';
+import { GetParam, SC as recipSC } from '../../resources/recipients';
 import { PARAM_SC, ERR_SC } from '../../../lib-common/service-api/asmail/config';
 import { Request } from '../../resources/sessions';
+import { InboxParams } from '../../resources/inbox';
 
-export function getParam<T>(
-	paramGetter: (userId: string) => Promise<T>
+export function getParam<P extends keyof InboxParams>(
+	paramGetter: GetParam<P>
 ): RequestHandler {
-	
-	if ('function' !== typeof paramGetter) { throw new TypeError(
-			"Given argument 'paramGetter' must be function, but is not."); }
-	
 	return async (req: Request, res, next) => {
-		
+
 		const session = req.session;
 		const userId = session.params.userId;
-		
+
 		try{
 			const value = await paramGetter(userId);
 			res.status(PARAM_SC.ok).json(value);
@@ -45,8 +42,8 @@ export function getParam<T>(
 				next(err);
 			}
 		}
-		
+
 	};
-	
 }
+
 Object.freeze(exports);

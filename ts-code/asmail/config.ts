@@ -18,7 +18,7 @@
 import * as express from 'express';
 import { json as parseJSON, emptyBody } from '../lib-server/middleware/body-parsers';
 import { SessionsFactory } from './resources/sessions';
-import { Factory as UsersFactory } from './resources/recipients';
+import { ASMailServiceConfig } from './resources/recipients';
 import { MidAuthorizer } from '../lib-server/routes/sessions/mid-auth';
 import { closeSession } from '../lib-server/routes/sessions/close';
 import { getParam } from './routes/config/param-getter';
@@ -27,7 +27,8 @@ import * as api from '../lib-common/service-api/asmail/config';
 import { addMailerIdLoginRoutes } from '../lib-server/mid-access';
 
 export function makeApp(
-	domain: string, sessions: SessionsFactory, recipients: UsersFactory,midAuthorizer: MidAuthorizer
+	domain: string, sessions: SessionsFactory, recipients: ASMailServiceConfig,
+	midAuthorizer: MidAuthorizer
 ): express.Express {
 
 	const app = express();

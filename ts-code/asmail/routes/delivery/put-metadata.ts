@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -16,7 +16,7 @@
 */
 
 import { RequestHandler } from 'express';
-import { SC as recipSC, SetMsgStorage } from '../../resources/recipients';
+import { SC as recipSC, MsgDelivery } from '../../resources/recipients';
 import { msgMeta as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/asmail/delivery';
 import * as confUtil from '../../../lib-server/conf-util';
 import { Request } from '../../resources/delivery-sessions';
@@ -46,11 +46,9 @@ function findProblemWithObjIds(ids: string[]): ErrorReply|undefined {
 }
 
 export function saveMetadata(
-	setMsgStorageFunc: SetMsgStorage, maxChunk: string|number
+	setMsgStorageFunc: MsgDelivery['setMsgStorage'], maxChunk: string|number
 ): RequestHandler {
-	if ('function' !== typeof setMsgStorageFunc) { throw new TypeError(
-			"Given argument 'setMsgStorageFunc' must "+
-			"be function, but is not."); }
+
 	const maxChunkSize = confUtil.stringToNumOfBytes(maxChunk);
 
 	return async (req: Request, res, next) => {
@@ -58,19 +56,19 @@ export function saveMetadata(
 		const msgMeta: api.Request = req.body;
 		const recipient = session.params.recipient;
 		const objIds = msgMeta.objIds;
-		
+
 		if (session.params.msgId) {
 			res.status(ERR_SC.duplicateReq).json( <ErrorReply> {
 				error: "This protocol request has already been served."
 			});
 			return;
 		}
-		
+
 		if (findProblemWithObjIds(objIds)) {
 			res.status(ERR_SC.malformed).json(findProblemWithObjIds(objIds));
 			return;
 		}
-		
+
 		try {
 			const msgId = await setMsgStorageFunc(recipient, msgMeta,
 				session.params.sender, session.params.invite,
@@ -89,7 +87,8 @@ export function saveMetadata(
 				session.close();
 			}
 		}
-		
+
 	};
 }
+
 Object.freeze(exports);

@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017 3NSoft Inc.
+ Copyright (C) 2017, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -15,8 +15,8 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { RequestHandler, Response, NextFunction } from 'express';
-import { SC as recipSC, IncompleteMsgDeliveryParams } from '../../resources/recipients';
+import { RequestHandler, Response } from 'express';
+import { SC as recipSC, MsgDelivery } from '../../resources/recipients';
 import { sessionRestart as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/asmail/delivery';
 import { Request, GenerateSession, GetSessionForMsg } from '../../resources/delivery-sessions';
 import { Redirect } from './start-session';
@@ -38,19 +38,12 @@ import * as confUtil from '../../../lib-server/conf-util';
  */
 export function restartSession(
 	sessionGenFunc: GenerateSession,sessionForMsgFunc: GetSessionForMsg,
-	incompleteMsgFunc: IncompleteMsgDeliveryParams, maxChunk: string|number,
-	redirectFunc?: Redirect
+	incompleteMsgFunc: MsgDelivery['incompleteMsgDeliveryParams'],
+	maxChunk: string|number, redirectFunc?: Redirect
 ): RequestHandler {
-	if (typeof sessionGenFunc !== 'function') { throw new TypeError(
-		`Given argument 'sessionGenFunc' must be function, but is not.`); }
-	if (typeof sessionForMsgFunc !== 'function') { throw new TypeError(
-		`Given argument 'sessionForMsgFunc' must be function, but is not.`); }
-	if (typeof incompleteMsgFunc !== 'function') { throw new TypeError(
-		`Given argument 'incompleteMsgFunc' must be function, but is not.`); }
-	if ((redirectFunc !== undefined) && (typeof redirectFunc !== 'function')) {
-		throw new TypeError(`Given argument 'redirectFunc' must either be function, or be undefined, but it is neither.`); }
+
 	const maxChunkSize = confUtil.stringToNumOfBytes(maxChunk);
-		
+
 	async function serveRequestHere(
 		recipient: string, msgId: string, res: Response
 	): Promise<void> {
@@ -70,14 +63,14 @@ export function restartSession(
 			maxChunkSize
 		});
 	}
-	
+
 	return async (req: Request, res, next) => {
-		
+
 		const rb: api.Request = req.body;
 		const recipient = checkAndTransformAddress(rb.recipient);
 		const msgId = rb.msgId;
 		const session = req.session;
-		
+
 		// session is opened, and is even mentioned in a header
 		if (session) {
 			res.status(api.SC.ok).json( <api.Reply> {
@@ -87,7 +80,7 @@ export function restartSession(
 			});
 			return;
 		}
-		
+
 		// missing recipient makes a bad request
 		if (!recipient) {
 			res.status(ERR_SC.malformed).json( <ErrorReply> {
@@ -95,7 +88,7 @@ export function restartSession(
 			});
 			return;
 		}
-		
+
 		// check message id
 		if (typeof msgId !== 'string') {
 			res.status(ERR_SC.malformed).json( <ErrorReply> {

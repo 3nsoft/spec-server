@@ -16,18 +16,17 @@
 */
 
 import { RequestHandler } from 'express';
-import { SC as recipSC, DeleteMsg } from '../../resources/recipients';
+import { SC as recipSC, MsgRetrieval } from '../../resources/recipients';
 import { rmMsg as api, ERR_SC } from '../../../lib-common/service-api/asmail/retrieval';
 import { Request } from '../../resources/sessions';
 
-export function deleteMsg(delMsgFunc: DeleteMsg): RequestHandler {
-	if ('function' !== typeof delMsgFunc) { throw new TypeError(
-			"Given argument 'delMsgFunc' must be function, but is not."); }
-
+export function deleteMsg(
+	delMsgFunc: MsgRetrieval['deleteMsg']
+): RequestHandler {
 	return async (req: Request, res, next) => {
 		const userId = req.session.params.userId;
 		const msgId: string = req.params.msgId;
-		
+
 		try {
 			await delMsgFunc(userId, msgId);
 			res.status(api.SC.ok).end();
@@ -36,16 +35,18 @@ export function deleteMsg(delMsgFunc: DeleteMsg): RequestHandler {
 				next(err);
 			} else if (err === recipSC.MSG_UNKNOWN) {
 				res.status(api.SC.unknownMsg).send(
-					"Message "+msgId+" is unknown.");
+					"Message "+msgId+" is unknown."
+				);
 			} else if (err === recipSC.USER_UNKNOWN) {
 				res.status(ERR_SC.server).send(
-					"Recipient disappeared from the system.");
+					"Recipient disappeared from the system."
+				);
 				req.session.close();
 			} else {
 				next(new Error("Unhandled storage error code: "+err));
 			}
 		}
-		
+
 	};
 }
 

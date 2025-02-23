@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -16,17 +16,16 @@
 */
 
 import { RequestHandler } from 'express';
-import { SC as recipSC, GetMsgIds } from '../../resources/recipients';
+import { SC as recipSC, MsgRetrieval } from '../../resources/recipients';
 import { listMsgs as api, ERR_SC } from '../../../lib-common/service-api/asmail/retrieval';
 import { Request } from '../../resources/sessions';
 
-export function listMsgIds(listMsgIdsFunc: GetMsgIds): RequestHandler {
-	if ('function' !== typeof listMsgIdsFunc) { throw new TypeError(
-			"Given argument 'listMsgIdsFunc' must be function, but is not."); }
-
+export function listMsgIds(
+	listMsgIdsFunc: MsgRetrieval['getMsgIds']
+): RequestHandler {
 	return async (req: Request, res, next) => {
 		const userId = req.session.params.userId;
-		
+
 		try {
 			const msgIds = await listMsgIdsFunc(userId);
 			res.status(api.SC.ok).json(msgIds);
@@ -35,13 +34,14 @@ export function listMsgIds(listMsgIdsFunc: GetMsgIds): RequestHandler {
 				next(err);
 			} else if (err === recipSC.USER_UNKNOWN) {
 				res.status(ERR_SC.server).send(
-					"Recipient disappeared from the system.");
+					"Recipient disappeared from the system."
+				);
 				req.session.close();
 			} else {
 				next(new Error("Unhandled storage error code: "+err));
 			}
 		}
-		
+
 	};
 }
 

@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -16,7 +16,7 @@
 */
 
 import { RequestHandler } from 'express';
-import { SC as recipSC, GetPubKey } from '../../resources/recipients';
+import { SC as recipSC, MsgDelivery } from '../../resources/recipients';
 import { initPubKey as api, ERR_SC } from '../../../lib-common/service-api/asmail/delivery';
 import { Request } from '../../resources/delivery-sessions';
 
@@ -26,15 +26,12 @@ import { Request } from '../../resources/delivery-sessions';
  * for use in this communication. 
  */
 export function getRecipientPubKey(
-	pkeyProvidingFunc: GetPubKey
+	pkeyProvidingFunc: MsgDelivery['getPubKey']
 ): RequestHandler {
-	if ('function' !== typeof pkeyProvidingFunc) { throw new TypeError(
-			"Given argument 'pkeyProvidingFunc' must be function, but is not."); }
-	
 	return async (req: Request, res, next) => {
-		
+
 		const session = req.session;
-		
+
 		try{
 			const certs = await pkeyProvidingFunc(session.params.recipient);
 			if (certs) {
@@ -54,7 +51,8 @@ export function getRecipientPubKey(
 				next(new Error("Unhandled storage error code: "+err));
 			}
 		}
-		
+
 	};
 }
+
 Object.freeze(exports);

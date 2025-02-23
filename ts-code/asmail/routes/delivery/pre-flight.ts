@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -16,7 +16,7 @@
 */
 
 import { RequestHandler, Response } from 'express';
-import { SC as recipSC, AllowedMaxMsgSize } from '../../resources/recipients';
+import { SC as recipSC, MsgDelivery } from '../../resources/recipients';
 import { preFlight as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/asmail/delivery';
 import { Request } from '../../resources/delivery-sessions';
 import { Redirect } from './start-session';
@@ -35,12 +35,8 @@ import { checkAndTransformAddress } from '../../../lib-common/canonical-address'
  * (2) undefined, if it is this server should service given recipient. 
  */
 export function preFlight(
-	allowedMsgSizeFunc: AllowedMaxMsgSize, redirectFunc?: Redirect
+	allowedMsgSizeFunc: MsgDelivery['allowedMaxMsgSize'], redirectFunc?: Redirect
 ): RequestHandler {
-	if (typeof allowedMsgSizeFunc !== 'function') { throw new TypeError(
-		`Given argument 'allowedMsgSizeFunc' must be function, but is not.`); }
-	if ((redirectFunc !== undefined) &&	(typeof redirectFunc !== 'function')) {
-		throw new TypeError(`Given argument 'redirectFunc' must either be function, or be undefined, but it is neither.`); }
 		
 	async function serveRequestHere(
 		recipient: string, sender: string|undefined,
@@ -63,15 +59,15 @@ export function preFlight(
 			throw new Error(`Unrecognized code ${msgSize} for message size limits.`);
 		}
 	}
-	
+
 	return async (req: Request, res, next) => {
-		
+
 		const rb: api.Request = req.body;
 		const recipient = checkAndTransformAddress(rb.recipient);
 		let sender = rb.sender;
 		const invitation = rb.invitation;
 		const session = req.session;
-		
+
 		// already existing session indicates repeated call, which should be bounced off
 		if (session) {
 			res.status(ERR_SC.duplicateReq).json( <ErrorReply> {
@@ -79,7 +75,7 @@ export function preFlight(
 			});
 			return;
 		}
-		
+
 		// missing recipient makes a bad request
 		if (!recipient) {
 			res.status(ERR_SC.malformed).json( <ErrorReply> {
@@ -87,7 +83,7 @@ export function preFlight(
 			});
 			return;
 		}
-		
+
 		// if sender is given, we canonicalize the address
 		if (sender) {
 			sender = checkAndTransformAddress(sender);
@@ -129,7 +125,7 @@ export function preFlight(
 				next(err);
 			}
 		}
-		
+
 	};
 }
 

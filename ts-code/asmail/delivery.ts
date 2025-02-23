@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -18,7 +18,7 @@
 import * as express from 'express';
 import { json as parseJSON, emptyBody } from '../lib-server/middleware/body-parsers';
 import { SessionsFactory } from './resources/delivery-sessions';
-import { Factory as RecipFactory } from './resources/recipients';
+import { MsgDelivery } from './resources/recipients';
 import { startSession } from './routes/delivery/start-session';
 import { preFlight } from './routes/delivery/pre-flight';
 import { restartSession } from './routes/delivery/restart-session';
@@ -33,7 +33,7 @@ import * as api from '../lib-common/service-api/asmail/delivery';
 const MAX_CHUNK_SIZE = '0.5mb';
 
 export function makeApp(
-	domain: string, sessions: SessionsFactory, recipients: RecipFactory,
+	domain: string, sessions: SessionsFactory, recipients: MsgDelivery,
 	midAuthorizer: IMidAuthorizer
 ): express.Express {
 

@@ -140,165 +140,154 @@ async function allowedMsgSizeForAuthSender(
 	return adaptToFreeSpaceLeft(inbox, policy.defaultMsgSize);
 }
 
-/**
- * This checks existence of a given user, returning a promise, resolvable
- * either to true, when given user id is known, or to false, when it is not.
- */
-export type UserExists = (userId: string) => Promise<boolean>;
 
-/**
- * This tells what is an allowable maximum message size for a given recipient,
- * for a given sender and/or under a given invitation token.
- * Function returns a promise, resolvable to
- * (1) zero (0), if leaving mail is forbidden,
- * (2) greater than zero maximum message length, and
- * (3) -1 (less than zero), if mail cannot be accepted due to full mail
- *     box.
- */
-export type AllowedMaxMsgSize = (
-	recipient: string, sender: string|undefined, invitation: string|undefined
-) => Promise<number>;
 
-/**
- * This allocates storage for a message returning a promise, resolvable to
- * (1) message id, when a folder for new message has been created,
- * (2) undefined, if recipient is unknown.
- */
-export type SetMsgStorage = (
-	recipient: string, msgMeta: deliveryApi.msgMeta.Request,
-	authSender: string|undefined, invite: string|undefined, maxMsgLength: number
-) => Promise<string>;
 
-/**
- * This saves object's bytes, returning a promise, resolvable when saving
- * is OK, otherwise, promise rejects with string error code from SC.
- */
-export type SaveObj = (
-	recipient: string, msgId: string, objId: string,
-	fstReq: deliveryApi.PutObjFirstQueryOpts|undefined,
-	sndReq: deliveryApi.PutObjSecondQueryOpts|undefined,
-	bytesLen: number, bytes: Readable
-) => Promise<void>;
 
-/**
- * This finalizes delivery of a message, returning a promise.
- * Rejected promise may have a string error code from SC.
- */
-export type FinalizeDelivery = (
-	recipient: string, msgId: string
-) => Promise<void>;
-
-/**
- * This returns a promise, resolvable to array with ids of available messages.
- * Rejected promise may have a string error code from SC.
- */
-export type GetMsgIds = (
-	userId: string
-) => Promise<retrievalApi.listMsgs.Reply>;
-
-/**
- * This returns a promise, resolvable to message meta.
- * Rejected promise may have a string error code from SC.
- */
-export type GetMsgMeta = (
-	userId: string, msgId: string
-) => Promise<retrievalApi.MsgMeta>;
-
-/**
- * This deletes a message returning a promise, resolvable when message is
- * removed.
- * Rejected promise may have a string error code from SC.
- */
-export type DeleteMsg = (userId: string, msgId: string) => Promise<void>;
-
-/**
- * This returns parameter of a message that is still in delivery, identified
- * by given recipient and message id. If message is unknown, or if it has
- * already been delivered, error code is thrown.
- * Rejected promise may have a string error code from SC.
- */
-export type IncompleteMsgDeliveryParams = (
-	recipient: string, msgId: string
-) => Promise<{ maxMsgLength: number; currentMsgLength: number; }>;
-
-/**
- * This returns a promise, resolvable to readable stream of object bytes.
- * Rejected promise may be passing string error code from SC.
- */
-export type GetObj = (
-	userId: string, msgId: string, objId: string,
-	header: boolean, segsOffset: number, segsLimit: number|undefined
-) => Promise<ObjReader>;
-
-type GetParam<P extends keyof InboxParams> = (
+export type GetParam<P extends keyof InboxParams> = (
 	userId: string
 ) => Promise<InboxParams[P]>;
-type SetParam<P extends keyof InboxParams> = (
+export type SetParam<P extends keyof InboxParams> = (
 	userId: string, param: InboxParams[P]
 ) => Promise<boolean>;
 
-export type GetPubKey = GetParam<'pubkey'>;
-export type SetPubKey = SetParam<'pubkey'>;
-
-export type GetAnonSenderPolicy = GetParam<'anonymous/policy'>;
-export type SetAnonSenderPolicy = SetParam<'anonymous/policy'>;
-
-export type GetAnonSenderInvites = GetParam<'anonymous/invites'>;
-export type SetAnonSenderInvites = SetParam<'anonymous/invites'>;
-
-export type GetAuthSenderPolicy = GetParam<'authenticated/policy'>;
-export type SetAuthSenderPolicy = SetParam<'authenticated/policy'>;
-
-export type GetAuthSenderInvites = GetParam<'authenticated/invites'>;
-export type SetAuthSenderInvites = SetParam<'authenticated/invites'>;
-
-export type GetAuthSenderBlacklist = GetParam<'authenticated/blacklist'>;
-export type SetAuthSenderBlacklist = SetParam<'authenticated/blacklist'>;
-
-export type GetAuthSenderWhitelist = GetParam<'authenticated/whitelist'>;
-export type SetAuthSenderWhitelist = SetParam<'authenticated/whitelist'>;
-
 export type EventsSink = MailEventsSink;
 
-export interface Factory {
-	exists: UserExists;
-	allowedMaxMsgSize: AllowedMaxMsgSize;
-	setMsgStorage: SetMsgStorage;
-	saveObj: SaveObj;
-	finalizeDelivery: FinalizeDelivery;
-	getMsgIds: GetMsgIds;
-	getMsgMeta: GetMsgMeta;
-	deleteMsg: DeleteMsg;
-	getObj: GetObj;
-	incompleteMsgDeliveryParams: IncompleteMsgDeliveryParams;
-	setMailEventsSink(sink: EventsSink): void;
-
-	getPubKey: GetPubKey;
-	setPubKey: SetPubKey;
-
-	getAnonSenderPolicy: GetAnonSenderPolicy;
-	setAnonSenderPolicy: SetAnonSenderPolicy;
-
-	getAnonSenderInvites: GetAnonSenderInvites;
-	setAnonSenderInvites: SetAnonSenderInvites;
-
-	getAuthSenderPolicy: GetAuthSenderPolicy;
-	setAuthSenderPolicy: SetAuthSenderPolicy;
-
-	getAuthSenderInvites: GetAuthSenderInvites;
-	setAuthSenderInvites: SetAuthSenderInvites;
-
-	getAuthSenderBlacklist: GetAuthSenderBlacklist;
-	setAuthSenderBlacklist: SetAuthSenderBlacklist;
-
-	getAuthSenderWhitelist: GetAuthSenderWhitelist;
-	setAuthSenderWhitelist: SetAuthSenderWhitelist;
+export interface Recipients {
+	config: ASMailServiceConfig;
+	delivery: MsgDelivery;
+	retrieval: MsgRetrieval;
 }
 
-export function makeFactory(
+export interface ASMailServiceConfig {
+
+	/**
+	 * This checks existence of a given user, returning a promise, resolvable
+	 * either to true, when given user id is known, or to false, when it is not.
+	 */
+	exists: (userId: string) => Promise<boolean>;
+
+	getPubKey: GetParam<'pubkey'>;
+	setPubKey: SetParam<'pubkey'>;
+	
+	getAnonSenderPolicy: GetParam<'anonymous/policy'>;
+	setAnonSenderPolicy: SetParam<'anonymous/policy'>;
+	
+	getAnonSenderInvites: GetParam<'anonymous/invites'>;
+	setAnonSenderInvites: SetParam<'anonymous/invites'>;
+	
+	getAuthSenderPolicy: GetParam<'authenticated/policy'>;
+	setAuthSenderPolicy: SetParam<'authenticated/policy'>;
+	
+	getAuthSenderInvites: GetParam<'authenticated/invites'>;
+	setAuthSenderInvites: SetParam<'authenticated/invites'>;
+	
+	getAuthSenderBlacklist: GetParam<'authenticated/blacklist'>;
+	setAuthSenderBlacklist: SetParam<'authenticated/blacklist'>;
+	
+	getAuthSenderWhitelist: GetParam<'authenticated/whitelist'>;
+	setAuthSenderWhitelist: SetParam<'authenticated/whitelist'>;
+
+}
+
+export interface MsgDelivery {
+
+	getPubKey: ASMailServiceConfig['getPubKey'];
+
+	/**
+	 * This tells what is an allowable maximum message size for a given
+	 * recipient, for a given sender and/or under a given invitation token.
+	 * Function returns a promise, resolvable to
+	 * (1) zero (0), if leaving mail is forbidden,
+	 * (2) greater than zero maximum message length, and
+	 * (3) -1 (less than zero), if mail cannot be accepted due to full mail
+	 *     box.
+	 */
+	allowedMaxMsgSize: (
+		recipient: string, sender: string|undefined, invitation: string|undefined
+	) => Promise<number>;
+
+	/**
+	 * This allocates storage for a message returning a promise, resolvable to
+	 * (1) message id, when a folder for new message has been created,
+	 * (2) undefined, if recipient is unknown.
+	 */
+	setMsgStorage: (
+		recipient: string, msgMeta: deliveryApi.msgMeta.Request,
+		authSender: string|undefined, invite: string|undefined, maxMsgLength: number
+	) => Promise<string>;
+
+	/**
+	 * This saves object's bytes, returning a promise, resolvable when saving
+	 * is OK, otherwise, promise rejects with string error code from SC.
+	 */
+	saveObj: (
+		recipient: string, msgId: string, objId: string,
+		fstReq: deliveryApi.PutObjFirstQueryOpts|undefined,
+		sndReq: deliveryApi.PutObjSecondQueryOpts|undefined,
+		bytesLen: number, bytes: Readable
+	) => Promise<void>;
+
+	/**
+	 * This returns parameter of a message that is still in delivery, identified
+	 * by given recipient and message id. If message is unknown, or if it has
+	 * already been delivered, error code is thrown.
+	 * Rejected promise may have a string error code from SC.
+	 */
+	incompleteMsgDeliveryParams: (
+		recipient: string, msgId: string
+	) => Promise<{ maxMsgLength: number; currentMsgLength: number; }>;
+
+	/**
+	 * This finalizes delivery of a message, returning a promise.
+	 * Rejected promise may have a string error code from SC.
+	 */
+	finalizeDelivery: (
+		recipient: string, msgId: string
+	) => Promise<void>;
+
+}
+
+export interface MsgRetrieval {
+
+	exists: ASMailServiceConfig['exists'];
+
+	/**
+	 * This returns a promise, resolvable to array with ids of available
+	 * messages. Rejected promise may have a string error code from SC.
+	 */
+	getMsgIds: (userId: string) => Promise<retrievalApi.listMsgs.Reply>;
+
+	/**
+	 * This returns a promise, resolvable to message meta.
+	 * Rejected promise may have a string error code from SC.
+	 */
+	getMsgMeta: (userId: string, msgId: string) => Promise<retrievalApi.MsgMeta>;
+
+	/**
+	 * This deletes a message returning a promise, resolvable when message is
+	 * removed.
+	 * Rejected promise may have a string error code from SC.
+	 */
+	deleteMsg: (userId: string, msgId: string) => Promise<void>;
+
+	/**
+	 * This returns a promise, resolvable to readable stream of object bytes.
+	 * Rejected promise may be passing string error code from SC.
+	 */
+	getObj: (
+		userId: string, msgId: string, objId: string,
+		header: boolean, segsOffset: number, segsLimit: number|undefined
+	) => Promise<ObjReader>;
+
+	setMailEventsSink(sink: EventsSink): void;
+
+}
+
+export function makeRecipients(
 	rootFolder: string,
 	writeBufferSize?: string|number, readBufferSize?: string|number
-): Factory {
+): Recipients {
 
 	const boxes = new Map<string, Inbox>();
 
@@ -327,7 +316,7 @@ export function makeFactory(
 		}
 	}
 
-	const recipients: Factory = {
+	const config: ASMailServiceConfig = {
 
 		exists: async userId => {
 			try {
@@ -400,8 +389,15 @@ export function makeFactory(
 		setAuthSenderWhitelist: async (userId, list) => {
 			const inbox = await getInbox(userId);
 			return inbox.setAuthSenderWhitelist(list);
-		},
-	
+		}
+
+	};
+	Object.freeze(config);
+
+	const delivery: MsgDelivery = {
+
+		getPubKey: config.getPubKey,
+
 		allowedMaxMsgSize: async (recipient, sender, invitation) => {
 			const inbox = await getInbox(recipient);
 			// XXX move these two functions into inbox
@@ -437,6 +433,18 @@ export function makeFactory(
 			return inbox.completeMsgDelivery(msgId);
 		},
 
+		incompleteMsgDeliveryParams: async (recipient, msgId) => {
+			const inbox = await getInbox(recipient);
+			return inbox.getIncompleteMsgParams(msgId);
+		}
+
+	};
+	Object.freeze(delivery);
+
+	const retrieval: MsgRetrieval = {
+
+		exists: config.exists,
+
 		getMsgIds: async userId => {
 			const inbox = await getInbox(userId);
 			return inbox.getMsgIds();
@@ -452,21 +460,23 @@ export function makeFactory(
 			return inbox.rmMsg(msgId);
 		},
 
-		incompleteMsgDeliveryParams: async (recipient, msgId) => {
-			const inbox = await getInbox(recipient);
-			return inbox.getIncompleteMsgParams(msgId);
-		},
-
 		getObj: async (userId, msgId, objId, header, segsOffset, segsLimit) => {
 			const inbox = await getInbox(userId);
 			return inbox.getObj(msgId, objId, header, segsOffset, segsLimit);
 		},
 
 		setMailEventsSink(sink: EventsSink): void {
-			if (mailEventsSink) { throw new Error(`Mail events sink is already set`); }
+			if (mailEventsSink) {
+				throw new Error(`Mail events sink is already set`);
+			}
 			mailEventsSink = sink;
 		}
 
+	};
+	Object.freeze(retrieval);
+
+	const recipients: Recipients = {
+		config, delivery, retrieval
 	};
 	Object.freeze(recipients);
 

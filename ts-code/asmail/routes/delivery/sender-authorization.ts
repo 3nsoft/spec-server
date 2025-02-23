@@ -36,17 +36,15 @@ export type IMidAuthorizer = (
 export function authorize(
 	relyingPartyDomain: string, midAuthorizingFunc: IMidAuthorizer
 ): RequestHandler {
-	if ('function' !== typeof midAuthorizingFunc) { throw new TypeError(
-			"Given argument 'midAuthorizingFunc' must be function, but is not."); }
 	
 	return async (req: Request, res, next) => {
-		
+
 		if (req.session.isAuthorized) {
 			res.status(ERR_SC.duplicateReq).send(
 				"This protocol request has already been served.");
 			return;
 		}
-		
+
 		const rb: api.Request = req.body;
 		const sender = req.session.params.sender;
 		const sessionId = req.session.id;
@@ -59,13 +57,13 @@ export function authorize(
 			req.session.close();
 			return;
 		}
-		
+
 		if (!rb.assertion || !rb.userCert || !rb.provCert) {
 			res.status(ERR_SC.malformed).send("No credentials given.");
 			req.session.close();
 			return;
 		}
-		
+
 		try {
 			const certsVerified = await midAuthorizingFunc(relyingPartyDomain,
 				sessionId, sender, rb.assertion, rb.userCert, rb.provCert);
@@ -80,7 +78,7 @@ export function authorize(
 		} catch (err) {
 			next(err);
 		}
-		
+
 	};
 }
 

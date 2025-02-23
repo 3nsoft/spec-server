@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -20,7 +20,7 @@ import { emptyBody }	from '../lib-server/middleware/body-parsers';
 import { UserSockets, AppWithWSs } from '../lib-server/web-sockets/app';
 import { ServerEvents } from '../lib-server/web-sockets/server-events';
 import { SessionsFactory } from './resources/sessions';
-import { Factory as RecipFactory } from './resources/recipients';
+import { MsgRetrieval } from './resources/recipients';
 import { MidAuthorizer } from '../lib-server/routes/sessions/mid-auth';
 import { closeSession } from '../lib-server/routes/sessions/close';
 import { listMsgIds } from './routes/retrieval/list-messages';
@@ -31,7 +31,7 @@ import * as api from '../lib-common/service-api/asmail/retrieval';
 import { addMailerIdLoginRoutes } from '../lib-server/mid-access';
 
 export function makeApp(
-	domain: string, sessions: SessionsFactory, recipients: RecipFactory,
+	domain: string, sessions: SessionsFactory, recipients: MsgRetrieval,
 	midAuthorizer: MidAuthorizer
 ): AppWithWSs {
 	
@@ -44,7 +44,7 @@ export function makeApp(
 }
 
 function setWSPart(
-	app: AppWithWSs, sessions: SessionsFactory, recipients: RecipFactory
+	app: AppWithWSs, sessions: SessionsFactory, recipients: MsgRetrieval
 ): void {
 	const sockets = new UserSockets(
 		sessions.ensureAuthorizedSessionForSocketStart());
@@ -63,7 +63,7 @@ function setWSPart(
 
 function setHttpPart(
 	app: Express, domain: string, sessions: SessionsFactory,
-	recipients: RecipFactory, midAuthorizer: MidAuthorizer
+	recipients: MsgRetrieval, midAuthorizer: MidAuthorizer
 ): void {
 	app.disable('etag');
 	

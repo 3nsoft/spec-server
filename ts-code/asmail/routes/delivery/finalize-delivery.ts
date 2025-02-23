@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -15,22 +15,19 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { RequestHandler, Response, NextFunction } from 'express';
-import { SC as recipSC, FinalizeDelivery } from '../../resources/recipients';
+import { RequestHandler } from 'express';
+import { SC as recipSC, MsgDelivery } from '../../resources/recipients';
 import { Request } from '../../resources/delivery-sessions';
 import { completion as api, ERR_SC } from '../../../lib-common/service-api/asmail/delivery';
 
 export function finalizeDelivery(
-	finDelivFunc: FinalizeDelivery
+	finDelivFunc: MsgDelivery['finalizeDelivery']
 ): RequestHandler {
-	if ('function' !== typeof finDelivFunc) { throw new TypeError(
-			"Given argument 'finDelivFunc' must be function, but is not."); }
-
 	return async (req: Request, res, next) => {
 		const session = req.session;
 		const recipient = session.params.recipient;
 		const msgId = session.params.msgId;
-		
+
 		try {
 			await finDelivFunc(recipient, msgId);
 			session.close();
@@ -50,7 +47,8 @@ export function finalizeDelivery(
 				next(new Error("Unhandled storage error code: "+err));
 			}
 		}
-		
+
 	};
 }
+
 Object.freeze(exports);

@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -17,7 +17,7 @@
 
 import { RequestHandler, Response } from 'express';
 import { GenerateSession, Request } from '../../resources/delivery-sessions';
-import { SC as recipSC, AllowedMaxMsgSize } from '../../resources/recipients';
+import { SC as recipSC, MsgDelivery } from '../../resources/recipients';
 import { sessionStart as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/asmail/delivery';
 import { checkAndTransformAddress } from '../../../lib-common/canonical-address';
 
@@ -25,7 +25,8 @@ export type Redirect = (userId: string) => Promise<string>;
 
 /**
  * This creates a start-session route handler.
- * @param allowedMsgSizeFunc is a function returning promises, that may resolve to
+ * @param allowedMsgSizeFunc is a function returning promises, that
+ * may resolve to
  * (1) undefined, if recipient is unknown,
  * (2) zero (0), if leaving mail is forbidden,
  * (3) greater than zero maximum message length, and
@@ -38,15 +39,9 @@ export type Redirect = (userId: string) => Promise<string>;
  * (2) undefined, if it is this server should service given recipient. 
  */
 export function startSession(
-	allowedMsgSizeFunc: AllowedMaxMsgSize, sessionGenFunc: GenerateSession,
-	redirectFunc?: Redirect
+	allowedMsgSizeFunc: MsgDelivery['allowedMaxMsgSize'],
+	sessionGenFunc: GenerateSession, redirectFunc?: Redirect
 ): RequestHandler {
-	if (typeof allowedMsgSizeFunc !== 'function') { throw new TypeError(
-		`Given argument 'allowedMsgSizeFunc' must be function, but is not.`); }
-	if (typeof sessionGenFunc !== 'function') { throw new TypeError(
-		`Given argument 'sessionGenFunc' must be function, but is not.`); }
-	if ((redirectFunc !== undefined) && (typeof redirectFunc !== 'function')) {
-		throw new TypeError(`Given argument 'redirectFunc' must either be function, or be undefined, but it is neither.`); }
 
 	async function serveRequestHere(
 		recipient: string, sender: string|undefined,
@@ -77,18 +72,20 @@ export function startSession(
 				error: `Mail box for ${recipient} is full.`
 			});
 		} else {
-			throw new Error(`Unrecognized code ${msgSize} for message size limits.`);
+			throw new Error(
+				`Unrecognized code ${msgSize} for message size limits.`
+			);
 		}
 	}
-	
+
 	return async (req: Request, res, next) => {
-		
+
 		const rb: api.Request = req.body;
 		const recipient = checkAndTransformAddress(rb.recipient);
 		let sender = rb.sender;
 		const invitation = rb.invitation;
 		const session = req.session;
-		
+
 		// already existing session indicates repeated call, which should be bounced off
 		if (session) {
 			res.status(ERR_SC.duplicateReq).json( <ErrorReply> {
@@ -96,7 +93,7 @@ export function startSession(
 			});
 			return;
 		}
-		
+
 		// missing recipient makes a bad request
 		if (!recipient) {
 			res.status(ERR_SC.malformed).json( <ErrorReply> {
@@ -104,7 +101,7 @@ export function startSession(
 			});
 			return;
 		}
-		
+
 		// if sender is given, we canonicalize the address
 		if (sender) {
 			sender = checkAndTransformAddress(sender);
@@ -123,7 +120,7 @@ export function startSession(
 			});
 			return;
 		}
-		
+
 		try {
 			if (redirectFunc) {
 				const redirectTo = await redirectFunc(recipient)
@@ -147,7 +144,7 @@ export function startSession(
 				next(err);
 			}
 		}
-		
+
 	};
 }
 

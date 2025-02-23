@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017, 2020 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2020, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -15,16 +15,11 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-/**
- * This module gives a function that creates a mountable, or app.use()-able,
- * express ASMail application.
- */
-
 import { Express } from 'express';
 import { AppWithWSs } from '../lib-server/web-sockets/app';
 import { DeliverySessions } from './resources/delivery-sessions';
 import { makeSessionFactory } from './resources/sessions';
-import { makeFactory as makeUsersFactory } from './resources/recipients';
+import { makeRecipients } from './resources/recipients';
 import { MidAuthorizer } from '../lib-server/routes/sessions/mid-auth';
 import { ErrLogger, makeErrHandler } from '../lib-server/middleware/error-handler';
 import { makeApp as makeConfApp } from './config';
@@ -65,20 +60,26 @@ export function makeASMailApp(
 	const mailDeliverySessions = DeliverySessions.make(5*60);
 	const recipientsSessions = makeSessionFactory(10*60);
 	const userSettingSessions = makeSessionFactory(10*60);
-	const recipients = makeUsersFactory(rootFolder);
+	const recipients = makeRecipients(rootFolder);
 	
 	setupStaticEntryRoute(app.http);
 	
 	app.http.use(PATHS.delivery,
-		makeDeliveryApp(domain, mailDeliverySessions, recipients, midAuthorizer)
+		makeDeliveryApp(
+			domain, mailDeliverySessions, recipients.delivery, midAuthorizer
+		)
 	);
 	
 	app.use(PATHS.retrieval,
-		makeRetrievalApp(domain, recipientsSessions, recipients, midAuthorizer)
+		makeRetrievalApp(
+			domain, recipientsSessions, recipients.retrieval, midAuthorizer
+		)
 	);
 	
 	app.http.use(PATHS.config,
-		makeConfApp(domain, userSettingSessions, recipients, midAuthorizer)
+		makeConfApp(
+			domain, userSettingSessions, recipients.config, midAuthorizer
+		)
 	);
 	
 	app.http.use(makeErrHandler(errLogger));
