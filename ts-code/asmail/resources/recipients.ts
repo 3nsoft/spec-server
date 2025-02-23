@@ -140,10 +140,6 @@ async function allowedMsgSizeForAuthSender(
 	return adaptToFreeSpaceLeft(inbox, policy.defaultMsgSize);
 }
 
-
-
-
-
 export type GetParam<P extends keyof InboxParams> = (
 	userId: string
 ) => Promise<InboxParams[P]>;
@@ -169,22 +165,22 @@ export interface ASMailServiceConfig {
 
 	getPubKey: GetParam<'pubkey'>;
 	setPubKey: SetParam<'pubkey'>;
-	
+
 	getAnonSenderPolicy: GetParam<'anonymous/policy'>;
 	setAnonSenderPolicy: SetParam<'anonymous/policy'>;
-	
+
 	getAnonSenderInvites: GetParam<'anonymous/invites'>;
 	setAnonSenderInvites: SetParam<'anonymous/invites'>;
-	
+
 	getAuthSenderPolicy: GetParam<'authenticated/policy'>;
 	setAuthSenderPolicy: SetParam<'authenticated/policy'>;
-	
+
 	getAuthSenderInvites: GetParam<'authenticated/invites'>;
 	setAuthSenderInvites: SetParam<'authenticated/invites'>;
-	
+
 	getAuthSenderBlacklist: GetParam<'authenticated/blacklist'>;
 	setAuthSenderBlacklist: SetParam<'authenticated/blacklist'>;
-	
+
 	getAuthSenderWhitelist: GetParam<'authenticated/whitelist'>;
 	setAuthSenderWhitelist: SetParam<'authenticated/whitelist'>;
 

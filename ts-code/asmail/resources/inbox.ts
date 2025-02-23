@@ -47,6 +47,7 @@ import { chunksInOrderedStream, streamToObjFile, makeNoBaseObjPipe } from '../..
 
 export { ObjPipe, ObjReader } from '../../lib-server/resources/user-files';
 
+type InitPubKey = configApi.p.initPubKey.Certs;
 type AnonSenderPolicy = configApi.p.anonSenderPolicy.Policy;
 export type AuthSenderPolicy = configApi.p.authSenderPolicy.Policy;
 type Whitelist = configApi.p.authSenderWhitelist.List;
@@ -104,7 +105,7 @@ async function genMsgIdAndMakeFolder(
 }
 
 export interface InboxParams {
-	"pubkey": deliveryApi.initPubKey.Reply|null;
+	"pubkey": InitPubKey|null;
 	"anonymous/policy": AnonSenderPolicy;
 	"anonymous/invites": AnonSenderInvites;
 	"authenticated/policy": AuthSenderPolicy;
@@ -404,102 +405,121 @@ export class Inbox extends UserFiles<InboxParams> {
 	 * @return a promise, resolvable to true, when certs are set, or
 	 * resolvable to false, when given certs do not pass sanitization. 
 	 */
-	async setPubKey(
-		initKeyCerts: deliveryApi.initPubKey.Reply|null,
-	): Promise<boolean> {
-		let isOK: boolean;
-		if (initKeyCerts === null) {
-			isOK = true;
-		} else {
-			isOK = (
-				(typeof initKeyCerts === 'object') &&
-				isLikeSignedKeyCert(initKeyCerts.pkeyCert) &&
-				isLikeSignedKeyCert(initKeyCerts.userCert) &&
-				isLikeSignedKeyCert(initKeyCerts.provCert)
-			);
-		}
-		if (isOK) {
+	async setPubKey(initKeyCerts: InitPubKey|null): Promise<boolean> {
+		if ((initKeyCerts === null) || isValidIntroPKeyCerts(initKeyCerts)) {
 			await this.setParam('pubkey', initKeyCerts);
+			return true;
+		} else {
+			return false;
 		}
-		return isOK;
 	}
 
 	async setAnonSenderPolicy(policy: AnonSenderPolicy): Promise<boolean> {
-		const isOK = (
-			('object' === typeof policy) && !!policy &&
-			('boolean' === typeof policy.accept) &&
-			('boolean' === typeof policy.acceptWithInvitesOnly) &&
-			('number' === typeof policy.defaultMsgSize) &&
-			(policy.defaultMsgSize > 500)
-		);
-		if (isOK) {
+		if (isValidAnonSenderPolicy(policy)) {
 			await this.setParam('anonymous/policy', policy);
+			return true;
+		} else {
+			return false;
 		}
-		return isOK;
 	}
 
 	async setAnonSenderInvites(invites: AnonSenderInvites): Promise<boolean> {
-		const isOK = ('object' === typeof invites) && !!invites;
-		if (!isOK) { return false; }
-		for (var invite in invites) {
-			const msgMaxSize = invites[invite];
-			const isOK = ('number' === typeof msgMaxSize) && (msgMaxSize > 500);
-			if (!isOK) { return false; }
+		if (isValidListWithMsgMaxSizes(invites)) {
+			await this.setParam('anonymous/invites', invites);
+			return true;
+		} else {
+			return false;
 		}
-		await this.setParam('anonymous/invites', invites);
-		return true;
 	}
 
 	async setAuthSenderPolicy(policy: AuthSenderPolicy): Promise<boolean> {
-		const isOK = (
-			('object' === typeof policy) && !!policy &&
-			('boolean' === typeof policy.applyBlackList) &&
-			('boolean' === typeof policy.acceptFromWhiteListOnly) &&
-			('boolean' === typeof policy.acceptWithInvitesOnly) &&
-			('number' === typeof policy.defaultMsgSize) &&
-			(policy.defaultMsgSize > 500)
-		);
-		if (!isOK) {
+		if (isValidAuthSenderPolicy(policy)) {
 			await this.setParam('authenticated/policy', policy);
+			return true;
+		} else {
+			return false;
 		}
-		return isOK;
 	}
 
-	async setAuthSenderBlacklist(list: Blacklist): Promise<boolean> {
-		const isOK = ('object' === typeof list) && !!list;
-		if (isOK) {
-			await this.setParam('authenticated/blacklist', list);
+	async setAuthSenderBlacklist(lst: Blacklist): Promise<boolean> {
+		if (isValidBalacklist(lst)) {
+			await this.setParam('authenticated/blacklist', lst);
+			return true;
+		} else {
+			return false;
 		}
-		return isOK;
 	}
 
-	async setAuthSenderWhitelist(list: Whitelist): Promise<boolean> {
-		const isOK = ('object' === typeof list) && !!list;
-		if (!isOK) { return false; }
-		for (var addr in list) {
-			const msgMaxSize = list[addr];
-			const isOK = ('number' === typeof msgMaxSize) && (msgMaxSize > 500);
-			if (!isOK) { return false; }
+	async setAuthSenderWhitelist(lst: Whitelist): Promise<boolean> {
+		if (isValidListWithMsgMaxSizes(lst)) {
+			await this.setParam('authenticated/whitelist', lst);
+			return true;
+		} else {
+			return false;
 		}
-		await this.setParam('authenticated/whitelist', list);
-		return true;
 	}
 
 	async setAuthSenderInvites(invites: AuthSenderInvites): Promise<boolean> {
-		const isOK = ('object' === typeof invites) && !!invites;
-		if (!isOK) { return false; }
-		for (var invite in invites) {
-			const msgMaxSize = invites[invite];
-			const isOK = ('number' === typeof msgMaxSize) && (msgMaxSize > 500);
-			if (!isOK) { return false; }
+		if (isValidListWithMsgMaxSizes(invites)) {
+			await this.setParam('authenticated/invites', invites);
+			return true;
+		} else {
+			return false;
 		}
-		await this.setParam('authenticated/invites', invites);
-		return true;
 	}
 
 }
 Object.freeze(Inbox.prototype);
 Object.freeze(Inbox);
+
+
+function isValidIntroPKeyCerts(pkeyCerts: InitPubKey): boolean {
+	return (
+		(typeof pkeyCerts === 'object') && !!pkeyCerts &&
+		isLikeSignedKeyCert(pkeyCerts.pkeyCert) &&
+		isLikeSignedKeyCert(pkeyCerts.userCert) &&
+		isLikeSignedKeyCert(pkeyCerts.provCert)
+	);
+}
+
+function isValidAnonSenderPolicy(policy: AnonSenderPolicy): boolean {
+	return (
+		('object' === typeof policy) && !!policy &&
+		('boolean' === typeof policy.accept) &&
+		('boolean' === typeof policy.acceptWithInvitesOnly) &&
+		('number' === typeof policy.defaultMsgSize) &&
+		(policy.defaultMsgSize > 500)
+	);
+}
+
+function isValidAuthSenderPolicy(policy: AuthSenderPolicy): boolean {
+	return (
+		('object' === typeof policy) && !!policy &&
+		('boolean' === typeof policy.applyBlackList) &&
+		('boolean' === typeof policy.acceptFromWhiteListOnly) &&
+		('boolean' === typeof policy.acceptWithInvitesOnly) &&
+		('number' === typeof policy.defaultMsgSize) &&
+		(policy.defaultMsgSize > 500)
+	);
+}
+
+function isValidListWithMsgMaxSizes(
+	lst: AuthSenderInvites|AnonSenderInvites|Whitelist
+): boolean {
+	const isOK = ('object' === typeof lst) && !!lst;
+	if (!isOK) { return false; }
+	for (const inviteOrAddr in lst) {
+		const msgMaxSize = lst[inviteOrAddr];
+		const isOK = ('number' === typeof msgMaxSize) && (msgMaxSize > 500);
+		if (!isOK) { return false; }
+	}
+	return true;
+}
+
+function isValidBalacklist(lst: Blacklist): boolean {
+	return ('object' === typeof lst) && !!lst;
+}
+
 
 class ObjFiles {
 
