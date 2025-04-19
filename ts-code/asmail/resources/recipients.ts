@@ -89,15 +89,22 @@ async function allowedMsgSizeForAnonSender(
 	inbox: Inbox, invitation: string|undefined
 ): Promise<number> {
 	const policy = await inbox.getParam('anonymous/policy');
-	if (!policy.accept) { return 0; }
-	if (!invitation) {
-		if (policy.acceptWithInvitesOnly) { return 0; }
-		return await adaptToFreeSpaceLeft(inbox, policy.defaultMsgSize);
+	if (policy.accept) {
+		if (policy.acceptWithInvitesOnly) {
+			if (invitation) {
+				const invites = await inbox.getParam('anonymous/invites');
+				const sizeForInvite = invites[invitation];
+				return ((typeof sizeForInvite === 'number') ?
+					adaptToFreeSpaceLeft(inbox, sizeForInvite) : 0
+				);
+			} else {
+				return 0;
+			}
+		} else {
+			return await adaptToFreeSpaceLeft(inbox, policy.defaultMsgSize);
+		}
 	} else {
-		const invites = await inbox.getParam('anonymous/invites');
-		const sizeForInvite = invites[invitation];
-		if (typeof sizeForInvite !== 'number') { return 0; }
-		return adaptToFreeSpaceLeft(inbox, sizeForInvite);
+		return 0;
 	}
 }
 

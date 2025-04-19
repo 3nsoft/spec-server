@@ -7,9 +7,9 @@ Thus, we call it a spec server.
 Main purpose of this server is to ensure that 3NWeb protocols are implementable, and to be a testbed for possible new features.
 Secondary purpose of this server is to be packagable into a home-class server, i.e. server that can be run from a single machine.
 
-## Usage
+## Build & Test
 
-To use this repo, you need [Node.js](https://nodejs.org/) with [Typescript](http://www.typescriptlang.org/), installed globally to Node.js (with flag `-g`).
+To use this repo, you need [Node.js](https://nodejs.org/).
 
 When in the project's folder, run
 ```
@@ -31,6 +31,20 @@ Tests are written with [Jasmine](https://jasmine.github.io/).
 Config file is `src/tests/jasmine.ts`.
 
 Please note, that support for running server on windows hasn't been introduced, yet.
+
+## ASMail (Authenticated Secure Mail) protocol overview
+
+```mermaid
+flowchart LR
+	C@{ shape: hex, label: "customer#64;x.y.z" } -- anonymous <br> connection --> VS@{ shape: lin-cyl, label: "ASMail service for a.b.c" }
+	V@{ shape: hex, label: "vendor#64;a.b.c" } -- anonymous <br> connection --> CS@{ shape: lin-cyl, label: "ASMail service x.y.z" }
+	subgraph cg[" "]
+		CS -- owner <br> connection --> C
+	end
+	subgraph vg[" "]
+		VS -- owner <br> connection --> V
+	end
+```
 
 # License
 

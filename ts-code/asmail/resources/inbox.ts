@@ -442,7 +442,7 @@ export class Inbox extends UserFiles<InboxParams> {
 	}
 
 	async setAuthSenderBlacklist(lst: Blacklist): Promise<boolean> {
-		if (isValidBalacklist(lst)) {
+		if (isValidBlacklist(lst)) {
 			await this.setParam('authenticated/blacklist', lst);
 			return true;
 		} else {
@@ -516,7 +516,7 @@ function isValidListWithMsgMaxSizes(
 	return true;
 }
 
-function isValidBalacklist(lst: Blacklist): boolean {
+function isValidBlacklist(lst: Blacklist): boolean {
 	return ('object' === typeof lst) && !!lst;
 }
 
