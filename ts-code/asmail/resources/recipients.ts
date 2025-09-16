@@ -90,6 +90,10 @@ async function allowedMsgSizeForAnonSender(
 ): Promise<number> {
 	const policy = await inbox.getParam('anonymous/policy');
 	if (policy.accept) {
+
+		// XXX this misses case when invite allows for bigger messages,
+		//     while without invite messages are also allowed.
+
 		if (policy.acceptWithInvitesOnly) {
 			if (invitation) {
 				const invites = await inbox.getParam('anonymous/invites');

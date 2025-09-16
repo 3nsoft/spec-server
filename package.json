@@ -1,15 +1,19 @@
 {
   "name": "spec-3nweb-server",
-  "version": "1.7.10",
+  "version": "1.7.11",
   "description": "3NWeb spec server.",
   "main": "build/lib.js",
   "types": "build/lib.d.ts",
+  "bin": {
+    "3nweb": "node build/main.js"
+  },
   "scripts": {
     "build": "tsc -p ts-code",
+    "server": "node build/main.js",
     "test": "node build/tests/jasmine.js",
     "clear-for-packing": "npm prune --production && bash -c \"rm -rf build/mock build/tests 'node_modules/ecma-nacl/c sources'\"",
     "clear-for-packing-mock": "npm prune --production && bash -c \"rm -rf build/tests 'node_modules/ecma-nacl/c sources'\"",
-    "pack": "pkg --config package.json build/main.js",
+    "pack": "echo unimplemented",
     "pack-deb": "npm run pack && bash packing/create-deb.sh",
     "postinstall": "node -e \"try{require('./postinstall')}catch(e){}\""
   },
@@ -47,16 +51,9 @@
     "@types/node": "^16.11.7",
     "@types/ws": "^4.0.0",
     "jasmine": "^3.9.0",
-    "pkg": "^5.8.1",
     "rxjs": "^5.3.0",
     "typescript": "^4.7.4",
     "xhr2": "^0.1.3"
-  },
-  "pkg": {
-    "targets": [
-      "node18-linux-x64"
-    ],
-    "outputPath": "dist"
   },
   "readmeFilename": "README.md"
 }

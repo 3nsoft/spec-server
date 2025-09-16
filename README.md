@@ -37,7 +37,7 @@ Please note, that support for running server on windows hasn't been introduced, 
 ```mermaid
 flowchart LR
 	C@{ shape: hex, label: "customer#64;x.y.z" } -- anonymous <br> connection --> VS@{ shape: lin-cyl, label: "ASMail service for a.b.c" }
-	V@{ shape: hex, label: "vendor#64;a.b.c" } -- anonymous <br> connection --> CS@{ shape: lin-cyl, label: "ASMail service x.y.z" }
+	V@{ shape: hex, label: "vendor#64;a.b.c" } -- anonymous <br> connection --> CS@{ shape: lin-cyl, label: "ASMail service for x.y.z" }
 	subgraph cg[" "]
 		CS -- owner <br> connection --> C
 	end
