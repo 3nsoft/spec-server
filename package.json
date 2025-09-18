@@ -1,11 +1,11 @@
 {
   "name": "spec-3nweb-server",
-  "version": "1.7.11",
+  "version": "1.7.12",
   "description": "3NWeb spec server.",
   "main": "build/lib.js",
   "types": "build/lib.d.ts",
   "bin": {
-    "3nweb": "node build/main.js"
+    "3nweb": "build/main.js"
   },
   "scripts": {
     "build": "tsc -p ts-code",

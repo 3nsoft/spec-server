@@ -1,5 +1,7 @@
+#!/usr/bin/env node
+
 /*
- Copyright (C) 2015 - 2016, 2019 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2019, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -25,6 +27,7 @@ import { readYamlConfFile } from './config/from-yaml';
 import { sslOptsFromConfig } from './config/letsencrypt';
 import { Configurations, servicesApp, accountsApp, AppWithWSs } from './lib';
 import { addMultiDomainSignup, addSingleUserSignup, readAllSignupTokens, readNoTokensFile, readTokenFile } from './config/signup';
+import { DEFAULT_CONFIG_PATH } from './config/default-confs';
 
 async function run(conf: Configurations): Promise<void> {
 
@@ -128,12 +131,12 @@ function showUsage({ txtToDisplay, exitStatus }: CliUsageDisplay): void {
 	process.exit(exitStatus);
 }
 
-function assembleConfig(configPath: string): Configurations {
-	if (configPath) {
-		return readYamlConfFile(configPath);
-	} else {
-		throw new Error(`Config path must be given`);
+function assembleConfig(configPath: string|undefined): Configurations {
+	if (!configPath) {
+		configPath = DEFAULT_CONFIG_PATH;
+		console.log(`Looking for configuration in default location: ${configPath}`);
 	}
+	return readYamlConfFile(configPath);
 }
 
 async function displaySignupInfo(conf: Configurations): Promise<void> {

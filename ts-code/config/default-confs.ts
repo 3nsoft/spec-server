@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2023, 2025 3NSoft Inc.
+ Copyright (C) 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -15,21 +15,8 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { readFileSync } from 'fs';
-import * as yaml from 'js-yaml';
-import { Configurations } from '../services';
-import { DEFAULT_DATA_ROOT_PATH } from './default-confs';
+export const EXECUTABLE_NAME = '3nweb';
 
-export function readYamlConfFile(path: string): Configurations {
-	const txt = readFileSync(path, 'utf8');
-	const conf = yaml.load(txt) as Configurations;
+export const DEFAULT_DATA_ROOT_PATH = '/var/3nweb';
 
-	if (conf.rootFolder) {
-		conf.rootFolder = DEFAULT_DATA_ROOT_PATH;
-	}
-
-	return conf;
-}
-
-
-Object.freeze(exports);
+export const DEFAULT_CONFIG_PATH = `/etc/3nweb/conf.yaml`;

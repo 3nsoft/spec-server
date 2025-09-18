@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2023 3NSoft Inc.
+ Copyright (C) 2023, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -15,7 +15,7 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { basename } from "path";
+import { EXECUTABLE_NAME } from "../default-confs";
 import { ParsedRunArgs, parseRunArgs, runCmd } from "./run-cmd";
 import { ParsedSignupArgs, parseSignupArgs, signupCmd } from "./signup-cmd";
 import { CliUsageDisplay, HelpArg, UsageSection, helpOpt, parseArgv, toErrorUsage, toUsageDisplay } from "./utils";
@@ -52,21 +52,20 @@ export function parseProcessArgv(): {
 	showUsage?: CliUsageDisplay;
 } {
 	const args = process.argv.slice(2);
-	const execName = basename(process.argv0);
 	if (args.length === 0) {
-		return toUsageDisplay(0, mainUsage(execName));
+		return toUsageDisplay(0, mainUsage(EXECUTABLE_NAME));
 	}
 	if (args[0] === runCmd.name) {
-		return parseRunArgs(args.slice(1), execName);
+		return parseRunArgs(args.slice(1), EXECUTABLE_NAME);
 	} else if (args[0] === signupCmd.name) {
-		return parseSignupArgs(args.slice(1), execName);
+		return parseSignupArgs(args.slice(1), EXECUTABLE_NAME);
 	} else {
 		const opts = parseArgv<HelpArg>(args, [ helpOpt ], { partial: true });
 		if (opts.help) {
-			return toUsageDisplay(0, mainUsage(execName));
+			return toUsageDisplay(0, mainUsage(EXECUTABLE_NAME));
 		}
 		return toUsageDisplay(-1, toErrorUsage(
-			mainUsage(execName),
+			mainUsage(EXECUTABLE_NAME),
 			`Unknown command '${args[0]}'`
 		));
 	}
