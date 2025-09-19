@@ -28,11 +28,12 @@ import { sslOptsFromConfig } from './config/letsencrypt';
 import { Configurations, servicesApp, accountsApp, AppWithWSs } from './lib';
 import { addMultiDomainSignup, addSingleUserSignup, readAllSignupTokens, readNoTokensFile, readTokenFile } from './config/signup';
 import { DEFAULT_CONFIG_PATH } from './config/default-confs';
+import { Code } from './lib-common/exceptions/file';
 
 async function run(conf: Configurations): Promise<void> {
 
 	if (!conf.servicesConnect) {
-		console.error(`No connection settings found in ??.`);
+		console.error(`❌ No connection settings found in configuration.`);
 		process.exit(-1);
 		return;
 	}
@@ -49,7 +50,7 @@ async function run(conf: Configurations): Promise<void> {
 	async function stopProcess() {
 		if (!app) { return; }
 		try {
-			console.log(`Stopping app ...`);
+			console.log(`🏁 Stopping app ...`);
 			await app.stop();
 			console.log(`app has stopped.`);
 		} catch (err) {
@@ -64,14 +65,14 @@ async function run(conf: Configurations): Promise<void> {
 		sslOpts: ServerOptions, port: number, hostname: string|undefined
 	): Promise<void> {
 		await app!.start(sslOpts, port, hostname);
-		console.log(`Started 3NWeb server on port ${port},${hostname ? ` hostname ${hostname},` : ''} with TLS.`);
+		console.log(`🚀 Started 3NWeb server on port ${port},${hostname ? ` hostname ${hostname},` : ''} with TLS.`);
 	}
 
 	async function startAppWithoutTLS(
 		port: number, hostname: string|undefined
 	): Promise<void> {
 		await app!.start(undefined, port, hostname);
-		console.log(`Started 3NWeb server on port ${port},${hostname ? ` hostname ${hostname},` : ''} without TLS, and requiring TLS reverse proxy infront.`);	
+		console.log(`🚀 Started 3NWeb server on port ${port},${hostname ? ` hostname ${hostname},` : ''} without TLS, and requiring TLS reverse proxy infront.`);	
 	}
 
 	try {
@@ -88,14 +89,14 @@ async function run(conf: Configurations): Promise<void> {
 			await startAppWithTLS(tls.sslOpts, port, hostname);
 			if (!skipReloadOnCertsChange) {
 				tls.onCertsUpdate!(async (newOpts, originalOpts) => {
-					console.log(`Reloading server app server on TLS certificates change`);
+					console.log(`🗘  Reloading server app server on TLS certificates change`);
 					try {
 						await stopProcess();
 						app = createApp(conf);
 						await startAppWithTLS(newOpts, port, hostname);
 					} catch (err) {
 						console.error(err);
-						console.log(`Failed to reload with new TLS certs. Attempting to load with original ones.`);
+						console.log(`⚠️  Failed to reload with new TLS certs. Attempting to load with original ones.`);
 						try {
 							await stopProcess();
 							app = createApp(conf);
@@ -136,7 +137,15 @@ function assembleConfig(configPath: string|undefined): Configurations {
 		configPath = DEFAULT_CONFIG_PATH;
 		console.log(`Looking for configuration in default location: ${configPath}`);
 	}
-	return readYamlConfFile(configPath);
+	try {
+		return readYamlConfFile(configPath);
+	} catch (err) {
+		if (err.code === Code.notFound) {
+			console.error(`❌ Configuration file ${configPath} is not found.`);
+			process.exit(-2);
+		}
+		throw err;
+	}
 }
 
 async function displaySignupInfo(conf: Configurations): Promise<void> {
@@ -244,10 +253,18 @@ if (cmd.runCmd) {
 			createMultiUserToken(conf, cmd.signupCmd.domain!);
 		}
 	} else {
-		throw new Error(`CLI parser failed to capture invalid command`);
+		showUsage({
+			txtToDisplay: `❌ No recognized subcommand given to signup module`,
+			exitStatus: -1
+		});
 	}
+} else if (cmd.showSampleConfig) {
+	showUsage(cmd.showSampleConfig);
 } else if (cmd.showUsage) {
 	showUsage(cmd.showUsage);
 } else {
-	throw new Error(`CLI parser failed to trigger useful action`);
+	showUsage({
+		txtToDisplay: `❌ No recognized command given`,
+		exitStatus: -1
+	});
 }

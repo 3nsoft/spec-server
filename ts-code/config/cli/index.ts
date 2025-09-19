@@ -17,6 +17,7 @@
 
 import { EXECUTABLE_NAME } from "../default-confs";
 import { ParsedRunArgs, parseRunArgs, runCmd } from "./run-cmd";
+import { sampleConfig, showSampleConfigCmd } from "./show-sample-config";
 import { ParsedSignupArgs, parseSignupArgs, signupCmd } from "./signup-cmd";
 import { CliUsageDisplay, HelpArg, UsageSection, helpOpt, parseArgv, toErrorUsage, toUsageDisplay } from "./utils";
 
@@ -36,7 +37,8 @@ function mainUsage(execName: string): UsageSection[] {
 			header: 'Available commands:',
 			content: [
 				runCmd,
-				signupCmd
+				signupCmd,
+				showSampleConfigCmd
 			]
 		},
 		{
@@ -50,6 +52,7 @@ export function parseProcessArgv(): {
 	runCmd?: ParsedRunArgs;
 	signupCmd?: ParsedSignupArgs;
 	showUsage?: CliUsageDisplay;
+	showSampleConfig?: CliUsageDisplay;
 } {
 	const args = process.argv.slice(2);
 	if (args.length === 0) {
@@ -59,6 +62,10 @@ export function parseProcessArgv(): {
 		return parseRunArgs(args.slice(1), EXECUTABLE_NAME);
 	} else if (args[0] === signupCmd.name) {
 		return parseSignupArgs(args.slice(1), EXECUTABLE_NAME);
+	} else if (args[0] === showSampleConfigCmd.name) {
+		return { showSampleConfig: {
+			txtToDisplay: sampleConfig, exitStatus: 0
+		}};
 	} else {
 		const opts = parseArgv<HelpArg>(args, [ helpOpt ], { partial: true });
 		if (opts.help) {
