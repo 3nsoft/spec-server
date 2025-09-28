@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2023 3NSoft Inc.
+ Copyright (C) 2023, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -23,6 +23,9 @@ export type CertsUpdateListener = (
 	newOpts: ServerOptions, originalOpts: ServerOptions
 ) => Promise<void>;
 
+const LETSENCRYPT_CERT_FILE = 'fullchain.pem';
+const LETSENCRYPT_KEY_FILE = 'privkey.pem';
+
 export function sslOptsFromConfig(
 	letsencrypt: string|undefined, sslOpts: ServerOptions|undefined,
 	skipReloadOnCertsChange: boolean|undefined
@@ -34,8 +37,8 @@ export function sslOptsFromConfig(
 		sslOpts = {};
 	}
 	if (letsencrypt) {
-		sslOpts.cert = readFileSync(join(letsencrypt, 'fullchain.pem'));
-		sslOpts.key = readFileSync(join(letsencrypt, 'privkey.pem'));
+		sslOpts.cert = readFileSync(join(letsencrypt, LETSENCRYPT_CERT_FILE));
+		sslOpts.key = readFileSync(join(letsencrypt, LETSENCRYPT_KEY_FILE));
 		if (skipReloadOnCertsChange) {
 			return { sslOpts };
 		}

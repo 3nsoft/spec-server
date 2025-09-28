@@ -15,7 +15,7 @@
  this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-import { EXECUTABLE_NAME } from "../default-confs";
+import { EXECUTABLE_NAME } from "../config/default-confs";
 import { ParsedRunArgs, parseRunArgs, runCmd } from "./run-cmd";
 import { sampleConfig, showSampleConfigCmd } from "./show-sample-config";
 import { ParsedSignupArgs, parseSignupArgs, signupCmd } from "./signup-cmd";

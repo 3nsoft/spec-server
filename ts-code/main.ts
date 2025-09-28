@@ -22,7 +22,7 @@
  */
 
 import { ServerOptions } from 'https';
-import { CliUsageDisplay, parseProcessArgv } from './config/cli';
+import { CliUsageDisplay, parseProcessArgv } from './cli';
 import { readYamlConfFile } from './config/from-yaml';
 import { sslOptsFromConfig } from './config/letsencrypt';
 import { Configurations, servicesApp, accountsApp, AppWithWSs } from './lib';

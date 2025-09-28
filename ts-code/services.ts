@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017, 2020, 2024 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2020, 2024 - 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -29,6 +29,7 @@ import { makeStorageApp } from './3nstorage/3nstorage-app';
 import { makeSignupApp } from './signup/signup-app';
 import { ErrLogger, makeErrLoggerToConsole } from "./lib-server/middleware/error-handler";
 import { makeLockerApp } from "./locker/locker-app";
+import { MidAuthorizer } from "./lib-server/routes/sessions/mid-auth";
 
 export interface Configurations {
 	enabledServices: {
@@ -63,16 +64,20 @@ export function servicesApp(
 	}
 
 	const app = new AppWithWSs();
-	const midAuthorizer = validator();	// share, allowing for caching of certs
+	let midAuthorizer: MidAuthorizer;	// share, allowing for caching of certs
 
 	if (conf.enabledServices.mailerId) {
-		app.http.use('/mailerid', makeMailerIdApp(
+		const { app: midApp, ownService } = makeMailerIdApp(
 			conf.rootFolder, conf.domain, conf.mailerId!.certs,
 			(errLogger === 'console') ? makeErrLoggerToConsole('MailerId') : errLogger
-		));
+		);
+		app.http.use('/mailerid', midApp);
 		if (logSetup === 'console') {
 			console.log(`Enabled MailerId service with provider domain ${conf.domain}`);
 		}
+		midAuthorizer = validator(ownService);
+	} else {
+		midAuthorizer = validator(undefined);
 	}
 
 	if (conf.enabledServices.asmail) {

@@ -40,39 +40,43 @@ export type MidAuthorizer = (
 export function midLogin(
 	relyingPartyDomain: string, midAuthorizingFunc: MidAuthorizer
 ): RequestHandler {
-	if ('function' !== typeof midAuthorizingFunc) { throw new TypeError(
-			"Given argument 'midAuthorizingFunc' must be function, but is not."); }
+	if ('function' !== typeof midAuthorizingFunc) {
+		throw new TypeError("Given argument 'midAuthorizingFunc' must be function, but is not.");
+	}
 
 	return async (req: Request, res, next) => {
 		
 		if (req.session.isAuthorized) {
 			res.status(ERR_SC.duplicate).send(
-				"This protocol request has already been served.");
+				"This protocol request has already been served."
+			);
 			return;
 		}
 		
 		const rb: api.Request = req.body;
 		const sessionId = req.session.id;
 		
-		if (!isLikeSignedMailerIdAssertion(rb.assertion) ||
-				!isLikeSignedKeyCert(rb.userCert) ||
-				!isLikeSignedKeyCert(rb.provCert)) {
+		if (!isLikeSignedMailerIdAssertion(rb.assertion)
+		|| !isLikeSignedKeyCert(rb.userCert)
+		|| !isLikeSignedKeyCert(rb.provCert)) {
 			res.sendStatus(ERR_SC.malformed);
 			req.session.close();
 			return;
 		}
 		
 		try {
-			const certsVerified = await midAuthorizingFunc(relyingPartyDomain,
-				sessionId, req.session.params.userId,
-				rb.assertion, rb.userCert, rb.provCert);
+			const certsVerified = await midAuthorizingFunc(
+				relyingPartyDomain, sessionId, req.session.params.userId,
+				rb.assertion, rb.userCert, rb.provCert
+			);
 			if (certsVerified) {
 				req.session.isAuthorized = true;
 				res.status(api.SC.ok).end();
 			} else {
 				req.session.close();
 				res.status(api.SC.authFailed).send(
-					"Server is not accepting provided credentials.");
+					"Server is not accepting provided credentials."
+				);
 			}
 		} catch (err) {
 			next(err);

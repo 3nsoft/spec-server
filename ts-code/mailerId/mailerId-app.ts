@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016, 2020, 2024 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2020, 2024 - 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -32,6 +32,7 @@ import { calcNaClBoxSharedKey } from '../lib-server/resources/server-key-for-pkl
 import { ErrLogger, makeErrHandler } from '../lib-server/middleware/error-handler';
 import * as api from '../lib-common/service-api/mailer-id/provisioning';
 import { addPKLLoginRoutes } from '../lib-server/pkl-access';
+import { OwnMidService } from '../lib-server/resources/mailerid-authorizer';
 
 // Constant url parts of MailerId provisioning requests
 const PROVISIONING_PATH = '/prov/';
@@ -64,7 +65,7 @@ function provisioningApp(
 export function makeMailerIdApp(
 	rootFolder: string, domain: string, certFile: string,
 	errLogger?: ErrLogger
-): express.Express {
+): { app: express.Express; ownService: OwnMidService; } {
 
 	const app = express();
 	const certProvisSessions = makeSessionFactory(2*60);
@@ -93,7 +94,13 @@ export function makeMailerIdApp(
 
 	app.use(makeErrHandler(errLogger));
 
-	return app;
+	return {
+		app,
+		ownService: {
+			domain,
+			getRoot: () => certifier.getRootCert()
+		}
+	};
 }
 
 Object.freeze(exports);

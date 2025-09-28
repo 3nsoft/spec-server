@@ -1,6 +1,6 @@
 {
   "name": "spec-3nweb-server",
-  "version": "1.7.13",
+  "version": "1.7.14",
   "description": "3NWeb spec server.",
   "main": "build/lib.js",
   "types": "build/lib.d.ts",

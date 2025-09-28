@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016, 2019 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2019, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -64,17 +64,20 @@ function getRootCert(serviceURL: string): Promise<SignedLoad> {
 // TODO need to add caching of certs using domain->(kid->cert)
 //		(this will speed things up)
 
-export function validator(): MidAuthorizer {
+export function validator(ownMidService: OwnMidService|undefined): MidAuthorizer {
 	return (
 		rpDomain, sessionId, userId, assertion, userCert, provCert
 	) => validate(
-		rpDomain, sessionId, userId, assertion, userCert, provCert
+		rpDomain, sessionId, userId, assertion, userCert, provCert, ownMidService
 	);
 }
 
+export interface OwnMidService { domain: string; getRoot: () => SignedLoad; }
+
 async function validate(
 	rpDomain: string, sessionId: string, userId: string,
-	assertion: SignedLoad, userCert: SignedLoad, provCert: SignedLoad
+	assertion: SignedLoad, userCert: SignedLoad, provCert: SignedLoad,
+	ownMidService: OwnMidService|undefined
 ): Promise<boolean> {
 	const validAt = Date.now() / 1000;
 	try{
@@ -88,9 +91,11 @@ async function validate(
 		const serviceURL = await get3NWebRecords(addressInCert, 'mailerid');
 		const domainInRecord = serviceURL.split('/')[0].split(':')[0];
 		if (issuer !== domainInRecord) { return false; }
-		
+
 		// get root certificate and check the whole chain
-		const rootCert = await getRootCert(serviceURL);
+		const rootCert = ((ownMidService && (issuer === ownMidService.domain)) ?
+			ownMidService.getRoot() : await getRootCert(serviceURL)
+		);
 		const assertInfo = mid.relyingParty.verifyAssertion(
 			assertion,
 			{ user: userCert, prov: provCert, root: rootCert },
