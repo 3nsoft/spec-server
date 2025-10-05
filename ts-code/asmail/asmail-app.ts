@@ -25,6 +25,7 @@ import { ErrLogger, makeErrHandler } from '../lib-server/middleware/error-handle
 import { makeApp as makeConfApp } from './config';
 import { makeApp as makeDeliveryApp } from './delivery';
 import { makeApp as makeRetrievalApp } from './retrieval';
+import { ASMailRootRoute } from '../lib-common/service-api/asmail/root-route';
 
 const PATHS = {
 	delivery: '/delivery/',
@@ -40,10 +41,10 @@ function setupStaticEntryRoute(app: Express): void {
 		if (path[path.length-1] !== '/') {
 			path = path+'/';
 		}
-		const json = {
-			"delivery": path+PATHS.delivery.substring(1),
-			"retrieval": path+PATHS.retrieval.substring(1),
-			"config": path+PATHS.config.substring(1)
+		const json: ASMailRootRoute = {
+			delivery: path+PATHS.delivery.substring(1),
+			retrieval: path+PATHS.retrieval.substring(1),
+			config: path+PATHS.config.substring(1)
 		};
 		// the following implicitly sets content type application/json
 		res.status(200).json(json);

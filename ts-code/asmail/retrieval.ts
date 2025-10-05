@@ -69,7 +69,7 @@ function setHttpPart(
 	
 	// Login
 	addMailerIdLoginRoutes(
-		app, domain, '/'+api.midLogin.URL_PART,
+		app, domain, '/'+api.midLogin.MID_URL_PART,
 		sessions, recipients.exists, midAuthorizer
 	);
 	
@@ -81,7 +81,7 @@ function setHttpPart(
 		closeSession()
 	);
 	
-	app.get('/'+api.listMsgs.URL_END,
+	app.get('/'+api.listMsgs.EXPRESS_URL_END,
 		listMsgIds(recipients.getMsgIds)
 	);
 	

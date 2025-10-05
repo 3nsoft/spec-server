@@ -79,7 +79,7 @@ describe('ASMail retrieval service', () => {
 	describe('session', () => {
 
 		describe('MailerId login', midLoginSpecs(
-			() => resolveUrl(retrievalUrl, api.midLogin.URL_PART),
+			() => resolveUrl(retrievalUrl, api.midLogin.MID_URL_PART),
 			() => user1
 		));
 		

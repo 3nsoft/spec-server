@@ -263,7 +263,9 @@ export interface MsgRetrieval {
 	 * This returns a promise, resolvable to array with ids of available
 	 * messages. Rejected promise may have a string error code from SC.
 	 */
-	getMsgIds: (userId: string) => Promise<retrievalApi.listMsgs.Reply>;
+	getMsgIds: (
+		userId: string, fromTS: number|undefined, toTS: number|undefined
+	) => Promise<retrievalApi.listMsgs.Reply>;
 
 	/**
 	 * This returns a promise, resolvable to message meta.
@@ -452,9 +454,9 @@ export function makeRecipients(
 
 		exists: config.exists,
 
-		getMsgIds: async userId => {
+		getMsgIds: async (userId, fromTS, toTS) => {
 			const inbox = await getInbox(userId);
-			return inbox.getMsgIds();
+			return inbox.getMsgIds(fromTS, toTS);
 		},
 
 		getMsgMeta: async (userId, msgId) => {

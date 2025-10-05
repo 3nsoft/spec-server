@@ -41,7 +41,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 		user1 = setup().user1;
 		const sessionId = await startSession(user1, retrievalUrl);
 		reqOpts = {
-			url: resolveUrl(retrievalUrl, api.URL_END),
+			url: resolveUrl(retrievalUrl, api.EXPRESS_URL_END),
 			method: 'GET',
 			responseType: 'json',
 			sessionId

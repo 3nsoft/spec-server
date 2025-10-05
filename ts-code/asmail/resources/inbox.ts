@@ -251,7 +251,7 @@ export class Inbox extends UserFiles<InboxParams> {
 		await streamToObjFile(file, chunks, bytes, this.fileWritingBufferSize);
 
 		// update meta
-		objStatus.size.segments += bytesLen;
+		objStatus.size.segments! += bytesLen;
 		if (opts.last) {
 			if (file.isFileComplete()) {
 				objStatus.completed = true;
@@ -300,10 +300,30 @@ export class Inbox extends UserFiles<InboxParams> {
 	}
 
 	/**
+	 * @param fromTS 
+	 * @param toTS 
 	 * @return a promise, resolvable to a list of available message ids.
 	 */
-	getMsgIds(): Promise<retrievalApi.listMsgs.Reply> {
-		return fs.readdir(this.metas.readyMsgsFolder);
+	async getMsgIds(fromTS: number|undefined, toTS: number|undefined): Promise<retrievalApi.listMsgs.Reply> {
+		// XXX this isn't efficient, and needs sqlite-powered index
+		const lst = await fs.readdir(this.metas.readyMsgsFolder);
+		if ((fromTS === undefined) && (toTS === undefined)) {
+			return lst;
+		}
+		const filteredLst: string[] = [];
+		for (const msgId of lst) {
+			try {
+				const { deliveryStart } = await this.metas.get(msgId, true);
+				if (fromTS && (deliveryStart < fromTS)) {
+					continue;
+				}
+				if (toTS && (toTS < deliveryStart)) {
+					continue;
+				}
+				filteredLst.push(msgId);
+			} catch (exc) {}
+		}
+		return filteredLst;
 	}
 
 	/**
@@ -317,7 +337,7 @@ export class Inbox extends UserFiles<InboxParams> {
 		const msgMeta = await this.metas.get(msgId, false);
 		let currentMsgLength = 0;
 		for (const obj of Object.values(msgMeta.objs)) {
-			currentMsgLength += obj.size.header + obj.size.segments;
+			currentMsgLength += obj.size.header + obj.size.segments!;
 		}
 		const maxMsgLength = msgMeta.maxMsgLength;
 		return { maxMsgLength, currentMsgLength };

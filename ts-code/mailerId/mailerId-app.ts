@@ -33,6 +33,7 @@ import { ErrLogger, makeErrHandler } from '../lib-server/middleware/error-handle
 import * as api from '../lib-common/service-api/mailer-id/provisioning';
 import { addPKLLoginRoutes } from '../lib-server/pkl-access';
 import { OwnMidService } from '../lib-server/resources/mailerid-authorizer';
+import { MailerIdRootRoute } from '../lib-common/service-api/mailer-id/root-route';
 
 // Constant url parts of MailerId provisioning requests
 const PROVISIONING_PATH = '/prov/';
@@ -84,10 +85,10 @@ export function makeMailerIdApp(
 		if (path[path.length-1] !== '/') {
 			path = path+'/';
 		}
-		const json = {
+		const json: MailerIdRootRoute = {
 			"current-cert": certifier.getRootCert(),
 			"previous-certs": certifier.getPrevCerts(),
-			"provisioning": path+PROVISIONING_PATH.substring(1)
+			provisioning: path+PROVISIONING_PATH.substring(1)
 		};
 		res.status(200).json(json);	// content type application/json
 	});

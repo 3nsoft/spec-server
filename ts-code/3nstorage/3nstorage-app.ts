@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016, 2020 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2020, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -23,6 +23,7 @@ import { ErrLogger, makeErrHandler } from '../lib-server/middleware/error-handle
 import { AppWithWSs } from '../lib-server/web-sockets/app';
 import { makeOwnerStorageApp, makeOwnerStorageForLocker } from './owner';
 import { makeSharedStorageApp } from './shared';
+import { StorageRootRoute } from '../lib-common/service-api/3nstorage/root-route';
 
 const PATHS = {
 	owner: '/owner/',
@@ -37,9 +38,9 @@ function setupStaticStorageEntryRoute(app: Express): void {
 		if (path[path.length-1] !== '/') {
 			path = path+'/';
 		}
-		const json = {
-			"owner": path+PATHS.owner.substring(1),
-			"shared": path+PATHS.shared.substring(1)
+		const json: StorageRootRoute = {
+			owner: path+PATHS.owner.substring(1),
+			shared: path+PATHS.shared.substring(1)
 		};
 		// the following implicitly sets content type application/json
 		res.status(200).json(json);

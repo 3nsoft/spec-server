@@ -36,6 +36,8 @@ export interface Configurations {
 		asmail?: boolean;
 		storage?: boolean;
 		mailerId?: boolean;
+	};
+	auxiliaryServices?: {
 		locker?: boolean;
 	};
 	servicesConnect?: {
@@ -100,7 +102,7 @@ export function servicesApp(
 		}
 	}
 
-	if (conf.enabledServices.locker) {
+	if (conf.auxiliaryServices?.locker) {
 		app.use('/locker', makeLockerApp(
 			conf.rootFolder,
 			(errLogger === 'console') ? makeErrLoggerToConsole('Locker') : errLogger

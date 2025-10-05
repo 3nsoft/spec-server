@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015, 2017 3NSoft Inc.
+ Copyright (C) 2015, 2017, 2019, 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -12,8 +12,7 @@
  See the GNU General Public License for more details.
  
  You should have received a copy of the GNU General Public License along with
- this program. If not, see <http://www.gnu.org/licenses/>.
-*/
+ this program. If not, see <http://www.gnu.org/licenses/>. */
 
 /**
  * This defines interfaces for mail retrieval requests.
@@ -40,53 +39,65 @@ export const ERR_SC = {
 Object.freeze(ERR_SC);
 
 export namespace midLogin {
-	
-	export const URL_PART = 'login/mailerid/';
+
+	export const MID_URL_PART = 'login/mailerid/';
+	export const START_URL_END = MID_URL_PART + midApi.startSession.URL_END;
+	export const AUTH_URL_END = MID_URL_PART + midApi.authSession.URL_END;
 
 }
 Object.freeze(midLogin);
 
 export namespace closeSession {
-	
+
 	export const URL_END = 'close-session';
-	
+
 }
 Object.freeze(closeSession);
 
+export interface ListMsgsOpts {
+	from?: number;
+	to?: number;
+}
+
 export namespace listMsgs {
-	
-	export const URL_END = 'msg/ids';
-	
+
+	export const EXPRESS_URL_END = 'msg/ids';
+
+	export function genUrlEnd(opts?: ListMsgsOpts): string {
+		let optStr = (opts ? '?'+stringifyOpts(opts as any) : '');
+		return `msg/ids${optStr}`;
+	}
+
 	export interface Reply extends Array<string> {}
-	
+
 	export const SC = {
 		ok: 200,
 	};
 	Object.freeze(SC);
-	
+
 }
 Object.freeze(listMsgs);
 
 export namespace rmMsg {
-	
+
 	export const EXPRESS_URL_END = 'msg/:msgId';
-	
+
 	export function genUrlEnd(msgId: string): string {
 		return 'msg/'+msgId;
 	}
-	
+
 	export const SC = {
 		ok: 200,
 		unknownMsg: 474
 	};
 	Object.freeze(SC);
-	
+
 }
 Object.freeze(rmMsg);
 
 export interface ObjSize {
 	header: number;
-	segments: number;
+	segments: number|undefined;
 }
 
 export interface ObjStatus {
@@ -106,21 +117,21 @@ export interface MsgMeta  {
 }
 
 export namespace msgMetadata {
-	
+
 	export const EXPRESS_URL_END = 'msg/:msgId/meta';
-	
+
 	export function genUrlEnd(msgId: string): string {
 		return 'msg/'+msgId+'/meta';
 	}
-	
+
 	export interface Reply extends MsgMeta {}
-	
+
 	export const SC = {
 		ok: 200,
 		unknownMsg: 474
 	};
 	Object.freeze(SC);
-	
+
 }
 Object.freeze(msgMetadata);
 
@@ -149,7 +160,7 @@ export interface GetObjQueryOpts {
 	 * included in a reply.
 	 */
 	header?: boolean;
-	
+
 	/**
 	 * This is an offset into segments. If it is not present, zero is assumed.
 	 * This field must be zero or missing, when header is true.
@@ -163,21 +174,21 @@ export interface GetObjQueryOpts {
 }
 
 export namespace msgObj {
-	
+
 	export const EXPRESS_URL_END = 'msg/:msgId/obj/:objId';
-	
+
 	export function genUrlEnd(msgId: string, objId: string,
 			opts?: GetObjQueryOpts): string {
 		let optStr = (opts ? '?'+stringifyOpts(opts as any) : '');
 		return `msg/${msgId}/obj/${objId}${optStr}`;
 	}
-	
+
 	export const SC = {
 		ok: 200,
 		unknownMsgOrObj: 474
 	};
 	Object.freeze(SC);
-	
+
 }
 Object.freeze(msgObj);
 
@@ -188,7 +199,7 @@ export interface ErrorReply {
 export namespace wsEventChannel {
 
 	export const URL_END = 'events';
-	
+
 	export const SC = {
 		ok: 200,
 	};
@@ -210,14 +221,18 @@ Object.freeze(msgRecievedCompletely);
 
 // XXX this event should be triggered by big messages with more than one obj
 export namespace msgMainObjRecieved {
-	
+
 	export const EVENT_NAME = 'msg-main-obj-received';
 
 	export interface Event {
 		msgId: string;
 	}
-	
+
 }
 Object.freeze(msgMainObjRecieved);
+
+// XXX add event about message removal
+//   it is useful in multi-device case, pass implicit implicit signal that will
+//   have context-specific meaning.
 	
 Object.freeze(exports);

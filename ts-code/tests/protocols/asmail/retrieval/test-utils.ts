@@ -50,11 +50,11 @@ export const msg: Msg = {
 	msgObjs: [ obj1, obj2 ]
 }
 	
-export async function startSession(user: User, retrievalUrl: string):
-		Promise<string> {
+export async function startSession(user: User, retrievalUrl: string): Promise<string> {
 	return await doMailerIdLogin(
-		resolveUrl(retrievalUrl, api.midLogin.URL_PART),
-		user);
+		resolveUrl(retrievalUrl, api.midLogin.MID_URL_PART),
+		user
+	);
 }
 
 Object.freeze(exports);

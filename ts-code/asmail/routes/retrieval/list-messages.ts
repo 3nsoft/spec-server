@@ -17,7 +17,7 @@
 
 import { RequestHandler } from 'express';
 import { SC as recipSC, MsgRetrieval } from '../../resources/recipients';
-import { listMsgs as api, ERR_SC } from '../../../lib-common/service-api/asmail/retrieval';
+import { listMsgs as api, ERR_SC, ListMsgsOpts } from '../../../lib-common/service-api/asmail/retrieval';
 import { Request } from '../../resources/sessions';
 
 export function listMsgIds(
@@ -26,8 +26,15 @@ export function listMsgIds(
 	return async (req: Request, res, next) => {
 		const userId = req.session.params.userId;
 
+		const opts = extractQueryOptions(req);
+		if (!opts) {
+			res.status(ERR_SC.malformed).send("Bad query parameters");
+			return;
+		}
+
 		try {
-			const msgIds = await listMsgIdsFunc(userId);
+			const { from, to } = opts;
+			const msgIds = await listMsgIdsFunc(userId, from, to);
 			res.status(api.SC.ok).json(msgIds);
 		} catch (err) {
 			if ("string" !== typeof err) {
@@ -43,6 +50,21 @@ export function listMsgIds(
 		}
 
 	};
+}
+
+function extractQueryOptions(req: Request): ListMsgsOpts|undefined {
+	const query: ListMsgsOpts = req.query;
+
+	const from = (query.from ? parseInt(query.from as any) : undefined);
+	if ((from !== undefined) && (isNaN(from) || (from <= 0))) {
+		return;
+	}
+	const to = (query.to ? parseInt(query.to as any) : undefined);
+	if ((to !== undefined) && (isNaN(to) || (to <= 0))) {
+		return;
+	}
+
+	return { from, to };
 }
 
 Object.freeze(exports);
