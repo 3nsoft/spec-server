@@ -147,7 +147,9 @@ export class UserSockets {
 	private ipcs: SocketIPCs[] = [];
 
 	constructor(
-			public checkSession: CheckSession<SessionParams>) {}
+		public checkSession: CheckSession<SessionParams>,
+		private readonly pingMillis: number
+	) {}
 
 	disconnect(): void {
 		this.clients.clear();
@@ -157,7 +159,7 @@ export class UserSockets {
 		for (const ipc of this.ipcs) {
 			ipc.attachIPC(userId, client);
 		}
-		let pinger = new PingSender(client);
+		let pinger = new PingSender(client, this.pingMillis);
 		client.on('close', () => {
 			this.clients.remove(userId, client);
 			pinger.close();
@@ -167,8 +169,7 @@ export class UserSockets {
 	}
 
 	addSocketIPC(ipc: SocketIPCs): void {
-		if (this.ipcs.find(existingIPC =>
-				(existingIPC.ipcChannel === ipc.ipcChannel))) {
+		if (this.ipcs.find(existingIPC => (existingIPC.ipcChannel === ipc.ipcChannel))) {
 			throw new Error(`IPC channel ${ipc.ipcChannel} on a web socket is already set.`);
 		}
 		this.ipcs.push(ipc);
@@ -187,10 +188,15 @@ class PingSender {
 	private outstandingPong = 0;
 	private client: WebSocket|undefined;
 	private fourMinCheck: NodeJS.Timer;
-	
-	constructor(client: WebSocket) {
+	private readonly pongTimeoutMillis: number;
+
+	constructor(
+		client: WebSocket,
+		private readonly pingMillis: number
+	) {
 		this.client = client;
-		this.fourMinCheck = setInterval(() => this.recurrentPing(), 4*60*1000);
+		this.pongTimeoutMillis = Math.round(this.pingMillis/2);
+		this.fourMinCheck = setInterval(() => this.recurrentPing(), this.pingMillis);
 		this.fourMinCheck.unref();
 	}
 
@@ -198,7 +204,7 @@ class PingSender {
 		if (!this.client) { return this.close(); }
 		if (this.outstandingPong === 0) {
 		} else if (this.outstandingPong === 1) {
-			setTimeout(() => this.additionalPing(), 2*60*1000).unref();
+			setTimeout(() => this.additionalPing(), this.pongTimeoutMillis).unref();
 		} else {
 			this.client.close();
 			return;

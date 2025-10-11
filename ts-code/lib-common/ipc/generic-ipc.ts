@@ -22,9 +22,7 @@ import { ErrorWithCause } from '../exceptions/error';
 import { MapOfSets } from '../map-of-sets';
 import { NamedProcs } from '../processes';
 
-export { Envelope, EventEnvelope, EventEndEnvelope, EventException,
-	RequestEnvelope, ReplyEnvelope }
-	from '../service-api/ipc-api';
+export { Envelope, EventEnvelope, EventEndEnvelope, EventException, RequestEnvelope, ReplyEnvelope } from '../service-api/ipc-api';
 
 export type RequestHandler<TReq, TRes> = web3n.ipc.RequestHandler<TReq, TRes>;
 export type RequestingClient = web3n.ipc.RequestingClient;
@@ -73,8 +71,9 @@ abstract class MessageHandler {
 	private onEndCBs: ((err?: any) => void)[]|undefined = undefined;
 
 	protected constructor(
-			public channel: string|undefined,
-			public rawDuplex: RawDuplex<Envelope>) {
+		public channel: string|undefined,
+		public rawDuplex: RawDuplex<Envelope>
+	) {
 		this.detachFromComm = this.rawDuplex.subscribe({
 			next: env => this.handleMsg(env),
 			complete: () => this.handleCompletion(),
@@ -161,8 +160,7 @@ class RequestingSide extends MessageHandler implements RequestingClient {
 		this.replyDeferreds.clear();
 	}
 
-	makeRequest<T>(name: string, req: any,
-			notifyCallback?: (progress: any) => void): Promise<T> {
+	makeRequest<T>(name: string, req: any, notifyCallback?: (progress: any) => void): Promise<T> {
 		this.counter += 1;
 		if (this.counter === Number.MAX_SAFE_INTEGER) {
 			this.counter = Number.MIN_SAFE_INTEGER;
@@ -200,8 +198,7 @@ class RequestingSide extends MessageHandler implements RequestingClient {
 Object.freeze(RequestingSide.prototype);
 Object.freeze(RequestingSide);
 
-export function makeRequestingClient(channel: string|undefined,
-		comm: RawDuplex<Envelope>): RequestingClient {
+export function makeRequestingClient(channel: string|undefined, comm: RawDuplex<Envelope>): RequestingClient {
 	return (new RequestingSide(channel, comm)).wrap();
 }
 
@@ -372,9 +369,9 @@ class EventsSendingSide extends ReplyingSide {
 		}
 	}
 
-	addEventGroup(group: string,
-			subscriptionHandler: SubscriptionHandler,
-			unsubscriptionHandler?: UnsubscriptionHandler): void {
+	addEventGroup(
+		group: string, subscriptionHandler: SubscriptionHandler, unsubscriptionHandler?: UnsubscriptionHandler
+	): void {
 		if (this.findGroup(group)) { throw new Error(
 			`Event subscription group ${group} is already present`); }
 		const gr: GroupInfo = {
@@ -437,8 +434,7 @@ class EventsSendingSide extends ReplyingSide {
 Object.freeze(EventsSendingSide.prototype);
 Object.freeze(EventsSendingSide);
 
-export function makeEventfulServer(channel: string|undefined,
-		comm: RawDuplex<Envelope>): EventfulServer {
+export function makeEventfulServer(channel: string|undefined, comm: RawDuplex<Envelope>): EventfulServer {
 	return (new EventsSendingSide(channel, comm)).wrap();
 }
 
@@ -492,12 +488,11 @@ class EventsReceivingSide extends RequestingSide implements SubscribingClient {
 	constructor(channel: string|undefined, comm: RawDuplex<Envelope>) {
 		super(channel, comm);
 		this.channels = new IpcEventChannels(
-			(ipcChannel: string) =>
-				this.makeRequest<void>(events.subscribe.REQ_NAME, ipcChannel)
-				.catch(err => this.completeEvent(ipcChannel, err)),
-			(ipcChannel: string) =>
-				this.makeRequest<void>(events.unsubscribe.REQ_NAME, ipcChannel)
-				.catch(err => {}));
+			ipcChannel => this.makeRequest<void>(events.subscribe.REQ_NAME, ipcChannel)
+			.catch(err => this.completeEvent(ipcChannel, err)),
+			ipcChannel => this.makeRequest<void>(events.unsubscribe.REQ_NAME, ipcChannel)
+			.catch(noop)
+		);
 	}
 
 	protected handleMsg(env: Envelope): void {
@@ -636,6 +631,8 @@ class IpcEventChannels {
 }
 Object.freeze(IpcEventChannels.prototype);
 Object.freeze(IpcEventChannels);
+
+function noop() {}
 
 export function makeSubscribingClient(channel: string|undefined,
 		comm: RawDuplex<Envelope>): SubscribingClient {

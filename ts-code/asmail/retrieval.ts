@@ -30,9 +30,10 @@ import { getMsgObj } from './routes/retrieval/get-message-obj';
 import * as api from '../lib-common/service-api/asmail/retrieval';
 import { addMailerIdLoginRoutes } from '../lib-server/mid-access';
 
+const WS_PING_PERIOD_MILLIS = 2*60*1000;
+
 export function makeApp(
-	domain: string, sessions: SessionsFactory, recipients: MsgRetrieval,
-	midAuthorizer: MidAuthorizer
+	domain: string, sessions: SessionsFactory, recipients: MsgRetrieval, midAuthorizer: MidAuthorizer
 ): AppWithWSs {
 	
 	const app = new AppWithWSs();
@@ -43,16 +44,14 @@ export function makeApp(
 	return app;
 }
 
-function setWSPart(
-	app: AppWithWSs, sessions: SessionsFactory, recipients: MsgRetrieval
-): void {
-	const sockets = new UserSockets(
-		sessions.ensureAuthorizedSessionForSocketStart());
-	
-	const mailEvents = new ServerEvents(undefined,
-		[ api.msgRecievedCompletely.EVENT_NAME,
-			api.msgMainObjRecieved.EVENT_NAME ],
-		sockets.socketGetter);
+function setWSPart(app: AppWithWSs, sessions: SessionsFactory, recipients: MsgRetrieval): void {
+	const sockets = new UserSockets(sessions.ensureAuthorizedSessionForSocketStart(), WS_PING_PERIOD_MILLIS);
+
+	const mailEvents = new ServerEvents(
+		undefined,
+		[ api.msgRecievedCompletely.EVENT_NAME, api.msgMainObjRecieved.EVENT_NAME ],
+		sockets.socketGetter
+	);
 	
 	// give events ipc to both ends
 	sockets.addSocketIPC(mailEvents);
@@ -62,16 +61,12 @@ function setWSPart(
 }
 
 function setHttpPart(
-	app: Express, domain: string, sessions: SessionsFactory,
-	recipients: MsgRetrieval, midAuthorizer: MidAuthorizer
+	app: Express, domain: string, sessions: SessionsFactory, recipients: MsgRetrieval, midAuthorizer: MidAuthorizer
 ): void {
 	app.disable('etag');
 	
 	// Login
-	addMailerIdLoginRoutes(
-		app, domain, '/'+api.midLogin.MID_URL_PART,
-		sessions, recipients.exists, midAuthorizer
-	);
+	addMailerIdLoginRoutes(app, domain, '/'+api.midLogin.MID_URL_PART, sessions, recipients.exists, midAuthorizer);
 	
 	// *** Require authorized session for everything below ***
 	app.use(sessions.ensureAuthorizedSession());

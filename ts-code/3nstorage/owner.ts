@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017, 2022, 2024 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2022, 2024 - 2025 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -43,28 +43,21 @@ import { addMailerIdLoginRoutes } from '../lib-server/mid-access';
 import { addPKLLoginRoutes } from '../lib-server/pkl-access';
 import { calcNaClBoxSharedKey } from '../lib-server/resources/server-key-for-pkl-challenge';
 
+const WS_PING_PERIOD_MILLIS = 2*60*1000;
+
 export function makeOwnerStorageApp(
-	domain: string, sessions: SessionsFactory, users: UsersFactory,
-	midAuthorizer: MidAuthorizer
+	domain: string, sessions: SessionsFactory, users: UsersFactory, midAuthorizer: MidAuthorizer
 ): AppWithWSs {
 
 	const app = new AppWithWSs();
 
-	const setupLoginRoutes: SetupLoginRoutes = (
-		app, urlPrefix
-	) => addMailerIdLoginRoutes(
-		app, domain, urlPrefix, sessions, users.exists, midAuthorizer
-	);
-
-	setHttpPart(app.http, setupLoginRoutes, sessions, users);
+	setHttpPart(app.http, domain, sessions, users, midAuthorizer);
 	setWSPart(app, sessions, users);
 
 	return app;
 }
 
-export function makeOwnerStorageForLocker(
-	sessions: SessionsFactory, users: UsersFactory
-): AppWithWSs {
+export function makeOwnerStorageForLocker(sessions: SessionsFactory, users: UsersFactory): AppWithWSs {
 
 	const app = new AppWithWSs();
 
@@ -82,12 +75,8 @@ export function makeOwnerStorageForLocker(
 	return app;
 }
 
-function setWSPart(
-	app: AppWithWSs, sessions: SessionsFactory, users: UsersFactory
-): void {
-	const sockets = new UserSockets(
-		sessions.ensureAuthorizedSessionForSocketStart()
-	);
+function setWSPart(app: AppWithWSs, sessions: SessionsFactory, users: UsersFactory): void {
+	const sockets = new UserSockets(sessions.ensureAuthorizedSessionForSocketStart(), WS_PING_PERIOD_MILLIS);
 	
 	const storageEvents = new ServerEvents(
 		undefined, api.events.all, sockets.socketGetter
@@ -102,17 +91,14 @@ function setWSPart(
 
 const MAX_CHUNK_SIZE = '0.5mb';
 
-type SetupLoginRoutes = (app: Express, urlPrefix: string) => void;
-
 function setHttpPart(
-	app: Express, setupLoginRoutes: SetupLoginRoutes,
-	sessions: SessionsFactory, users: UsersFactory
+	app: Express, domain: string, sessions: SessionsFactory, users: UsersFactory, midAuthorizer: MidAuthorizer
 ): void {
 
 	app.disable('etag');
 
 	// Login
-	setupLoginRoutes(app, '/'+api.midLogin.URL_PART);
+	addMailerIdLoginRoutes(app, domain, '/'+api.midLogin.URL_PART, sessions, users.exists, midAuthorizer);
 
 	// *** Require authorized session for everything below ***
 	app.use(sessions.ensureAuthorizedSession());
