@@ -54,6 +54,7 @@ export interface Configurations {
 	};
 	signup?: {
 		noTokenFile?: string;
+		serviceUrl?: string;
 	};
 }
 

@@ -156,8 +156,15 @@ async function displaySignupInfo(conf: Configurations): Promise<void> {
 		if (conf.signup.noTokenFile) {
 			const ctx = await readNoTokensFile(conf.signup.noTokenFile);
 			console.log(`Signup of user without token is allowed in domains:\n`, ctx.domains, `\n`);
+			const signupLink = signupLinkFrom(conf, undefined);
+			if (signupLink) {
+				console.log(`Signup link:\n`, signupLink, `\n`);
+			}
 		} else {
 			console.log(`Signup of users is allowed only with valid signup tokens.\n`);
+			if (conf.signup.serviceUrl) {
+				console.log(`Signup service url (from configuration file):\n`, conf.signup.serviceUrl, `\n`);
+			}
 		}
 	}
 	const {
@@ -195,27 +202,45 @@ async function displayTokenValue(
 	conf: Configurations, tokenId: string
 ): Promise<void> {
 	const ctx = await readTokenFile(conf.rootFolder, tokenId);
-	if (!ctx) {
+	if (ctx) {
+		const signupLink = signupLinkFrom(conf, ctx.token);
+		if (signupLink) {
+			console.log(`\nSignup link: ${signupLink}`);
+		}
+		if (ctx.type === 'multi-domain') {
+			console.log(`\nMulti-user signup context:`);
+			console.log(`  domains:`, ctx.domains);
+			console.log(`  value:`, ctx.token);
+			if (ctx.validTill) {
+				console.log(`  valid till: ${(new Date(ctx.validTill)).toString()}\n`);
+			} else {
+				console.log(``);
+			}
+		} else if (ctx.type === 'single-user') {
+			console.log(`\nSingle-user signup context:`);
+			console.log(`  address:`, ctx.userId);
+			console.log(`  value:`, ctx.token);
+			if (ctx.validTill) {
+				console.log(`  valid till: ${(new Date(ctx.validTill)).toString()}\n`);
+			} else {
+				console.log(``);
+			}
+		}
+	} else {
 		console.error(`Token ${tokenId} is not found.`);
 		process.exit(-1);
-	} else if (ctx.type === 'multi-domain') {
-		console.log(`\nMulti-user signup context:`);
-		console.log(`  domains:`, ctx.domains);
-		console.log(`  value:`, ctx.token);
-		if (ctx.validTill) {
-			console.log(`  valid till: ${(new Date(ctx.validTill)).toString()}\n`);
-		} else {
-			console.log(``);
-		}
-	} else if (ctx.type === 'single-user') {
-		console.log(`\nSingle-user signup context:`);
-		console.log(`  address:`, ctx.userId);
-		console.log(`  value:`, ctx.token);
-		if (ctx.validTill) {
-			console.log(`  valid till: ${(new Date(ctx.validTill)).toString()}\n`);
-		} else {
-			console.log(``);
-		}
+	}
+}
+
+function signupLinkFrom(conf: Configurations, token = ''): string|undefined {
+	if (!conf.signup?.serviceUrl) {
+		return;
+	}
+	try {
+		const url = new URL(conf.signup.serviceUrl);
+		return `3nweb://signup/${url.host}${url.pathname}${url.pathname.endsWith('/') ? '' : '/'}${token}`;
+	} catch (err) {
+		return;
 	}
 }
 
