@@ -162,9 +162,9 @@ async function displaySignupInfo(conf: Configurations): Promise<void> {
 			}
 		} else {
 			console.log(`Signup of users is allowed only with valid signup tokens.\n`);
-			if (conf.signup.serviceUrl) {
-				console.log(`Signup service url (from configuration file):\n`, conf.signup.serviceUrl, `\n`);
-			}
+		}
+		if (conf.signup.serviceUrl) {
+			console.log(`Signup service url (from configuration file):\n`, conf.signup.serviceUrl, `\n`);
 		}
 	}
 	const {
@@ -249,6 +249,10 @@ async function createMultiUserToken(
 ): Promise<void> {
 	const token = await addMultiDomainSignup(conf.rootFolder, domains);
 	console.log (`\nToken value:\n  ${token}\n`);
+	const signupLink = signupLinkFrom(conf, token);
+	if (signupLink) {
+		console.log(`Signup link: ${signupLink}\n`);
+	}
 }
 
 async function createSingleUserToken(
@@ -256,6 +260,10 @@ async function createSingleUserToken(
 ): Promise<void> {
 	const token = await addSingleUserSignup(conf.rootFolder, userId);
 	console.log (`\nToken value:\n  ${token}\n`);
+	const signupLink = signupLinkFrom(conf, token);
+	if (signupLink) {
+		console.log(`Signup link: ${signupLink}\n`);
+	}
 }
 
 const cmd = parseProcessArgv();
