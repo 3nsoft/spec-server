@@ -232,13 +232,15 @@ async function displayTokenValue(
 	}
 }
 
+const signupLinkStart = `w3n://signup/`;
+
 function signupLinkFrom(conf: Configurations, token = ''): string|undefined {
 	if (!conf.signup?.serviceUrl) {
 		return;
 	}
 	try {
 		const url = new URL(conf.signup.serviceUrl);
-		return `3nweb://signup/${url.host}${url.pathname}${url.pathname.endsWith('/') ? '' : '/'}${token}`;
+		return `${signupLinkStart}${url.host}${url.pathname}${url.pathname.endsWith('/') ? '' : '/'}${token}`;
 	} catch (err) {
 		return;
 	}
