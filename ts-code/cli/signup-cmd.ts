@@ -201,7 +201,6 @@ export function parseSignupArgs(
 			return cmdUsageErr(execName, showTokenCmd.name);
 		}
 	} else if (args[0] === createTokenCmd.name) {
-		console.log(args);
 		const signupCmd = parseWithConfFile(args.slice(1), createTokenOpts);
 		if (signupCmd) {
 			if (!signupCmd.domain && !signupCmd.user) {

@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -21,7 +21,7 @@ import { Request } from '../../resources/sessions';
 export function closeSession(): RequestHandler {
 	return (req: Request<any>, res, next) => {
 		req.session.close();
-		res.status(200).end();
+		res.status(200).send();
 	};
 }
 Object.freeze(exports);

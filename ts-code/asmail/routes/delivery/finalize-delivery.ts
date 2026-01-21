@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016, 2025 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2025 - 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -20,9 +20,7 @@ import { SC as recipSC, MsgDelivery } from '../../resources/recipients';
 import { Request } from '../../resources/delivery-sessions';
 import { completion as api, ERR_SC } from '../../../lib-common/service-api/asmail/delivery';
 
-export function finalizeDelivery(
-	finDelivFunc: MsgDelivery['finalizeDelivery']
-): RequestHandler {
+export function finalizeDelivery(finDelivFunc: MsgDelivery['finalizeDelivery']): RequestHandler {
 	return async (req: Request, res, next) => {
 		const session = req.session;
 		const recipient = session.params.recipient;
@@ -31,18 +29,16 @@ export function finalizeDelivery(
 		try {
 			await finDelivFunc(recipient, msgId);
 			session.close();
-			res.status(api.SC.ok).end();
+			res.status(api.SC.ok).send();
 		} catch (err) {
 			if ('string' !== typeof err) {
 				next(err);
 			} else if (err === recipSC.USER_UNKNOWN) {
 				session.close();
-				res.status(ERR_SC.server).send(
-					"Recipient disappeared from the system.");
+				res.status(ERR_SC.server).send("Recipient disappeared from the system.");
 			} else if (err === recipSC.MSG_UNKNOWN) {
 				session.close();
-				res.status(ERR_SC.server).send(
-					"Message disappeared from the system.");
+				res.status(ERR_SC.server).send("Message disappeared from the system.");
 			} else {
 				next(new Error("Unhandled storage error code: "+err));
 			}

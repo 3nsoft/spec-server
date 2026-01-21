@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -20,27 +20,21 @@ import { SC as recipSC, MsgRetrieval } from '../../resources/recipients';
 import { rmMsg as api, ERR_SC } from '../../../lib-common/service-api/asmail/retrieval';
 import { Request } from '../../resources/sessions';
 
-export function deleteMsg(
-	delMsgFunc: MsgRetrieval['deleteMsg']
-): RequestHandler {
+export function deleteMsg(delMsgFunc: MsgRetrieval['deleteMsg']): RequestHandler {
 	return async (req: Request, res, next) => {
 		const userId = req.session.params.userId;
 		const msgId: string = req.params.msgId;
 
 		try {
 			await delMsgFunc(userId, msgId);
-			res.status(api.SC.ok).end();
+			res.status(api.SC.ok).send();
 		} catch (err) {
 			if ("string" !== typeof err) {
 				next(err);
 			} else if (err === recipSC.MSG_UNKNOWN) {
-				res.status(api.SC.unknownMsg).send(
-					"Message "+msgId+" is unknown."
-				);
+				res.status(api.SC.unknownMsg).send("Message "+msgId+" is unknown.");
 			} else if (err === recipSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).send(
-					"Recipient disappeared from the system."
-				);
+				res.status(ERR_SC.server).send("Recipient disappeared from the system.");
 				req.session.close();
 			} else {
 				next(new Error("Unhandled storage error code: "+err));

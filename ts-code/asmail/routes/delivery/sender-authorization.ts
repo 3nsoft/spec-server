@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -33,15 +33,12 @@ export type IMidAuthorizer = (
  * resolves into boolean flag, with true value for authorization passing,
  * and false for failed authorization. 
  */
-export function authorize(
-	relyingPartyDomain: string, midAuthorizingFunc: IMidAuthorizer
-): RequestHandler {
+export function authorize(relyingPartyDomain: string, midAuthorizingFunc: IMidAuthorizer): RequestHandler {
 	
 	return async (req: Request, res, next) => {
 
 		if (req.session.isAuthorized) {
-			res.status(ERR_SC.duplicateReq).send(
-				"This protocol request has already been served.");
+			res.status(ERR_SC.duplicateReq).send("This protocol request has already been served.");
 			return;
 		}
 
@@ -52,8 +49,7 @@ export function authorize(
 		if (!sender) {
 			// This case must be rejected, because place for authorizing
 			// anonymous connection is at the session start.
-			res.status(api.SC.authFailed).send(
-				"Server is not accepting provided credentials.");
+			res.status(api.SC.authFailed).send("Server is not accepting provided credentials.");
 			req.session.close();
 			return;
 		}
@@ -65,14 +61,14 @@ export function authorize(
 		}
 
 		try {
-			const certsVerified = await midAuthorizingFunc(relyingPartyDomain,
-				sessionId, sender, rb.assertion, rb.userCert, rb.provCert);
+			const certsVerified = await midAuthorizingFunc(
+				relyingPartyDomain, sessionId, sender, rb.assertion, rb.userCert, rb.provCert
+			);
 			if (certsVerified) {
 				req.session.isAuthorized = true;
-				res.status(api.SC.ok).end();
+				res.status(api.SC.ok).send();
 			} else {
-				res.status(api.SC.authFailed).send(
-					"Server is not accepting provided credentials.");
+				res.status(api.SC.authFailed).send("Server is not accepting provided credentials.");
 				req.session.close();
 			}
 		} catch (err) {

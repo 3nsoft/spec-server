@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -23,35 +23,28 @@ import { Request } from '../../resources/sessions';
 export function setParam<T>(
 	paramSetter: (userId: string, param: T) => Promise<boolean>
 ): RequestHandler {
-	
-	if ('function' !== typeof paramSetter) { throw new TypeError(
-			"Given argument 'paramSetter' must be function, but is not."); }
-	
+
 	return async (req: Request, res, next) => {
-		
+
 		const session = req.session;
 		const userId = session.params.userId;
 		const pValue: T = req.body;
-		
+
 		try{
 			const valChanged = await paramSetter(userId, pValue)
 			if (valChanged) {
-				res.status(PARAM_SC.ok).end();
+				res.status(PARAM_SC.ok).send();
 			} else {
-				res.status(ERR_SC.malformed).send(
-					'Malformed parameter value.');
+				res.status(ERR_SC.malformed).send('Malformed parameter value.');
 			}
 		} catch (err) {
 			if (err === storeSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).send(
-					"Recipient disappeared from the system.");
+				res.status(ERR_SC.server).send("Recipient disappeared from the system.");
 				session.close();
 			} else {
 				next(err);
 			}
-			
 		}
-		
 	};
-	
-};
+
+}

@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016, 2025 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2025 - 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -21,9 +21,7 @@ import { PARAM_SC, ERR_SC } from '../../../lib-common/service-api/asmail/config'
 import { Request } from '../../resources/sessions';
 import { InboxParams } from '../../resources/inbox';
 
-export function setParam<P extends keyof InboxParams>(
-	paramSetter: SetParam<P>
-): RequestHandler {
+export function setParam<P extends keyof InboxParams>(paramSetter: SetParam<P>): RequestHandler {
 	return async (req: Request, res, next) => {
 
 		const session = req.session;
@@ -33,17 +31,13 @@ export function setParam<P extends keyof InboxParams>(
 		try{
 			const valChanged = await paramSetter(userId, pValue)
 			if (valChanged) {
-				res.status(PARAM_SC.ok).end();
+				res.status(PARAM_SC.ok).send();
 			} else {
-				res.status(ERR_SC.malformed).send(
-					'Malformed parameter value.'
-				);
+				res.status(ERR_SC.malformed).send('Malformed parameter value.');
 			}
 		} catch (err) {
 			if (err === recipSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).send(
-					"Recipient disappeared from the system."
-				);
+				res.status(ERR_SC.server).send("Recipient disappeared from the system.");
 				session.close();
 			} else {
 				next(err);

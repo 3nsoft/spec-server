@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -37,19 +37,12 @@ export type MidAuthorizer = (
  * @param midAuthorizingFunc
  * This creates an authorize-sender route handler.
  */
-export function midLogin(
-	relyingPartyDomain: string, midAuthorizingFunc: MidAuthorizer
-): RequestHandler {
-	if ('function' !== typeof midAuthorizingFunc) {
-		throw new TypeError("Given argument 'midAuthorizingFunc' must be function, but is not.");
-	}
+export function midLogin(relyingPartyDomain: string, midAuthorizingFunc: MidAuthorizer): RequestHandler {
 
 	return async (req: Request, res, next) => {
 		
 		if (req.session.isAuthorized) {
-			res.status(ERR_SC.duplicate).send(
-				"This protocol request has already been served."
-			);
+			res.status(ERR_SC.duplicate).send("This protocol request has already been served.");
 			return;
 		}
 		
@@ -66,17 +59,14 @@ export function midLogin(
 		
 		try {
 			const certsVerified = await midAuthorizingFunc(
-				relyingPartyDomain, sessionId, req.session.params.userId,
-				rb.assertion, rb.userCert, rb.provCert
+				relyingPartyDomain, sessionId, req.session.params.userId, rb.assertion, rb.userCert, rb.provCert
 			);
 			if (certsVerified) {
 				req.session.isAuthorized = true;
-				res.status(api.SC.ok).end();
+				res.status(api.SC.ok).send();
 			} else {
 				req.session.close();
-				res.status(api.SC.authFailed).send(
-					"Server is not accepting provided credentials."
-				);
+				res.status(api.SC.authFailed).send("Server is not accepting provided credentials.");
 			}
 		} catch (err) {
 			next(err);

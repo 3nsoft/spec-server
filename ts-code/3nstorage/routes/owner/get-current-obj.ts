@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2020 3NSoft Inc.
+ Copyright (C) 2017, 2020, 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -78,7 +78,7 @@ export function getCurrentObj(
 			if (opts.ver) {
 				if (opts.ver !== version) {
 					res.set(HTTP_HEADER.objVersion, `${version}`);
-					res.status(api.SC.unknownObjVer).end();
+					res.status(api.SC.unknownObjVer).send();
 					return;
 				}
 			} else {
@@ -107,8 +107,7 @@ export function getCurrentObj(
 				next(err);
 			} else if ((err === storeSC.OBJ_UNKNOWN)
 			|| (err === storeSC.OBJ_VER_UNKNOWN)) {
-				res.status(api.SC.unknownObj).send(objId ?
-					`Object ${objId} is unknown.` : `Root object is not set.`);
+				res.status(api.SC.unknownObj).send(objId ? `Object ${objId} is unknown.` : `Root object is not set.`);
 			} else if (err === storeSC.USER_UNKNOWN) {
 				res.status(ERR_SC.server).send(`Recipient disappeared from the system.`);
 				req.session.close();

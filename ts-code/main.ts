@@ -205,27 +205,24 @@ async function displayTokenValue(
 	if (ctx) {
 		const signupLink = signupLinkFrom(conf, ctx.token);
 		if (signupLink) {
-			console.log(`\nSignup link: ${signupLink}`);
+			console.log(`\nSignup link:\n  ${signupLink}`);
 		}
 		if (ctx.type === 'multi-domain') {
 			console.log(`\nMulti-user signup context:`);
 			console.log(`  domains:`, ctx.domains);
 			console.log(`  value:`, ctx.token);
 			if (ctx.validTill) {
-				console.log(`  valid till: ${(new Date(ctx.validTill)).toString()}\n`);
-			} else {
-				console.log(``);
+				console.log(`  valid till: ${(new Date(ctx.validTill)).toString()}`);
 			}
 		} else if (ctx.type === 'single-user') {
 			console.log(`\nSingle-user signup context:`);
-			console.log(`  address:`, ctx.userId);
-			console.log(`  value:`, ctx.token);
+			console.log(`  address: `, ctx.userId);
+			console.log(`  value: `, ctx.token);
 			if (ctx.validTill) {
-				console.log(`  valid till: ${(new Date(ctx.validTill)).toString()}\n`);
-			} else {
-				console.log(``);
+				console.log(`  valid till: ${(new Date(ctx.validTill)).toString()}`);
 			}
 		}
+		console.log(``);
 	} else {
 		console.error(`Token ${tokenId} is not found.`);
 		process.exit(-1);
@@ -250,22 +247,24 @@ async function createMultiUserToken(
 	conf: Configurations, domains: string[]
 ): Promise<void> {
 	const token = await addMultiDomainSignup(conf.rootFolder, domains);
-	console.log (`\nToken value:\n  ${token}\n`);
+	console.log (`\nFor creating users on domain${(domains.length > 0) ? 's' : ''} ${domains.join(', ')}:\n  token value:  ${token}`);
 	const signupLink = signupLinkFrom(conf, token);
 	if (signupLink) {
-		console.log(`Signup link: ${signupLink}\n`);
+		console.log(`Signup link:\n  ${signupLink}\n`);
 	}
+	console.log(``);
 }
 
 async function createSingleUserToken(
 	conf: Configurations, userId: string
 ): Promise<void> {
 	const token = await addSingleUserSignup(conf.rootFolder, userId);
-	console.log (`\nToken value:\n  ${token}\n`);
+	console.log (`\nFor creating user ${userId}:\n  token value:  ${token}`);
 	const signupLink = signupLinkFrom(conf, token);
 	if (signupLink) {
-		console.log(`Signup link: ${signupLink}\n`);
+		console.log(`Signup link:\n  ${signupLink}\n`);
 	}
+	console.log(``);
 }
 
 const cmd = parseProcessArgv();

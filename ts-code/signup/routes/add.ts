@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016, 2020 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2020, 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -34,13 +34,11 @@ export function addUser(addUserFunc: IAdd): RequestHandler {
 			return;
 		}
 		if (!validateUserMidParams(mailerId)) {
-			res.status(ERR_SC.malformed).send(
-				'MailerId parameters are malformed.');
+			res.status(ERR_SC.malformed).send('MailerId parameters are malformed.');
 			return;
 		}
 		if (!validateUserStorageParams(storage)) {
-			res.status(ERR_SC.malformed).send(
-				'Storage parameters are malformed.');
+			res.status(ERR_SC.malformed).send('Storage parameters are malformed.');
 			return;
 		}
 		if ((signupToken !== undefined) && (typeof signupToken !== 'string')) {
@@ -50,12 +48,12 @@ export function addUser(addUserFunc: IAdd): RequestHandler {
 
 		try {
 			await addUserFunc(userId, mailerId, storage.kdParams, signupToken);
-			res.status(api.SC.ok).end();
+			res.status(api.SC.ok).send();
 		} catch (err) {
 			if (err === userSC.USER_ALREADY_EXIST) {
-				res.status(api.SC.userAlreadyExists).end();
+				res.status(api.SC.userAlreadyExists).send();
 			} else if (err === userSC.CREATION_UNAUTHORIZED) {
-				res.status(api.SC.unauthorized).end();
+				res.status(api.SC.unauthorized).send();
 			} else {
 				next(err);
 			}

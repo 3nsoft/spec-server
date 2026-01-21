@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017, 2020 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2020, 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -33,9 +33,8 @@ export function cancelTransaction(
 		const transactionId: string = req.params.transactionId;
 
 		try {
-			await cancelTransFunc(userId, objId,
-				((transactionId === '-') ? undefined : transactionId));
-			res.status(api.SC.ok).end();
+			await cancelTransFunc(userId, objId, ((transactionId === '-') ? undefined : transactionId));
+			res.status(api.SC.ok).send();
 		} catch (err) {
 			if ("string" !== typeof err) {
 				next(err);

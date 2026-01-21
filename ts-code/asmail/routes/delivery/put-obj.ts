@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017, 2019 - 2020, 2025 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2019 - 2020, 2025 - 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -22,9 +22,7 @@ import * as confUtil from '../../../lib-server/conf-util';
 import { Request } from '../../resources/delivery-sessions';
 import { attachByteDrainToRequest } from '../../../lib-server/middleware/body-parsers';
 
-export function saveMsgObj(
-	saveObjFunc: MsgDelivery['saveObj'], chunkLimit: string|number
-): RequestHandler {
+export function saveMsgObj(saveObjFunc: MsgDelivery['saveObj'], chunkLimit: string|number): RequestHandler {
 
 	const maxChunkSize = confUtil.stringToNumOfBytes(chunkLimit);
 
@@ -91,37 +89,26 @@ export function saveMsgObj(
 		}
 
 		try {
-			await saveObjFunc(recipient, msgId, objId,
-				opts.fstReq, opts.sndReq, len, req);
-			res.status(api.SC.ok).end();
+			await saveObjFunc(recipient, msgId, objId, opts.fstReq, opts.sndReq, len, req);
+			res.status(api.SC.ok).send();
 		} catch (err) {
 			session.params.currentMsgLength -= len;
 			if ("string" !== typeof err) {
 				next(err);
 			} else if (err === recipSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).send(
-					"Recipient disappeared from the system."
-				);
+				res.status(ERR_SC.server).send("Recipient disappeared from the system.");
 				session.close();
 			} else if (err === recipSC.OBJ_EXIST) {
-				res.status(api.SC.objAlreadyExists).send(
-					`Object ${objId} already exists.`
-				);
+				res.status(api.SC.objAlreadyExists).send(`Object ${objId} already exists.`);
 			} else if (err === recipSC.MSG_UNKNOWN) {
-				res.status(ERR_SC.server).send(
-					"Message disappeared from the system."
-				);
+				res.status(ERR_SC.server).send("Message disappeared from the system.");
 				session.close();
 			} else if (err === recipSC.OBJ_UNKNOWN) {
 				res.status(api.SC.unknownObj).send(`Object ${objId} is unknown.`);
 			} else if (err === recipSC.WRONG_OBJ_STATE) {
-				res.status(ERR_SC.malformed).send(
-					`Object ${objId} is not in a different state.`
-				);
+				res.status(ERR_SC.malformed).send(`Object ${objId} is not in a different state.`);
 			} else if (err === recipSC.OBJ_FILE_INCOMPLETE) {
-				res.status(ERR_SC.objIncomplete).send(
-					`Object ${objId} is not complete.`
-				);
+				res.status(ERR_SC.objIncomplete).send(`Object ${objId} is not complete.`);
 			} else {
 				next(new Error(`Unhandled storage error code: ${err}`));
 			}
@@ -159,14 +146,10 @@ function extractQueryOptions(req: Request): undefined|{
 	}
 }
 
-function getContentLenOrSendError(
-	req: Request, res: Response, maxChunkSize: number
-): number|undefined {
+function getContentLenOrSendError(req: Request, res: Response, maxChunkSize: number): number|undefined {
 	const contentLength = parseInt(req.get(HTTP_HEADER.contentLength)!);
 	if (isNaN(contentLength)) {
-		res.status(ERR_SC.contentLenMissing).send(
-			"Content-Length header is required with proper number."
-		);
+		res.status(ERR_SC.contentLenMissing).send("Content-Length header is required with proper number.");
 	} else if (contentLength > maxChunkSize) {
 		res.status(ERR_SC.contentTooLong).send("Request body is too long.");
 	} else {

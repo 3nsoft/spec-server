@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2022 3NSoft Inc.
+ Copyright (C) 2022, 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -41,7 +41,7 @@ export function archiveCurrentObjVersion(
 
 		try {
 			await archiveObjVerFunc(userId, objId, version);
-			res.status(SC.okPost).end();
+			res.status(SC.okPost).send();
 		} catch (err) {
 			if ("string" !== typeof err) {
 				if ((err as MismatchedObjVerException).type === 'mismatched-obj-ver') {
