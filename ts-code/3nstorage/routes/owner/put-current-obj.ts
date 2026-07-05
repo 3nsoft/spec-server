@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2019 - 2020 3NSoft Inc.
+ Copyright (C) 2017, 2019 - 2020, 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -24,7 +24,8 @@ import { attachByteDrainToRequest } from '../../../lib-server/middleware/body-pa
 import { Readable as ReadableStream } from 'stream';
 import { BytesFIFOBuffer } from '../../../lib-common/byte-streaming/common';
 import { defer, Deferred } from '../../../lib-common/processes';
-import { utf8, base64urlSafe } from '../../../lib-common/buffer-utils';
+import { utf8 } from '../../../lib-common/buffer-utils';
+import { getObjIdFromParams, replyWithErr } from '../../resources/utils';
 
 export function saveCurrentObj(
 	root: boolean, saveObjFunc: SaveNewObjVersion, chunkLimit: string|number
@@ -36,43 +37,36 @@ export function saveCurrentObj(
 	return async (req: Request, res, next) => {
 		
 		if (!req.is(BIN_TYPE)) {
-			attachByteDrainToRequest(req);
-			res.status(ERR_SC.wrongContentType).json( <ErrorReply> {
-				error: `Content-Type must be ${BIN_TYPE} for this call.`
-			});
-			return;
+			return replyWithErr(ERR_SC.wrongContentType, `Content-Type must be ${BIN_TYPE} for this call.`, res, req);
 		}
-	
-		const userId = req.session.params.userId;
-		const objId: string = (root ? null as any : req.params.objId);
 
 		// get and check Content-Length, implicitly sending replies for bad length
 		let len = getContentLenOrSendError(req, res, maxChunkSize);
 		if (len === undefined) {
-			attachByteDrainToRequest(req);
 			return;
+		}
+	
+		const userId = req.session.params.userId;
+		const { objId, objIdParseErr } = getObjIdFromParams(root, req);
+		if (objIdParseErr) {
+			return replyWithErr(ERR_SC.malformed, objIdParseErr, res, req);
 		}
 		
 		// extract and check query parameters
 		const opts = extractQueryOptions(req);
-		if (!opts) { return replyToMalformed(req, "Bad query parameters", res); }
+		if (!opts) {
+			return replyWithErr(ERR_SC.malformed, "Bad query parameters", res, req);
+		}
 		const { fstReq, sndReq } = opts;
 
 		let diff: DiffInfo|undefined;
 
 		if (fstReq) {
 
-			if (!root && objId) {
-				if (!base64urlSafe.allCharsFromAlphabet(objId!)) {
-					return replyToMalformed(req, "Bad object id", res);
-				}
-			}
-
 			// cross-check given lengths
-			const diffAndHeader = fstReq.header +
-				(fstReq.diff ? fstReq.diff : 0);
+			const diffAndHeader = fstReq.header + (fstReq.diff ? fstReq.diff : 0);
 			if (diffAndHeader > len) {
-				return replyToMalformed(req, "Bad query parameters", res);
+				return replyWithErr(ERR_SC.malformed, "Bad query parameters", res, req);
 			}
 
 			// read diff, if it is expected
@@ -81,30 +75,29 @@ export function saveCurrentObj(
 				if (diffBytes) {
 					len -= fstReq.diff;
 				} else {
-					return replyToMalformed(req, "Cannot read diff bytes", res);
+				return replyWithErr(ERR_SC.malformed, "Cannot read diff bytes", res, req);
 				}
 				try {
 					const diffFromReq = JSON.parse(utf8.open(diffBytes));
 					diff = sanitizedDiff(diffFromReq, fstReq.ver);
 					if (!diff) {
-						return replyToMalformed(req, "Malformed diff info", res);
+						return replyWithErr(ERR_SC.malformed, "Malformed diff info", res, req);
 					}
 				} catch (err) {
-					 return replyToMalformed(req, "Malformed diff info", res);
+					return replyWithErr(ERR_SC.malformed, "Malformed diff info", res, req);
 				}
 			}
 
 		} else if (sndReq) {
 
 			if ((len === 0) && !sndReq.last) {
-				return replyToMalformed(req, "No segment bytes", res);
+				return replyWithErr(ERR_SC.malformed, "No segment bytes", res, req);
 			}
 
 		}
 
 		try {
-			const transactionId = await saveObjFunc(
-				userId, objId, fstReq, diff, sndReq, len, req);
+			const transactionId = await saveObjFunc(userId, objId, fstReq, diff, sndReq, len, req);
 			const reply: api.ReplyToPut = (transactionId ? { transactionId } : {});
 			res.status(api.SC.okPut).json(reply);
 		} catch (err) {
@@ -114,42 +107,28 @@ export function saveCurrentObj(
 						error: "Current object version doesn't match assumed one.",
 						current_version: (err as MismatchedObjVerException).current_version
 					};
-					res.set(HTTP_HEADER.objVersion, `${(err as MismatchedObjVerException).current_version}`);
+					res.set(HTTP_HEADER.objVersion, `${rep.current_version}`);
 					res.status(api.SC.mismatchedObjVer).json(rep);
 				} else {
 					next(err);
 				}
 			} else if ((err === saveSC.OBJ_UNKNOWN)
 			|| (err === saveSC.OBJ_VER_UNKNOWN)) {
-				res.status(api.SC.unknownObj).json( <ErrorReply> {
-					error: `Unknown object ${objId}.`
-				});
+				replyWithErr(api.SC.unknownObj, `Unknown object ${objId}.`, res);
 			} else if (err === saveSC.TRANSACTION_UNKNOWN) {
-				res.status(api.SC.unknownTransaction).json( <ErrorReply> {
-					error: "Unknown transaction."
-				});
+				replyWithErr(api.SC.unknownTransaction, "Unknown transaction.", res);
 			} else if ((err === saveSC.OBJ_EXIST)
 			|| (err === saveSC.OBJ_VER_EXIST)) {
-				res.status(api.SC.objAlreadyExists).json( <ErrorReply> {
-					error: "Object already exists."
-				});
+				replyWithErr(api.SC.objAlreadyExists, "Object already exists.", res);
 			} else if (err === saveSC.CONCURRENT_TRANSACTION) {
-				res.status(api.SC.concurrentTransaction).json( <ErrorReply> {
-					error: `Object ${objId} is currently under a transaction.`
-				});
+				replyWithErr(api.SC.concurrentTransaction, `Object ${objId} is currently under a transaction.`, res);
 			} else if (err === saveSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).json( <ErrorReply> {
-					error: "Recipient disappeared from the system."
-				});
+				replyWithErr(ERR_SC.server, "Recipient disappeared from the system.", res);
 				req.session.close();
 			} else if (err === saveSC.NOT_ENOUGH_SPACE) {
-				res.status(ERR_SC.noSpace).json( <ErrorReply> {
-					error: "Reached storage limits."
-				});
+				replyWithErr(ERR_SC.noSpace, "Reached storage limits.", res);
 			} else if (err === saveSC.OBJ_FILE_INCOMPLETE) {
-				res.status(api.SC.objIncomplete).json( <ErrorReply> {
-					error: "Object version file is incomplete."
-				});
+				replyWithErr(api.SC.objIncomplete, "Object version file is incomplete.", res);
 			} else {
 				next(new Error(`Unhandled storage error code: ${err}`));
 			}
@@ -202,11 +181,9 @@ function getContentLenOrSendError(
 ): number|undefined {
 	const contentLength = parseInt(req.get(HTTP_HEADER.contentLength)!);
 	if (isNaN(contentLength)) {
-		res.status(ERR_SC.contentLenMissing).json( <ErrorReply> {
-			error: "Content-Length header is required with proper number." });
+		replyWithErr(ERR_SC.contentLenMissing, "Content-Length header is required with proper number.", res, req);
 	} else if (contentLength > maxChunkSize) {
-		res.status(ERR_SC.contentTooLong).json( <ErrorReply> {
-			error: "Request body is too long." });
+		replyWithErr(ERR_SC.contentTooLong, "Request body is too long.", res, req);
 	} else {
 		return contentLength;
 	}
@@ -225,8 +202,9 @@ const EARLY_END_OF_STREAM_ERR_STR = `Unexpected end of stream`;
 function readChunkFrom(
 	stream: ReadableStream, bytesToRead: number
 ): Promise<Uint8Array> {
-	if (bytesToRead < 1) { throw new Error(
-		`Illegal number of bytes to read from stream: ${bytesToRead}`); }
+	if (bytesToRead < 1) {
+		throw new Error(`Illegal number of bytes to read from stream: ${bytesToRead}`);
+	}
 	
 	const buffer = new BytesFIFOBuffer();
 	let deferred: Deferred<Uint8Array>|undefined = defer<Uint8Array>();
@@ -272,11 +250,6 @@ function readChunkFrom(
 	stream.on('end', onEnd);
 
 	return deferred.promise;
-}
-
-function replyToMalformed(req: Request, msg: string, res: Response): void {
-	attachByteDrainToRequest(req);
-	res.status(ERR_SC.malformed).json( <ErrorReply> { error: msg });
 }
 
 function noop() {}

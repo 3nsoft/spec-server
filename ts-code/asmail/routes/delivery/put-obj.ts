@@ -20,7 +20,7 @@ import { SC as recipSC, MsgDelivery, BIN_TYPE } from '../../resources/recipients
 import { msgObj as api, ERR_SC, HTTP_HEADER, PutObjFirstQueryOpts, PutObjSecondQueryOpts } from '../../../lib-common/service-api/asmail/delivery';
 import * as confUtil from '../../../lib-server/conf-util';
 import { Request } from '../../resources/delivery-sessions';
-import { attachByteDrainToRequest } from '../../../lib-server/middleware/body-parsers';
+import { getObjIdFromParams, replyWithErr } from '../../resources/utils';
 
 export function saveMsgObj(saveObjFunc: MsgDelivery['saveObj'], chunkLimit: string|number): RequestHandler {
 
@@ -29,11 +29,7 @@ export function saveMsgObj(saveObjFunc: MsgDelivery['saveObj'], chunkLimit: stri
 	return async (req: Request, res, next) => {
 
 		if (!req.is(BIN_TYPE)) {
-			attachByteDrainToRequest(req);
-			res.status(ERR_SC.wrongContentType).send(
-				`Content-Type must be ${BIN_TYPE} for this call.`
-			);
-			return;
+			return replyWithErr(ERR_SC.wrongContentType, `Content-Type must be ${BIN_TYPE} for this call.`, res, req);
 		}
 
 		const session = req.session;
@@ -41,51 +37,46 @@ export function saveMsgObj(saveObjFunc: MsgDelivery['saveObj'], chunkLimit: stri
 		const msgId = session.params.msgId;
 
 		if (!msgId) {
-			res.status(ERR_SC.earlyReq).send(
-				"Metadata has not been sent, yet."
-			);
-			return;
+			return replyWithErr(ERR_SC.earlyReq, "Metadata has not been sent, yet.", res, req);
 		}
 
-		const objId: string = req.params.objId;
+		const { objId, objIdParseErr } = getObjIdFromParams(req);
+		if (objIdParseErr) {
+			return replyWithErr(ERR_SC.malformed, objIdParseErr, res);
+		}
 
 		// get and check Content-Length, implicitly sending replies for bad length
 		let len = getContentLenOrSendError(req, res, maxChunkSize);
 		if (len === undefined) {
-			attachByteDrainToRequest(req);
 			return;
 		}
 
 		// extract and check query parameters
 		const opts = extractQueryOptions(req);
 		if (!opts) {
-			return replyToMalformed(req, "Bad query parameters", res);
+			return replyWithErr(ERR_SC.malformed, "Bad query parameters", res, req);
 		}
 
 		if (opts.fstReq) {
 			// check options versus chunk length
 			if (opts.fstReq.header > len) {
-				return replyToMalformed(req, "Bad query parameters", res);
+				return replyWithErr(ERR_SC.malformed, "Bad query parameters", res, req);
 			}
 		} else if (opts.sndReq) {
 			// check options versus chunk length
 			if ((len === 0) && !opts.sndReq.last) {
-				return replyToMalformed(req, "No segment bytes", res);
+				return replyWithErr(ERR_SC.malformed, "No segment bytes", res, req);
 			}
 		} else {
 			return next(new Error(`This place should not be reachable`));
 		}
 
 		// ensure that it is ok space-wise to save additional bytes
-		const allowedSpace =
-			(session.params.maxMsgLength - session.params.currentMsgLength);
+		const allowedSpace = (session.params.maxMsgLength - session.params.currentMsgLength);
 		if (len <= allowedSpace) {
 			session.params.currentMsgLength += len;
 		} else {
-			res.status(ERR_SC.contentTooLong).send(
-				"This request goes over the message limit."
-			);
-			return;
+			return replyWithErr(ERR_SC.contentTooLong, "This request goes over the message limit.", res, req);
 		}
 
 		try {
@@ -96,19 +87,19 @@ export function saveMsgObj(saveObjFunc: MsgDelivery['saveObj'], chunkLimit: stri
 			if ("string" !== typeof err) {
 				next(err);
 			} else if (err === recipSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).send("Recipient disappeared from the system.");
+				replyWithErr(ERR_SC.server, "Recipient disappeared from the system.", res);
 				session.close();
 			} else if (err === recipSC.OBJ_EXIST) {
-				res.status(api.SC.objAlreadyExists).send(`Object ${objId} already exists.`);
+				replyWithErr(api.SC.objAlreadyExists, `Object ${objId} already exists.`, res);
 			} else if (err === recipSC.MSG_UNKNOWN) {
-				res.status(ERR_SC.server).send("Message disappeared from the system.");
+				replyWithErr(ERR_SC.server, "Message disappeared from the system.", res);
 				session.close();
 			} else if (err === recipSC.OBJ_UNKNOWN) {
-				res.status(api.SC.unknownObj).send(`Object ${objId} is unknown.`);
+				replyWithErr(api.SC.unknownObj, `Object ${objId} is unknown.`, res);
 			} else if (err === recipSC.WRONG_OBJ_STATE) {
-				res.status(ERR_SC.malformed).send(`Object ${objId} is not in a different state.`);
+				replyWithErr(ERR_SC.malformed, `Object ${objId} is not in a different state.`, res);
 			} else if (err === recipSC.OBJ_FILE_INCOMPLETE) {
-				res.status(ERR_SC.objIncomplete).send(`Object ${objId} is not complete.`);
+				replyWithErr(ERR_SC.objIncomplete, `Object ${objId} is not complete.`, res);
 			} else {
 				next(new Error(`Unhandled storage error code: ${err}`));
 			}
@@ -149,18 +140,13 @@ function extractQueryOptions(req: Request): undefined|{
 function getContentLenOrSendError(req: Request, res: Response, maxChunkSize: number): number|undefined {
 	const contentLength = parseInt(req.get(HTTP_HEADER.contentLength)!);
 	if (isNaN(contentLength)) {
-		res.status(ERR_SC.contentLenMissing).send("Content-Length header is required with proper number.");
+		replyWithErr(ERR_SC.contentLenMissing, "Content-Length header is required with proper number.", res, req);
 	} else if (contentLength > maxChunkSize) {
-		res.status(ERR_SC.contentTooLong).send("Request body is too long.");
+		replyWithErr(ERR_SC.contentTooLong, "Request body is too long.", res, req);
 	} else {
 		return contentLength;
 	}
 	return;
-}
-
-function replyToMalformed(req: Request, msg: string, res: Response): void {
-	attachByteDrainToRequest(req);
-	res.status(ERR_SC.malformed).send(msg);
 }
 
 Object.freeze(exports);

@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017, 2019 - 2020, 2022, 2025 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2019 - 2020, 2022, 2025 - 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -511,7 +511,7 @@ export class Store extends UserFiles<StorageParams> {
 	//		file/folder.
 
 	async archiveCurrentObjVersion(
-		objId: string, version: number
+		objId: string|null, version: number
 	): Promise<void> {
 		// XXX need to put archiving transaction, closing it in a finally clause
 		//  - make in memory transactions for archival and removal, or chaining(?)
@@ -535,7 +535,7 @@ export class Store extends UserFiles<StorageParams> {
 		);
 	}
 
-	async getObjStatus(objId: string): Promise<ObjStatus> {
+	async getObjStatus(objId: string|null): Promise<ObjStatus> {
 		const status = await this.statuses.get(objId);
 		return {
 			current: status.currentVersion,

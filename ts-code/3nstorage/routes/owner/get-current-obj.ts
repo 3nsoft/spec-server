@@ -21,6 +21,7 @@ import { GetObjQueryOpts, ERR_SC, HTTP_HEADER, BIN_TYPE, currentObj as api } fro
 import { Request } from '../../resources/sessions';
 import { errWithCause, stringifyErr } from '../../../lib-common/exceptions/error';
 import { EMPTY_BUFFER } from '../../../lib-common/buffer-utils';
+import { getObjIdFromParams, replyWithErr } from '../../resources/utils';
 
 function extractQueryOptions(req: Request): undefined|{
 	header: boolean; limit: number|undefined; ofs: number;
@@ -58,13 +59,14 @@ function extractQueryOptions(req: Request): undefined|{
 export function getCurrentObj(
 	root: boolean, getCurrentObjFunc: GetCurrentObj
 ): RequestHandler {
-	if ('function' !== typeof getCurrentObjFunc) { throw new TypeError(
-			"Given argument 'getCurrentObjFunc' must be function, but is not."); }
 
 	return async (req: Request, res, next) => {
 		
 		const userId = req.session.params.userId;
-		const objId: string = (root ? null as any : req.params.objId);
+		const { objId, objIdParseErr } = getObjIdFromParams(root, req);
+		if (objIdParseErr) {
+			return replyWithErr(ERR_SC.malformed, objIdParseErr, res);
+		}
 		
 		const opts = extractQueryOptions(req);
 		if (!opts) {
@@ -107,9 +109,9 @@ export function getCurrentObj(
 				next(err);
 			} else if ((err === storeSC.OBJ_UNKNOWN)
 			|| (err === storeSC.OBJ_VER_UNKNOWN)) {
-				res.status(api.SC.unknownObj).send(objId ? `Object ${objId} is unknown.` : `Root object is not set.`);
+				replyWithErr(api.SC.unknownObj, (objId ? `Object ${objId} is unknown.` : `Root object is not set.`), res);
 			} else if (err === storeSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).send(`Recipient disappeared from the system.`);
+				replyWithErr(ERR_SC.server, `Recipient disappeared from the system.`, res);
 				req.session.close();
 			} else {
 				next(new Error(`Unhandled storage error code: ${err}`));

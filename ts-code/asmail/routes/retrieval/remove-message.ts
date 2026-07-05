@@ -19,6 +19,7 @@ import { RequestHandler } from 'express';
 import { SC as recipSC, MsgRetrieval } from '../../resources/recipients';
 import { rmMsg as api, ERR_SC } from '../../../lib-common/service-api/asmail/retrieval';
 import { Request } from '../../resources/sessions';
+import { replyWithErr } from '../../resources/utils';
 
 export function deleteMsg(delMsgFunc: MsgRetrieval['deleteMsg']): RequestHandler {
 	return async (req: Request, res, next) => {
@@ -32,9 +33,9 @@ export function deleteMsg(delMsgFunc: MsgRetrieval['deleteMsg']): RequestHandler
 			if ("string" !== typeof err) {
 				next(err);
 			} else if (err === recipSC.MSG_UNKNOWN) {
-				res.status(api.SC.unknownMsg).send("Message "+msgId+" is unknown.");
+				replyWithErr(api.SC.unknownMsg, "Message "+msgId+" is unknown.", res);
 			} else if (err === recipSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).send("Recipient disappeared from the system.");
+				replyWithErr(ERR_SC.server, "Recipient disappeared from the system.", res);
 				req.session.close();
 			} else {
 				next(new Error("Unhandled storage error code: "+err));

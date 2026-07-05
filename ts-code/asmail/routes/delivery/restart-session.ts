@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2025 3NSoft Inc.
+ Copyright (C) 2017, 2025 - 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -17,22 +17,19 @@
 
 import { RequestHandler, Response } from 'express';
 import { SC as recipSC, MsgDelivery } from '../../resources/recipients';
-import { sessionRestart as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/asmail/delivery';
+import { sessionRestart as api, ERR_SC } from '../../../lib-common/service-api/asmail/delivery';
 import { Request, GenerateSession, GetSessionForMsg } from '../../resources/delivery-sessions';
 import { Redirect } from './start-session';
 import { checkAndTransformAddress } from '../../../lib-common/canonical-address';
 import * as confUtil from '../../../lib-server/conf-util';
+import { replyWithErr } from '../../resources/utils';
 
 /**
  * This creates a session restart route handler.
- * @param sessionGenFunc is a promise returning function that generates new
- * session objects.
- * @param sessionForMsgFunc is a function that promises existing session for
- * a known message in delivery.
- * @param incompleteMsgFunc is a function that promises parameters of a message
- * that is still in delivery.
- * @param redirectFunc is an optional function that returns a promise,
- * resolvable to
+ * @param sessionGenFunc is a promise returning function that generates new session objects.
+ * @param sessionForMsgFunc is a function that promises existing session for a known message in delivery.
+ * @param incompleteMsgFunc is a function that promises parameters of a message that is still in delivery.
+ * @param redirectFunc is an optional function that returns a promise, resolvable to
  * (1) string with URI for ASMail service, which is serving given recipient,
  * (2) undefined, if it is this server should service given recipient. 
  */
@@ -83,18 +80,12 @@ export function restartSession(
 
 		// missing recipient makes a bad request
 		if (!recipient) {
-			res.status(ERR_SC.malformed).json( <ErrorReply> {
-				error: "Recipient is either missing in the request, or is malformed"
-			});
-			return;
+			return replyWithErr(ERR_SC.malformed, "Recipient is either missing in the request, or is malformed", res);
 		}
 
 		// check message id
 		if (typeof msgId !== 'string') {
-			res.status(ERR_SC.malformed).json( <ErrorReply> {
-				error: "Message id is either missing, or is malformed"
-			});
-			return;
+			return replyWithErr(ERR_SC.malformed, "Message id is either missing, or is malformed", res);
 		}
 
 	 	try {
@@ -112,13 +103,9 @@ export function restartSession(
 			}
 		} catch (err) {
 			if (err === recipSC.USER_UNKNOWN) {
-				res.status(api.SC.unknownRecipient).json( <ErrorReply> {
-					error: `Recipient ${recipient} is unknown.`
-				});
+				replyWithErr(api.SC.unknownRecipient, `Recipient ${recipient} is unknown.`, res);
 			} else if (err === recipSC.MSG_UNKNOWN) {
-				res.status(api.SC.unknownMsg).json( <ErrorReply> {
-					error: `Recipient ${recipient} is unknown.`
-				});
+				replyWithErr(api.SC.unknownMsg, `Recipient ${recipient} is unknown.`, res);
 			} else {
 				next(err);
 			}

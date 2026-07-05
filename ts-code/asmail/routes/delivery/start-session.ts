@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016, 2025 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2025 - 2026  3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -18,8 +18,9 @@
 import { RequestHandler, Response } from 'express';
 import { GenerateSession, Request } from '../../resources/delivery-sessions';
 import { SC as recipSC, MsgDelivery } from '../../resources/recipients';
-import { sessionStart as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/asmail/delivery';
+import { sessionStart as api, ERR_SC } from '../../../lib-common/service-api/asmail/delivery';
 import { checkAndTransformAddress } from '../../../lib-common/canonical-address';
+import { replyWithErr } from '../../resources/utils';
 
 export type Redirect = (userId: string) => Promise<string>;
 
@@ -64,17 +65,14 @@ export function startSession(
 				maxMsgLength: msgSize
 			});
 		} else if (msgSize === 0) {
-			res.status(api.SC.senderNotAllowed).json( <ErrorReply> {
-				error: `${sender ? sender : "Anonymous sender "} is not allowed to leave mail for ${recipient}`
-			});
-		} else if (msgSize === -1) {
-			res.status(api.SC.inboxFull).json( <ErrorReply> {
-				error: `Mail box for ${recipient} is full.`
-			});
-		} else {
-			throw new Error(
-				`Unrecognized code ${msgSize} for message size limits.`
+			replyWithErr(
+				api.SC.senderNotAllowed,
+				`${sender ? sender : "Anonymous sender "} is not allowed to leave mail for ${recipient}`, res
 			);
+		} else if (msgSize === -1) {
+			replyWithErr(api.SC.inboxFull, `Mail box for ${recipient} is full.`, res);
+		} else {
+			throw new Error(`Unrecognized code ${msgSize} for message size limits.`);
 		}
 	}
 
@@ -88,17 +86,13 @@ export function startSession(
 
 		// already existing session indicates repeated call, which should be bounced off
 		if (session) {
-			res.status(ERR_SC.duplicateReq).json( <ErrorReply> {
-				error: "This protocol request has already been served."
-			});
+			replyWithErr(ERR_SC.duplicateReq, "This protocol request has already been served.", res);
 			return;
 		}
 
 		// missing recipient makes a bad request
 		if (!recipient) {
-			res.status(ERR_SC.malformed).json( <ErrorReply> {
-				error: "Recipient is either missing in the request, or is malformed"
-			});
+			replyWithErr(ERR_SC.malformed, "Recipient is either missing in the request, or is malformed", res);
 			return;
 		}
 
@@ -106,29 +100,22 @@ export function startSession(
 		if (sender) {
 			sender = checkAndTransformAddress(sender);
 			if (!sender) {
-				res.status(ERR_SC.malformed).json( <ErrorReply> {
-					error: "Sender field is malformed"
-				});
-				return;
+				return replyWithErr(ERR_SC.malformed, "Sender field is malformed", res);
 			}
 		}
 
 		// check invitation field
 		if ((invitation !== undefined) && (typeof invitation !== 'string')) {
-			res.status(ERR_SC.malformed).json( <ErrorReply> {
-				error: "Inviation field is malformed"
-			});
-			return;
+			return replyWithErr(ERR_SC.malformed, "Inviation field is malformed", res);
 		}
 
 		try {
 			if (redirectFunc) {
 				const redirectTo = await redirectFunc(recipient)
 				if (redirectTo) {
-					res.status(api.SC.redirect).json(
-						<api.RedirectReply> {
-							redirect: redirectTo
-						});
+					res.status(api.SC.redirect).json({
+						redirect: redirectTo
+					} as api.RedirectReply);
 				} else {
 					await serveRequestHere(recipient, sender, invitation, res);
 				}
@@ -137,9 +124,7 @@ export function startSession(
 			}
 		} catch (err) {
 			if (err === recipSC.USER_UNKNOWN) {
-				res.status(api.SC.unknownRecipient).json( <ErrorReply> {
-					error: `Recipient ${recipient} is unknown.`
-				});
+				replyWithErr(api.SC.unknownRecipient, `Recipient ${recipient} is unknown.`, res);
 			} else {
 				next(err);
 			}

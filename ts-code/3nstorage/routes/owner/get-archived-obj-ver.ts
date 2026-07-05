@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2017, 2020 3NSoft Inc.
+ Copyright (C) 2017, 2020, 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -21,6 +21,7 @@ import { GetObjQueryOpts, ERR_SC, HTTP_HEADER, BIN_TYPE, archivedObjVersion as a
 import { Request } from '../../resources/sessions';
 import { errWithCause } from '../../../lib-common/exceptions/error';
 import { EMPTY_BUFFER } from '../../../lib-common/buffer-utils';
+import { getObjIdFromParams, replyWithErr } from '../../resources/utils';
 
 function extractQueryOptions(req: Request): undefined|{
 	header: boolean; limit: number|undefined; ofs: number; ver: number
@@ -51,23 +52,22 @@ function extractQueryOptions(req: Request): undefined|{
 export function getArchivedObjVersion(
 	root: boolean, getArchivedObjFunc: GetArchivedObjVersion
 ): RequestHandler {
-	if ('function' !== typeof getArchivedObjFunc) { throw new TypeError(
-			"Given argument 'getArchivedObjFunc' must be function, but is not."); }
 
 	return async (req: Request, res, next) => {
 		
 		const userId = req.session.params.userId;
-		const objId: string = (root ? null as any : req.params.objId);
+		const { objId, objIdParseErr } = getObjIdFromParams(root, req);
+		if (objIdParseErr) {
+			return replyWithErr(ERR_SC.malformed, objIdParseErr, res);
+		}
 		
 		const opts = extractQueryOptions(req);
 		if (!opts) {
-			res.status(ERR_SC.malformed).send("Bad query parameters");
-			return;
+			return replyWithErr(ERR_SC.malformed, "Bad query parameters", res);
 		}
 		
 		try {
-			const reader = await getArchivedObjFunc(userId, objId, opts.ver,
-				opts.header, opts.ofs, opts.limit);
+			const reader = await getArchivedObjFunc(userId, objId, opts.ver, opts.header, opts.ofs, opts.limit);
 			res.status(api.SC.okGet);
 			res.set(HTTP_HEADER.contentType, BIN_TYPE);
 			res.set(HTTP_HEADER.contentLength, `${reader.len}`);
@@ -90,15 +90,13 @@ export function getArchivedObjVersion(
 			if ("string" !== typeof err) {
 				next(err);
 			} else if (err === storeSC.OBJ_UNKNOWN) {
-				res.status(api.SC.unknownObj).send(objId ?
-					`Object ${objId}is unknown.` : `Root object is not set`);
+				replyWithErr(api.SC.unknownObj, (objId ? `Object ${objId}is unknown.` : `Root object is not set`), res);
 			} else if (err === storeSC.OBJ_VER_UNKNOWN) {
-				res.status(api.SC.unknownObjVer).send(objId ?
-					`Object ${objId}, version ${opts.ver} is unknown.` :
-					`Root object version ${opts.ver} is not known.`);
+				replyWithErr(api.SC.unknownObjVer, (objId ?
+					`Object ${objId}, version ${opts.ver} is unknown.` : `Root object version ${opts.ver} is not known.`
+				), res);
 			} else if (err === storeSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).send(
-					`Recipient disappeared from the system.`);
+				replyWithErr(ERR_SC.server, `Recipient disappeared from the system.`, res);
 				req.session.close();
 			} else {
 				next(new Error(`Unhandled storage error code: ${err}`));

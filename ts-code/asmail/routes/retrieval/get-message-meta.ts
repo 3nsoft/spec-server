@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016, 2025 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2025 - 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -17,8 +17,9 @@
 
 import { RequestHandler } from 'express';
 import { SC as recipSC, MsgRetrieval } from '../../resources/recipients';
-import { msgMetadata as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/asmail/retrieval';
+import { msgMetadata as api, ERR_SC } from '../../../lib-common/service-api/asmail/retrieval';
 import { Request } from '../../resources/sessions';
+import { replyWithErr } from '../../resources/utils';
 
 export function getMsgMeta(
 	getMsgMetaFunc: MsgRetrieval['getMsgMeta']
@@ -34,13 +35,9 @@ export function getMsgMeta(
 			if ("string" !== typeof err) {
 				next(err);
 			} else if (err === recipSC.MSG_UNKNOWN) {
-				res.status(api.SC.unknownMsg).json(<ErrorReply> {
-					error: "Message "+msgId+" is unknown."
-				});
+				replyWithErr(api.SC.unknownMsg, "Message "+msgId+" is unknown.", res);
 			} else if (err === recipSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).json( <ErrorReply> {
-					error: "Recipient disappeared from the system."
-				});
+				replyWithErr(ERR_SC.server, "Recipient disappeared from the system.", res);
 				req.session.close();
 			} else {
 				next(new Error("Unhandled storage error code: "+err));

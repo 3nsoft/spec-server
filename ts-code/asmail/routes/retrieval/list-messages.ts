@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016, 2025 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2025 - 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -19,6 +19,7 @@ import { RequestHandler } from 'express';
 import { SC as recipSC, MsgRetrieval } from '../../resources/recipients';
 import { listMsgs as api, ERR_SC, ListMsgsOpts } from '../../../lib-common/service-api/asmail/retrieval';
 import { Request } from '../../resources/sessions';
+import { replyWithErr } from '../../resources/utils';
 
 export function listMsgIds(
 	listMsgIdsFunc: MsgRetrieval['getMsgIds']
@@ -28,8 +29,7 @@ export function listMsgIds(
 
 		const opts = extractQueryOptions(req);
 		if (!opts) {
-			res.status(ERR_SC.malformed).send("Bad query parameters");
-			return;
+			return replyWithErr(ERR_SC.malformed, "Bad query parameters", res);
 		}
 
 		try {
@@ -40,9 +40,7 @@ export function listMsgIds(
 			if ("string" !== typeof err) {
 				next(err);
 			} else if (err === recipSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).send(
-					"Recipient disappeared from the system."
-				);
+				replyWithErr(ERR_SC.server, "Recipient disappeared from the system.", res);
 				req.session.close();
 			} else {
 				next(new Error("Unhandled storage error code: "+err));

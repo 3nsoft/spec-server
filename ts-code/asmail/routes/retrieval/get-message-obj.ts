@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017, 2025 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2025 - 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -21,6 +21,7 @@ import { GetObjQueryOpts, ERR_SC, msgObj as api, HTTP_HEADER } from '../../../li
 import { Request } from '../../resources/sessions';
 import { errWithCause } from '../../../lib-common/exceptions/error';
 import { EMPTY_BUFFER } from '../../../lib-common/buffer-utils';
+import { getObjIdFromParams, replyWithErr } from '../../resources/utils';
 
 function extractQueryOptions(req: Request): undefined|{
 	header: boolean; limit: number|undefined; ofs: number;
@@ -52,17 +53,19 @@ export function getMsgObj(
 
 		const userId = req.session.params.userId;
 		const msgId: string = req.params.msgId;
-		const objId: string = req.params.objId;
+
+		const { objId, objIdParseErr } = getObjIdFromParams(req);
+		if (objIdParseErr) {
+			return replyWithErr(ERR_SC.malformed, objIdParseErr, res);
+		}
 
 		const opts = extractQueryOptions(req);
 		if (!opts) {
-			res.status(ERR_SC.malformed).send("Bad query parameters");
-			return;
+			return replyWithErr(ERR_SC.malformed, "Bad query parameters", res);
 		}
 
 		try{
-			const reader = await getMsgObjFunc(userId, msgId, objId,
-				opts.header, opts.ofs, opts.limit);
+			const reader = await getMsgObjFunc(userId, msgId, objId, opts.header, opts.ofs, opts.limit);
 			res.status(api.SC.ok);
 			res.set(HTTP_HEADER.contentType, BIN_TYPE);
 			res.set(HTTP_HEADER.contentLength, `${reader.len}`);
@@ -87,17 +90,11 @@ export function getMsgObj(
 			if ("string" !== typeof err) {
 				next(err);
 			} else if (err === recipSC.OBJ_UNKNOWN) {
-				res.status(api.SC.unknownMsgOrObj).send(
-					`Object ${objId} is unknown.`
-				);
+				replyWithErr(api.SC.unknownMsgOrObj, `Object ${objId} is unknown.`, res);
 			} else if (err === recipSC.MSG_UNKNOWN) {
-				res.status(api.SC.unknownMsgOrObj).send(
-					`Message ${msgId} is unknown.`
-				);
+				replyWithErr(api.SC.unknownMsgOrObj, `Message ${msgId} is unknown.`, res);
 			} else if (err === recipSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).send(
-					`Recipient disappeared from the system.`
-				);
+				replyWithErr(ERR_SC.server, `Recipient disappeared from the system.`, res);
 				req.session.close();
 			} else {
 				next(new Error(`Unhandled storage error code: ${err}`));

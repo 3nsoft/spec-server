@@ -20,13 +20,12 @@ import { DeleteArchivedObjVersion, DeleteCurrentObjVersion, SC as storeSC } from
 import { ERR_SC, currentObj as api } from '../../../lib-common/service-api/3nstorage/owner';
 import { Request } from '../../resources/sessions';
 import { assert } from '../../../lib-common/assert';
+import { getObjIdFromParams, replyWithErr } from '../../resources/utils';
 
 function deleteObj(
 	root: boolean, delCurrent: boolean,
 	deleteObjFunc: DeleteArchivedObjVersion|DeleteCurrentObjVersion
 ): RequestHandler {
-	if ('function' !== typeof deleteObjFunc) { throw new TypeError(
-			"Given argument 'deleteObjFunc' must be function, but is not."); }
 	if (delCurrent) {
 		assert(!root);
 	}
@@ -34,7 +33,10 @@ function deleteObj(
 	return async (req: Request, res, next) => {
 
 		const userId = req.session.params.userId;
-		const objId: string|null = (root ? null : req.params.objId);
+		const { objId, objIdParseErr } = getObjIdFromParams(root, req);
+		if (objIdParseErr) {
+			return replyWithErr(ERR_SC.malformed, objIdParseErr, res);
+		}
 
 		const ver = parseInt(req.query.ver as string);
 		let version: number|undefined;
@@ -42,26 +44,20 @@ function deleteObj(
 			if (delCurrent) {
 				version = undefined
 			} else {
-				res.status(ERR_SC.malformed).send("Bad query parameters");
-				return;
+				return replyWithErr(ERR_SC.malformed, "Bad query parameters", res);
 			}
 		} else {
 			if (ver < 1) {
-				res.status(ERR_SC.malformed).send("Bad query parameters");
-				return;
+				return replyWithErr(ERR_SC.malformed, "Bad query parameters", res);
 			}
 			version = ver;
 		}
 
 		try {
 			if (delCurrent) {
-				await (deleteObjFunc as DeleteCurrentObjVersion)(
-					userId, objId!, version
-				);
+				await (deleteObjFunc as DeleteCurrentObjVersion)(userId, objId!, version);
 			} else {
-				await (deleteObjFunc as DeleteArchivedObjVersion)(
-					userId, objId, version!
-				);
+				await (deleteObjFunc as DeleteArchivedObjVersion)(userId, objId, version!);
 			}
 			res.status(api.SC.okDelete).send();
 		} catch (err) {

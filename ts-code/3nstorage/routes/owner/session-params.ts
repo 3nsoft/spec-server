@@ -26,17 +26,18 @@ export function sessionParams(maxChunk: number|string): RequestHandler {
 
 	return async (req: Request, res, next) => {
 		
+		// XXX currently session params are same for all, hence, userId is unused, but, this whole
+		//     thing must be within a session
 		const userId = req.session.params.userId;
 		
-		try{
+		try {
 			const reply: api.Reply = { maxChunkSize };
 			res.status(api.SC.ok).json(reply);
 		} catch (err) {
 			if ("string" !== typeof err) {
 				next(err);
 			} else if (err === storeSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).send(
-					"Recipient disappeared from the system.");
+				res.status(ERR_SC.server).send("Recipient disappeared from the system.");
 				req.session.close();
 			} else {
 				next(new Error("Unhandled storage error code: "+err));

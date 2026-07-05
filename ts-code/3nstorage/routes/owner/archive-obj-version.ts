@@ -19,24 +19,25 @@ import { RequestHandler } from 'express';
 import { ArchiveObjCurrentVersion, MismatchedObjVerException, SC as storeSC } from '../../resources/users';
 import { archiveObj as api, ERR_SC, HTTP_HEADER } from '../../../lib-common/service-api/3nstorage/owner';
 import { Request } from '../../resources/sessions';
+import { getObjIdFromParams, replyWithErr } from '../../resources/utils';
 
 const SC = api.SC;
 
 export function archiveCurrentObjVersion(
 	root: boolean, archiveObjVerFunc: ArchiveObjCurrentVersion
 ): RequestHandler {
-	if ('function' !== typeof archiveObjVerFunc) { throw new TypeError(
-			"Given argument 'archiveObjVerFunc' must be function, but is not."); }
 
 	return async (req: Request, res, next) => {
 
 		const userId = req.session.params.userId;
-		const objId: string = (root ? null as any : req.params.objId);
+		const { objId, objIdParseErr } = getObjIdFromParams(root, req);
+		if (objIdParseErr) {
+			return replyWithErr(ERR_SC.malformed, objIdParseErr, res);
+		}
 
 		const version = parseInt(req.query.ver as any);
 		if (isNaN(version) || (version < 1)) {
-			res.status(ERR_SC.malformed).send("Bad query parameters");
-			return;
+			return replyWithErr(ERR_SC.malformed, "Bad query parameters", res);
 		}
 
 		try {
@@ -55,12 +56,9 @@ export function archiveCurrentObjVersion(
 					next(err);
 				}
 			} else if (err === storeSC.OBJ_UNKNOWN) {
-				res.status(SC.unknownObj).send(root ?
-					`Root object is not set.` :
-					`Object ${objId} is unknown.`);
+				replyWithErr(SC.unknownObj, (root ? `Root object is not set.` : `Object ${objId} is unknown.`), res);
 			} else if (err === storeSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).send(
-					"Recipient disappeared from the system.");
+				replyWithErr(ERR_SC.server, "Recipient disappeared from the system.", res);
 				req.session.close();
 			} else {
 				next(new Error("Unhandled storage error code: "+err));

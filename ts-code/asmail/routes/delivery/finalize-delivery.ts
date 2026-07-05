@@ -19,6 +19,7 @@ import { RequestHandler } from 'express';
 import { SC as recipSC, MsgDelivery } from '../../resources/recipients';
 import { Request } from '../../resources/delivery-sessions';
 import { completion as api, ERR_SC } from '../../../lib-common/service-api/asmail/delivery';
+import { replyWithErr } from '../../resources/utils';
 
 export function finalizeDelivery(finDelivFunc: MsgDelivery['finalizeDelivery']): RequestHandler {
 	return async (req: Request, res, next) => {
@@ -35,10 +36,10 @@ export function finalizeDelivery(finDelivFunc: MsgDelivery['finalizeDelivery']):
 				next(err);
 			} else if (err === recipSC.USER_UNKNOWN) {
 				session.close();
-				res.status(ERR_SC.server).send("Recipient disappeared from the system.");
+				replyWithErr(ERR_SC.server, "Recipient disappeared from the system.", res);
 			} else if (err === recipSC.MSG_UNKNOWN) {
 				session.close();
-				res.status(ERR_SC.server).send("Message disappeared from the system.");
+				replyWithErr(ERR_SC.server, "Message disappeared from the system.", res);
 			} else {
 				next(new Error("Unhandled storage error code: "+err));
 			}

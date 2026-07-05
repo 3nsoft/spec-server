@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017, 2020, 2025 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2020, 2025 - 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -48,15 +48,15 @@ export type GetArchivedObjVersion = (
 ) => Promise<ObjReader>;
 
 export type CancelTransaction = (
-	userId: string, objId: string, transactionId?: string
+	userId: string, objId: string|null, transactionId?: string
 ) => Promise<void>;
 
 export type ArchiveObjCurrentVersion = (
-	userId: string, objId: string, version: number
+	userId: string, objId: string|null, version: number
 ) => Promise<void>;
 
 export type GetObjStatus = (
-	userId: string, objId: string
+	userId: string, objId: string|null
 ) => Promise<ObjStatus>;
 
 export type DeleteCurrentObjVersion = (
@@ -181,7 +181,7 @@ export function makeFactory(
 	}
 
 	function makeTransactionCanceller(): CancelTransaction {
-		return async (userId: string, objId: string, transactionId?: string) => {
+		return async (userId: string, objId: string|null, transactionId?: string) => {
 			const store = await getStore(userId);
 			await store.cancelTransaction(objId, transactionId);
 		};

@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016, 2025 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2025 - 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -17,28 +17,23 @@
 
 import { RequestHandler } from 'express';
 import { SC as recipSC, MsgDelivery } from '../../resources/recipients';
-import { msgMeta as api, ERR_SC, ErrorReply } from '../../../lib-common/service-api/asmail/delivery';
+import { msgMeta as api, ERR_SC } from '../../../lib-common/service-api/asmail/delivery';
 import * as confUtil from '../../../lib-server/conf-util';
 import { Request } from '../../resources/delivery-sessions';
 import { base64urlSafe } from '../../../lib-common/buffer-utils';
+import { replyWithErr } from '../../resources/utils';
 
-function findProblemWithObjIds(ids: string[]): ErrorReply|undefined {
+function findProblemWithObjIds(ids: string[]): string|undefined {
 	if (!Array.isArray(ids)) {
-		return {
-			error: "Object ids are missing."
-		};
+		return "Object ids are missing.";
 	}
 	const checkedIds = new Set<string>();
 	for (const objId of ids) {
 		if (checkedIds.has(objId)) {
-			return {
-				error: "Duplication of object ids."
-			};
+			return "Duplication of object ids.";
 		}
 		if (!base64urlSafe.allCharsFromAlphabet(objId!)) {
-			return {
-				error: "Object id is invalid."
-			};
+			return "Object id is invalid.";
 		}
 		checkedIds.add(objId);
 	}
@@ -53,37 +48,33 @@ export function saveMetadata(
 
 	return async (req: Request, res, next) => {
 		const session = req.session;
-		const msgMeta: api.Request = req.body;
-		const recipient = session.params.recipient;
-		const objIds = msgMeta.objIds;
-
 		if (session.params.msgId) {
-			res.status(ERR_SC.duplicateReq).json( <ErrorReply> {
-				error: "This protocol request has already been served."
-			});
-			return;
+			return replyWithErr(ERR_SC.duplicateReq, "This protocol request has already been served.", res);
 		}
 
-		if (findProblemWithObjIds(objIds)) {
-			res.status(ERR_SC.malformed).json(findProblemWithObjIds(objIds));
-			return;
+		const recipient = session.params.recipient;
+		const msgMeta: api.Request = req.body;
+
+		const objIds = msgMeta.objIds;
+		const errWithWithObjIds = findProblemWithObjIds(objIds);
+		if (errWithWithObjIds) {
+			return replyWithErr(ERR_SC.malformed, errWithWithObjIds, res);
 		}
 
 		try {
-			const msgId = await setMsgStorageFunc(recipient, msgMeta,
-				session.params.sender, session.params.invite,
-				session.params.maxMsgLength);
+			const msgId = await setMsgStorageFunc(
+				recipient, msgMeta, session.params.sender, session.params.invite, session.params.maxMsgLength
+			);
 			session.params.msgId = msgId;
-			res.status(api.SC.ok).json( <api.Reply> {
+			res.status(api.SC.ok).json({
 				msgId,
 				maxChunkSize
-			});
+			} as api.Reply);
 		} catch (err) {
 			if ("string" !== typeof err) {
 				next(err);
 			} else if (err === recipSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).send(
-					"Recipient disappeared from the system.");
+				replyWithErr(ERR_SC.server, "Recipient disappeared from the system.", res);
 				session.close();
 			}
 		}

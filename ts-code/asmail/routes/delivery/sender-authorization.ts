@@ -19,6 +19,7 @@ import { RequestHandler } from 'express';
 import { SignedLoad } from '../../../lib-common/jwkeys';
 import { authSender as api, ERR_SC } from '../../../lib-common/service-api/asmail/delivery';
 import { Request } from '../../resources/delivery-sessions';
+import { replyWithErr } from '../../resources/utils';
 
 export type IMidAuthorizer = (
 	rpDomain: string, sessionId: string, userId: string,
@@ -38,8 +39,7 @@ export function authorize(relyingPartyDomain: string, midAuthorizingFunc: IMidAu
 	return async (req: Request, res, next) => {
 
 		if (req.session.isAuthorized) {
-			res.status(ERR_SC.duplicateReq).send("This protocol request has already been served.");
-			return;
+			return replyWithErr(ERR_SC.duplicateReq, "This protocol request has already been served.", res);
 		}
 
 		const rb: api.Request = req.body;
@@ -49,13 +49,13 @@ export function authorize(relyingPartyDomain: string, midAuthorizingFunc: IMidAu
 		if (!sender) {
 			// This case must be rejected, because place for authorizing
 			// anonymous connection is at the session start.
-			res.status(api.SC.authFailed).send("Server is not accepting provided credentials.");
+			replyWithErr(api.SC.authFailed, "Server is not accepting provided credentials.", res);
 			req.session.close();
 			return;
 		}
 
 		if (!rb.assertion || !rb.userCert || !rb.provCert) {
-			res.status(ERR_SC.malformed).send("No credentials given.");
+			replyWithErr(ERR_SC.malformed, "No credentials given.", res);
 			req.session.close();
 			return;
 		}
@@ -68,7 +68,7 @@ export function authorize(relyingPartyDomain: string, midAuthorizingFunc: IMidAu
 				req.session.isAuthorized = true;
 				res.status(api.SC.ok).send();
 			} else {
-				res.status(api.SC.authFailed).send("Server is not accepting provided credentials.");
+				replyWithErr(api.SC.authFailed, "Server is not accepting provided credentials.", res);
 				req.session.close();
 			}
 		} catch (err) {

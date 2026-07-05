@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016, 2025 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2025 - 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -19,6 +19,7 @@ import { RequestHandler } from 'express';
 import { SC as recipSC, MsgDelivery } from '../../resources/recipients';
 import { initPubKey as api, ERR_SC } from '../../../lib-common/service-api/asmail/delivery';
 import { Request } from '../../resources/delivery-sessions';
+import { replyWithErr } from '../../resources/utils';
 
 /**
  * This creates a get-init-pub-key route handler.
@@ -37,15 +38,14 @@ export function getRecipientPubKey(
 			if (certs) {
 				res.status(api.SC.ok).json(certs);
 			} else {
-				res.status(api.SC.pkeyNotRegistered).send('No public key registered for the recipient.');
+				replyWithErr(api.SC.pkeyNotRegistered, 'No public key registered for the recipient.', res);
 				session.close();
 			}
 		} catch (err) {
 			if (typeof err !== "string") {
 				next(err);
 			} else if (err === recipSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).send(
-					"Recipient disappeared from the system.");
+				replyWithErr(ERR_SC.server, "Recipient disappeared from the system.", res);
 				session.close();
 			} else {
 				next(new Error("Unhandled storage error code: "+err));
