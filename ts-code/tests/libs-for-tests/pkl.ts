@@ -23,7 +23,7 @@ import { makeSessionEncryptor, SessionEncryptor }
 	from '../../lib-common/session-encryptor';
 import { doJsonRequest, RequestOpts, doBinaryRequest }
 	from './xhr-utils';
-import { parse as parseUrl, resolve as resolveUrl } from 'url';
+import { resolve as resolveUrl } from 'url';
 import { bytesEqual } from './bytes-equal';
 
 export interface User {

@@ -30,6 +30,16 @@ export function getObjIdFromParams(req: Request): {
 	);
 }
 
+export function getMsgIdFromParams(req: Request): {
+	msgId: string; msgIdParseErr?: string;
+} {
+	const msgId = req.params.msgId;
+	return ((!!msgId && base64urlSafe.allCharsFromAlphabet(msgId)) ?
+		{ msgId } :
+		{ msgId: undefined as any, msgIdParseErr: "Bad message id" }
+	);
+}
+
 export function replyWithErr(status: number, msg: string, res: Response, reqToDrainBytesFrom?: Request): void {
 	if (reqToDrainBytesFrom) {
 		attachByteDrainToRequest(reqToDrainBytesFrom);

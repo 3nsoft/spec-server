@@ -37,7 +37,7 @@ export function sessionParams(maxChunk: number|string): RequestHandler {
 			if ("string" !== typeof err) {
 				next(err);
 			} else if (err === storeSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).send("Recipient disappeared from the system.");
+				res.status(ERR_SC.server).send("User disappeared from the system.");
 				req.session.close();
 			} else {
 				next(new Error("Unhandled storage error code: "+err));

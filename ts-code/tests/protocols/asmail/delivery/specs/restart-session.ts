@@ -36,8 +36,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 	beforeAllAsync(async () => {
 		user2 = setup().user2;
 		const deliveryUrl = await setup().asmailServer.getDeliveryUrl();
-		initialSession = await startSessionAndSendMsgObjs(
-			deliveryUrl, user2.id, msg);
+		initialSession = await startSessionAndSendMsgObjs(deliveryUrl, user2.id, msg);
 		reqOpts = {
 			url: resolveUrl(deliveryUrl, api.URL_END),
 			method: 'POST',
@@ -74,7 +73,7 @@ specs.definition = (setup: () => TestSetup) => (() => {
 			async () => {
 		const req: api.Request = {
 			recipient: user2.id,
-			msgId: 'unknown message'
+			msgId: 'unknown_message'
 		};
 		const rep = await doJsonRequest<api.Reply>(reqOpts, req);
 		expect(rep.status).withContext('status for unknown message').toBe(api.SC.unknownMsg);

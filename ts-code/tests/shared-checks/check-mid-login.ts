@@ -22,7 +22,7 @@ import { startMidSession, provisionMidSigner, User } from '../libs-for-tests/mai
 import { expectNonAcceptanceOfBadJsonRequest, expectNonAcceptanceOfBadSessionId } from './requests';
 import * as mid from '../../lib-common/mid-sigs-NaCl-Ed';
 import { bytesSync as randomBytes } from '../../lib-common/random-node';
-import { parse as parseUrl, resolve as resolveUrl } from 'url';
+import { resolve as resolveUrl } from 'url';
 
 export function midLoginSpecs(
 	loginUrl: () => string,
@@ -86,7 +86,7 @@ export function midLoginSpecs(
 				sessionId
 			};
 			
-			const serviceDomain = parseUrl(loginUrl()).hostname;
+			const serviceDomain = (new URL(loginUrl())).hostname;
 			if (!serviceDomain) { throw new Error(
 				`Cannot get hostname from ${loginUrl()}`); }
 			const req: authSession.Request = {

@@ -23,6 +23,7 @@ import { Redirect } from './start-session';
 import { checkAndTransformAddress } from '../../../lib-common/canonical-address';
 import * as confUtil from '../../../lib-server/conf-util';
 import { replyWithErr } from '../../resources/utils';
+import { base64urlSafe } from '../../../lib-common/buffer-utils';
 
 /**
  * This creates a session restart route handler.
@@ -84,7 +85,11 @@ export function restartSession(
 		}
 
 		// check message id
-		if (typeof msgId !== 'string') {
+		if ((typeof msgId !== 'string') || !msgId || !base64urlSafe.allCharsFromAlphabet(msgId)) {
+			console.log(
+				`msgId ->`, msgId, '\n',
+				`!base64urlSafe.allCharsFromAlphabet(msgId) ->`, !base64urlSafe.allCharsFromAlphabet(msgId)
+			);
 			return replyWithErr(ERR_SC.malformed, "Message id is either missing, or is malformed", res);
 		}
 

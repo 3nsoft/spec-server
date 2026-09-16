@@ -29,6 +29,7 @@ import { Configurations, servicesApp, accountsApp, AppWithWSs } from './lib';
 import { addMultiDomainSignup, addSingleUserSignup, readAllSignupTokens, readNoTokensFile, readTokenFile } from './config/signup';
 import { DEFAULT_CONFIG_PATH } from './config/default-confs';
 import { Code } from './lib-common/exceptions/file';
+import * as qrcode from 'qrcode-terminal';
 
 async function run(conf: Configurations): Promise<void> {
 
@@ -159,6 +160,7 @@ async function displaySignupInfo(conf: Configurations): Promise<void> {
 			const signupLink = signupLinkFrom(conf, undefined);
 			if (signupLink) {
 				console.log(`Signup link:\n`, signupLink, `\n`);
+				displayAsQR(signupLink);
 			}
 		} else {
 			console.log(`Signup of users is allowed only with valid signup tokens.\n`);
@@ -172,6 +174,11 @@ async function displaySignupInfo(conf: Configurations): Promise<void> {
 	} = await readAllSignupTokens(conf.rootFolder);
 	console.log(`There are ${multiUserTokens.length} multi-user tokens.\n`);
 	console.log(`There are ${singleUserTokens.length} single-user tokens.\n`);
+}
+
+function displayAsQR(str: string): void {
+	qrcode.setErrorLevel('Q');
+	qrcode.generate(str, { small: true });
 }
 
 async function displayTokensList(conf: Configurations): Promise<void> {
@@ -203,10 +210,6 @@ async function displayTokenValue(
 ): Promise<void> {
 	const ctx = await readTokenFile(conf.rootFolder, tokenId);
 	if (ctx) {
-		const signupLink = signupLinkFrom(conf, ctx.token);
-		if (signupLink) {
-			console.log(`\nSignup link:\n  ${signupLink}`);
-		}
 		if (ctx.type === 'multi-domain') {
 			console.log(`\nMulti-user signup context:`);
 			console.log(`  domains:`, ctx.domains);
@@ -221,6 +224,11 @@ async function displayTokenValue(
 			if (ctx.validTill) {
 				console.log(`  valid till: ${(new Date(ctx.validTill)).toString()}`);
 			}
+		}
+		const signupLink = signupLinkFrom(conf, ctx.token);
+		if (signupLink) {
+			console.log(`\nSignup link:\n  ${signupLink}`);
+			displayAsQR(signupLink);
 		}
 		console.log(``);
 	} else {
@@ -268,6 +276,13 @@ async function createSingleUserToken(
 }
 
 const cmd = parseProcessArgv();
+
+process.on('unhandledRejection', (err, p) => {
+	console.error(' -- Unhandled rejection of promise:', err);
+});
+process.on('uncaughtException', err => {
+	console.error(' -- Unhandled exception:', err);
+});
 
 if (cmd.runCmd) {
 	const conf = assembleConfig(cmd.runCmd.config!);

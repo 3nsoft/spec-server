@@ -33,6 +33,7 @@ function deleteObj(
 	return async (req: Request, res, next) => {
 
 		const userId = req.session.params.userId;
+
 		const { objId, objIdParseErr } = getObjIdFromParams(root, req);
 		if (objIdParseErr) {
 			return replyWithErr(ERR_SC.malformed, objIdParseErr, res);

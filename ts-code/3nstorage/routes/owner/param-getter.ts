@@ -24,9 +24,6 @@ export function getParam<T>(
 	paramGetter: (userId: string) => Promise<T>
 ): RequestHandler {
 	
-	if ('function' !== typeof paramGetter) { throw new TypeError(
-			"Given argument 'paramGetter' must be function, but is not."); }
-	
 	return async (req: Request, res, next) => {
 		
 		const session = req.session;
@@ -37,8 +34,7 @@ export function getParam<T>(
 			res.status(PARAM_SC.ok).json(value);
 		} catch (err) {
 			if (err === storeSC.USER_UNKNOWN) {
-				res.status(ERR_SC.server).send(
-					"Recipient disappeared from the system.");
+				res.status(ERR_SC.server).send("User disappeared from the system.");
 				session.close();
 			} else {
 				next(err);

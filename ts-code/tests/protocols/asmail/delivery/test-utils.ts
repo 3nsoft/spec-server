@@ -50,14 +50,13 @@ export const msg: Msg = {
 
 export async function startSessionAndSendMsgObjs(deliveryUrl: string,
 		recipient: string, msg: Msg): Promise<DeliveryInfo> {
-	const sessInfo = await startMsgDelivery(deliveryUrl,
+	const sessInfo = await startMsgDelivery(
+		deliveryUrl,
 		{ recipient },
-		{ pid: msg.cryptoMeta.pid,
-			objIds: [ msg.msgObjs[0].objId, msg.msgObjs[1].objId ] });
-	await sendMsgObj(deliveryUrl, sessInfo.sessionId, msg.msgObjs[0],
-		sessInfo.maxChunkSize);
-	await sendMsgObj(deliveryUrl, sessInfo.sessionId, msg.msgObjs[1],
-		sessInfo.maxChunkSize);
+		{ pid: msg.cryptoMeta.pid, objIds: [ msg.msgObjs[0].objId, msg.msgObjs[1].objId ] }
+	);
+	await sendMsgObj(deliveryUrl, sessInfo.sessionId, msg.msgObjs[0], sessInfo.maxChunkSize);
+	await sendMsgObj(deliveryUrl, sessInfo.sessionId, msg.msgObjs[1], sessInfo.maxChunkSize);
 	return sessInfo;
 }
 

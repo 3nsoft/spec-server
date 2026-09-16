@@ -21,7 +21,7 @@ import { GetObjQueryOpts, ERR_SC, msgObj as api, HTTP_HEADER } from '../../../li
 import { Request } from '../../resources/sessions';
 import { errWithCause } from '../../../lib-common/exceptions/error';
 import { EMPTY_BUFFER } from '../../../lib-common/buffer-utils';
-import { getObjIdFromParams, replyWithErr } from '../../resources/utils';
+import { getMsgIdFromParams, getObjIdFromParams, replyWithErr } from '../../resources/utils';
 
 function extractQueryOptions(req: Request): undefined|{
 	header: boolean; limit: number|undefined; ofs: number;
@@ -52,7 +52,11 @@ export function getMsgObj(
 	return async (req: Request, res, next) => {
 
 		const userId = req.session.params.userId;
-		const msgId: string = req.params.msgId;
+
+		const { msgId, msgIdParseErr } = getMsgIdFromParams(req);
+		if (msgIdParseErr) {
+			return replyWithErr(ERR_SC.malformed, msgIdParseErr, res, req);
+		}
 
 		const { objId, objIdParseErr } = getObjIdFromParams(req);
 		if (objIdParseErr) {

@@ -19,14 +19,18 @@ import { RequestHandler } from 'express';
 import { SC as recipSC, MsgRetrieval } from '../../resources/recipients';
 import { msgMetadata as api, ERR_SC } from '../../../lib-common/service-api/asmail/retrieval';
 import { Request } from '../../resources/sessions';
-import { replyWithErr } from '../../resources/utils';
+import { getMsgIdFromParams, replyWithErr } from '../../resources/utils';
 
 export function getMsgMeta(
 	getMsgMetaFunc: MsgRetrieval['getMsgMeta']
 ): RequestHandler {
 	return async (req: Request, res, next) => {
 		const userId = req.session.params.userId;
-		const msgId: string = req.params.msgId;
+
+		const { msgId, msgIdParseErr } = getMsgIdFromParams(req);
+		if (msgIdParseErr) {
+			return replyWithErr(ERR_SC.malformed, msgIdParseErr, res, req);
+		}
 
 		try {
 			const meta = await getMsgMetaFunc(userId, msgId);

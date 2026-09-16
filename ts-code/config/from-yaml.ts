@@ -24,7 +24,7 @@ export function readYamlConfFile(path: string): Configurations {
 	const txt = readFileSync(path, 'utf8');
 	const conf = yaml.load(txt) as Configurations;
 
-	if (conf.rootFolder) {
+	if (!conf.rootFolder) {
 		conf.rootFolder = DEFAULT_DATA_ROOT_PATH;
 	}
 

@@ -37,13 +37,17 @@ export function setTestCertsAndDNS(
 
 	// inject dns mock
 	const dnsRecs: DnsTxtRecords = {};
+	const reportAddress = `report@${
+		thisSrvLoc.includes(':') ? thisSrvLoc.substring(0, thisSrvLoc.indexOf(':')) : thisSrvLoc
+	}`;
 	for (const domain of domains) {
 		dnsRecs[domain] = [
 			[ 'asmail', '=', `${thisSrvLoc}/asmail` ],	// one record in DNS TXT
 			[
 				'mailerid=', `${thisSrvLoc}/mailerid`,
 				`3nstorage=${thisSrvLoc}/3nstorage`
-			]	// two 3NWeb records in one DNS TXT record
+			],	// two 3NWeb records in one DNS TXT record
+			[ `report=${reportAddress}` ]
 			// XXX add other life-like records
 		];
 	}

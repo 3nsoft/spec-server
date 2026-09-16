@@ -25,7 +25,6 @@ import { certify as certApi }
 import { user as midUser }	from '../../lib-common/mid-sigs-NaCl-Ed';
 import { doPubKeyLogin, User } from './pkl';
 import { bytesSync as randomBytes } from '../../lib-common/random-node';
-import { parse as parseUrl } from 'url';
 
 export { User } from './pkl';
 
@@ -106,7 +105,7 @@ export async function doMailerIdLogin(loginUrl: string, user: User):
 		responseType: 'json',
 		sessionId
 	};
-	let serviceDomain = parseUrl(loginUrl).hostname;
+	let serviceDomain = (new URL(loginUrl)).hostname;
 	if (!serviceDomain) { throw new Error(
 		`Cannot parse hostname from login url ${loginUrl}`); }
 	let req: authSession.Request = {

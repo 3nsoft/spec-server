@@ -47,6 +47,7 @@ export function saveCurrentObj(
 		}
 	
 		const userId = req.session.params.userId;
+
 		const { objId, objIdParseErr } = getObjIdFromParams(root, req);
 		if (objIdParseErr) {
 			return replyWithErr(ERR_SC.malformed, objIdParseErr, res, req);
