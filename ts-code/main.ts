@@ -25,7 +25,7 @@ import { ServerOptions } from 'https';
 import { CliUsageDisplay, parseProcessArgv } from './cli';
 import { readYamlConfFile } from './config/from-yaml';
 import { sslOptsFromConfig } from './config/letsencrypt';
-import { Configurations, servicesApp, accountsApp, AppWithWSs } from './lib';
+import { Configurations, servicesApp, accountsApp, AppWithWSs, wellKnownApp } from './lib';
 import { addMultiDomainSignup, addSingleUserSignup, readAllSignupTokens, readNoTokensFile, readTokenFile } from './config/signup';
 import { DEFAULT_CONFIG_PATH } from './config/default-confs';
 import { Code } from './lib-common/exceptions/file';
@@ -45,6 +45,7 @@ async function run(conf: Configurations): Promise<void> {
 		const app = new AppWithWSs();
 		app.use(servicesApp(conf, 'console', 'console'));
 		app.use(accountsApp(conf, 'console', 'console'));
+		app.use(wellKnownApp(conf));
 		return app;
 	}
 
@@ -73,7 +74,7 @@ async function run(conf: Configurations): Promise<void> {
 		port: number, hostname: string|undefined
 	): Promise<void> {
 		await app!.start(undefined, port, hostname);
-		console.log(`🚀 Started 3NWeb server on port ${port},${hostname ? ` hostname ${hostname},` : ''} without TLS, and requiring TLS reverse proxy infront.`);	
+		console.log(`🚀 Started 3NWeb server on port ${port},${hostname ? ` hostname ${hostname},` : ''} without TLS, and requiring TLS or Tor-like reverse proxy infront.`);
 	}
 
 	try {

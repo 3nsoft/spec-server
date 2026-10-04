@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017, 2020, 2024 - 2025 3NSoft Inc.
+ Copyright (C) 2015 - 2017, 2020, 2024 - 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -30,6 +30,7 @@ import { makeSignupApp } from './signup/signup-app';
 import { ErrLogger, makeErrLoggerToConsole } from "./lib-server/middleware/error-handler";
 import { makeLockerApp } from "./locker/locker-app";
 import { MidAuthorizer } from "./lib-server/routes/sessions/mid-auth";
+import { makeWellKnownApp } from "./well-known/well-known-route-app";
 
 export interface Configurations {
 	enabledServices: {
@@ -55,6 +56,11 @@ export interface Configurations {
 	signup?: {
 		noTokenFile?: string;
 		serviceUrl?: string;
+	};
+	wellKnown3NWeb?: {
+		mailerid?: string;
+		asmail?: string;
+		"3nstorage"?: string;
 	};
 }
 
@@ -130,6 +136,17 @@ export function accountsApp(
 		if (logSetup === 'console') {
 			console.log(`Enabled signup service.`);
 		}
+	}
+
+	return app;
+}
+
+export function wellKnownApp(conf: Configurations): AppWithWSs {
+
+	const app = new AppWithWSs();
+
+	if (conf.wellKnown3NWeb) {
+		app.http.use('/.well-known', makeWellKnownApp(conf.wellKnown3NWeb));
 	}
 
 	return app;
