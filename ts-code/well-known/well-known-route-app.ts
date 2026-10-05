@@ -24,7 +24,7 @@ export function makeWellKnownApp(w3n: NonNullable<Configurations['wellKnown3NWeb
 
 	const w3nJson = confTo3NWebJSON(w3n);
 
-	app.get('3nweb.json', (req, res) => {
+	app.get('/3nweb.json', (req, res) => {
 		// the following implicitly sets content type application/json
 		res.status(200).json(w3nJson);
 	});
@@ -43,7 +43,7 @@ interface WellKnown3NWeb {
 function confTo3NWebJSON(conf: NonNullable<Configurations['wellKnown3NWeb']>): WellKnown3NWeb {
 	const json: WellKnown3NWeb = {};
 	const fields: (keyof WellKnown3NWeb)[] = [ '3nstorage', 'asmail', 'mailerid' ];
-	for (const field in fields) {
+	for (const field of fields) {
 		const href = conf[field];
 		if (href) {
 			let u: URL;
