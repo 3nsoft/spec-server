@@ -154,7 +154,7 @@ function makeCert(pkey: JsonKey, principalAddr: string,
 	};
 }
 
-export module idProvider {
+export namespace idProvider {
 
 	export const KID_BYTES_LENGTH = 9;
 
@@ -312,7 +312,7 @@ export interface CertsChain {
 	root: SignedLoad;
 }
 
-export module relyingParty {
+export namespace relyingParty {
 
 	const minValidityPeriodForCert = 20*60;
 
@@ -539,7 +539,7 @@ function correlateSKeyWithItsCert(skey: Key, cert: KeyCert): void {
 	}
 }
 
-export module user {
+export namespace user {
 
 	/**
 	 * This is used by user of MailerId to create assertion that prove user's

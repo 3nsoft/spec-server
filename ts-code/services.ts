@@ -64,6 +64,8 @@ export interface Configurations {
 	};
 }
 
+export type OwnWellKnown = Configurations['wellKnown3NWeb'];
+
 export function servicesApp(
 	conf: Configurations, errLogger?: ErrLogger|'console', logSetup?: 'console'
 ): AppWithWSs {
@@ -84,9 +86,9 @@ export function servicesApp(
 		if (logSetup === 'console') {
 			console.log(`Enabled MailerId service with provider domain ${conf.domain}`);
 		}
-		midAuthorizer = validator(ownService);
+		midAuthorizer = validator(ownService, conf.wellKnown3NWeb);
 	} else {
-		midAuthorizer = validator(undefined);
+		midAuthorizer = validator(undefined, conf.wellKnown3NWeb);
 	}
 
 	if (conf.enabledServices.asmail) {

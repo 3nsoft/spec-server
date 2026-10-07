@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2016, 2019, 2025 3NSoft Inc.
+ Copyright (C) 2015 - 2016, 2019, 2025 - 2026 3NSoft Inc.
  
  This program is free software: you can redistribute it and/or modify it under
  the terms of the GNU General Public License as published by the Free Software
@@ -21,15 +21,16 @@ import * as mid from '../../lib-common/mid-sigs-NaCl-Ed';
 import { get3NWebRecords } from './dns';
 import { MidAuthorizer } from '../routes/sessions/mid-auth';
 import { serviceRoot } from '../../lib-common/service-api/mailer-id/provisioning';
+import type { OwnWellKnown } from '../../services';
 
 /**
- * @param serviceURL
+ * @param serviceRecordInDNS
  * @return a promise, resolvable to MailerId provider's current root
  * certificate.
  */
-function getRootCert(serviceURL: string): Promise<SignedLoad> {
+function getRootCert(serviceRecordInDNS: string): Promise<SignedLoad> {
 	return new Promise<SignedLoad>((resolve, reject) => {
-		const req = https.request('https://'+serviceURL, (res) => {
+		const req = https.request('https://'+serviceRecordInDNS, (res) => {
 			if (res.statusCode === 200) {
 				res.setEncoding('utf8');
 				let collectedString = '';
@@ -43,14 +44,14 @@ function getRootCert(serviceURL: string): Promise<SignedLoad> {
 						resolve(cert);
 					} else {
 						reject(new Error(
-							"Info file "+serviceURL+", is malformed."));
+							"Info file "+serviceRecordInDNS+", is malformed."));
 					}
 				});
 				res.on('error', (err) => {
 					reject(err);
 				});
 			} else {
-				reject(new Error("Cannot get "+serviceURL+
+				reject(new Error("Cannot get "+serviceRecordInDNS+
 					", returned " +"status code is "+res.statusCode));
 			}
 		});
@@ -64,11 +65,13 @@ function getRootCert(serviceURL: string): Promise<SignedLoad> {
 // TODO need to add caching of certs using domain->(kid->cert)
 //		(this will speed things up)
 
-export function validator(ownMidService: OwnMidService|undefined): MidAuthorizer {
+export function validator(
+	ownMidService: OwnMidService|undefined, ownWellKnown: OwnWellKnown|undefined
+): MidAuthorizer {
 	return (
 		rpDomain, sessionId, userId, assertion, userCert, provCert
 	) => validate(
-		rpDomain, sessionId, userId, assertion, userCert, provCert, ownMidService
+		rpDomain, sessionId, userId, assertion, userCert, provCert, ownMidService, ownWellKnown
 	);
 }
 
@@ -77,25 +80,38 @@ export interface OwnMidService { domain: string; getRoot: () => SignedLoad; }
 async function validate(
 	rpDomain: string, sessionId: string, userId: string,
 	assertion: SignedLoad, userCert: SignedLoad, provCert: SignedLoad,
-	ownMidService: OwnMidService|undefined
+	ownMidService: OwnMidService|undefined, ownWellKnown: OwnWellKnown|undefined
 ): Promise<boolean> {
 	const validAt = Date.now() / 1000;
 	try{
 		// check that certificate is for the user
 		const addressInCert = getPrincipalAddress(userCert);
 		if (userId !== addressInCert) { return false; }
-		
-		// check that issuer is the one that provides MailerId service for
-		// user's domain
-		const issuer = getKeyCert(provCert).issuer;
-		const serviceURL = await get3NWebRecords(addressInCert, 'mailerid');
-		const domainInRecord = serviceURL.split('/')[0].split(':')[0];
-		if (issuer !== domainInRecord) { return false; }
 
-		// get root certificate and check the whole chain
-		const rootCert = ((ownMidService && (issuer === ownMidService.domain)) ?
-			ownMidService.getRoot() : await getRootCert(serviceURL)
-		);
+		const issuer = getKeyCert(provCert).issuer;
+
+		// get root certificate
+		let rootCert: SignedLoad;
+		if (useWellKnownNamingFor(userId)) {
+			if (ownMidService && ownWellKnown?.mailerid
+				&& (domainInAddress(userId) === rpDomain) // this instance serves naming for given user
+				&& (issuer === domainInURL(ownWellKnown.mailerid)) // naming confirms issuer
+				&& (issuer === ownMidService.domain) // issuer is our own MailerId service
+			) {
+				rootCert = ownMidService.getRoot();
+			} else {
+				throw `Looking at other well-known onion/i2p isn't implemented, yet`;
+			}
+		} else {	
+			const serviceRecordInDNS = await get3NWebRecords(addressInCert, 'mailerid');
+			const domainInRecord = serviceRecordInDNS.split('/')[0].split(':')[0];
+			if (issuer !== domainInRecord) { return false; }
+			rootCert = ((ownMidService && (issuer === ownMidService.domain)) ?
+				ownMidService.getRoot() : await getRootCert(serviceRecordInDNS)
+			);
+		}
+
+		// check the whole chain
 		const assertInfo = mid.relyingParty.verifyAssertion(
 			assertion,
 			{ user: userCert, prov: provCert, root: rootCert },
@@ -111,5 +127,18 @@ async function validate(
 		return false;
 	}
 }
+
+function useWellKnownNamingFor(userId: string): boolean {
+	return (userId.endsWith('.onion') || userId.endsWith('.i2p'));
+}
+
+function domainInURL(url: string) {
+	return (new URL(url)).hostname;	
+}
+
+function domainInAddress(userId: string): string {
+	return userId.substring(userId.lastIndexOf('@')+1);
+}
+
 
 Object.freeze(exports);
